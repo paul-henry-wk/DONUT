@@ -141,7 +141,7 @@ pub(crate) async fn list_azdo_prs(state: tauri::State<'_, AppState>, token: Stri
                 source_branch: v["sourceRefName"].as_str()?.strip_prefix("refs/heads/").unwrap_or("").to_string(),
                 target_branch: v["targetRefName"].as_str()?.strip_prefix("refs/heads/").unwrap_or("").to_string(),
                 created_by: v["createdBy"]["displayName"].as_str().unwrap_or("").to_string(),
-                url: format!("https://dev.azure.com/{}/{}/_git/{}/pullrequest/{}", org, project, v["repository"]["name"].as_str().unwrap_or(&repository), v["pullRequestId"].as_u64().unwrap_or(0)),
+                url: format!("https://dev.azure.com/{}/{}/_git/{}/pullrequest/{}", url_encode(org), url_encode(&project), v["repository"]["name"].as_str().unwrap_or(&repository), v["pullRequestId"].as_u64().unwrap_or(0)),
             })
         }).collect()
     }).unwrap_or_default();

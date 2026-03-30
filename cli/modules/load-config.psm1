@@ -17,13 +17,13 @@ $ExpectedConfig = [ordered]@{
     "local.user" = "admin";
     "local.password" = $null;
     "local.db_user" = "sa";
-    "local.db_password" = "enablon";
+    "local.db_password" = $null;
 
-    "azdo.organization" = "enablon";
-    "azdo.project" = "Vision%20Platform";
+    "azdo.organization" = $null;
+    "azdo.project" = $null;
     "azdo.token" = $null;
     "azdo.repository" = $null;
-    "azdo.repository_metadata" = "Test.Package.Metadata.GitObjectDB";
+    "azdo.repository_metadata" = $null;
 
     "git.username" = git config --global user.name;
     "git.email" = git config --global user.email;
