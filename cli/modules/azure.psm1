@@ -28,7 +28,7 @@ function GetConfigFile {
         [string] $AzDoBaseURI,
         [Parameter(Mandatory = $true)]
         [string] $AzDoToken,
-        [string] $AzDoRepository = "Experiment.InnoDelivery"
+        [string] $AzDoRepository = ""
     )
 
     Print_Text "Get '$FilePath' file from Azure DevOps repository."

@@ -60,7 +60,7 @@ function Metadata_SaveToGit {
         [Parameter(Mandatory = $true)]
         [string] $Message,
         [string] $DBUser = "sa",
-        [string] $DBSafePassw0rd = "enablon"
+        [string] $DBSafePassw0rd = ""
     )
 
     Print_Title "Create/Update Metadata Local Repository."

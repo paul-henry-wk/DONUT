@@ -9,7 +9,7 @@ param(
     [string] $SiteId,
     [string[]] $Packages,
     [string] $DBUser = 'sa',
-    [string] $DBSafePassw0rd = 'enablon',
+    [string] $DBSafePassw0rd = '',
     [int] $QueryTimeout = 5,
     [int] $ConnectionTimeout = 5
 )

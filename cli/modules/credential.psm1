@@ -5,7 +5,7 @@ $script:CredentialTarget = "DONUT_AzDo_PAT"
 function Get-StoredPAT {
     [CmdletBinding()]
     param(
-        [string] $Organization = "enablon"
+        [string] $Organization = ""
     )
 
     $target = "$($script:CredentialTarget)_$Organization"
@@ -40,7 +40,7 @@ function Set-StoredPAT {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Token,
-        [string] $Organization = "enablon"
+        [string] $Organization = ""
     )
 
     $target = "$($script:CredentialTarget)_$Organization"
@@ -62,7 +62,7 @@ function Set-StoredPAT {
 function Remove-StoredPAT {
     [CmdletBinding()]
     param(
-        [string] $Organization = "enablon"
+        [string] $Organization = ""
     )
 
     $target = "$($script:CredentialTarget)_$Organization"
@@ -80,7 +80,7 @@ function Resolve-PAT {
     [CmdletBinding()]
     param(
         [string] $ConfigToken,
-        [string] $Organization = "enablon"
+        [string] $Organization = ""
     )
 
     # 1. Config file token takes priority if non-empty and not the "STORED" placeholder
