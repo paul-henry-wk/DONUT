@@ -147,6 +147,8 @@ export function renderConfig(): void {
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
         ${field('c-spw','site password',c.local?.password||'','','password','Site admin password')}
+        ${field('c-dbu','DB user',c.local?.db_user||'sa','','text','SQL Server login (default: sa)')}
+        ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}
         <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="refresh-btn" onclick="loadPackages()" style="margin-left:8px">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="refresh-btn" onclick="selectAllPkgs()" style="font-size:9px">all</button><button class="refresh-btn" onclick="deselectAllPkgs()" style="font-size:9px">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
       </div>
     `)}
@@ -566,6 +568,8 @@ interface FormSnapshot {
   sp: string | null;
   usr: string | null;
   spw: string | null;
+  dbu: string | null;
+  dbpw: string | null;
   pat: string | null;
   ver: string | null;
   proj: string | null;
@@ -574,13 +578,13 @@ interface FormSnapshot {
 function getFormValues(): FormSnapshot {
   const v = (id: string): string | null => (document.getElementById(id) as HTMLInputElement)?.value ?? null;
   return { wi:v('c-wi'), repo:v('c-repo'), fb:v('c-fb'), tb:v('c-tb'), pkg:v('c-pkg'),
-    sp:v('c-sp'), usr:v('c-usr'), spw:v('c-spw'), pat:v('c-pat'), ver:v('c-ver'), proj:v('c-proj') };
+    sp:v('c-sp'), usr:v('c-usr'), spw:v('c-spw'), dbu:v('c-dbu'), dbpw:v('c-dbpw'), pat:v('c-pat'), ver:v('c-ver'), proj:v('c-proj') };
 }
 function setFormValues(s: FormSnapshot): void {
   if (!s) return;
   const set = (id: string, val: string | null): void => { const el = document.getElementById(id) as HTMLInputElement | null; if(el && val!==null) el.value=val; };
   set('c-wi',s.wi); set('c-repo',s.repo); set('c-fb',s.fb); set('c-tb',s.tb); set('c-pkg',s.pkg);
-  set('c-sp',s.sp); set('c-usr',s.usr); set('c-spw',s.spw); set('c-pat',s.pat); set('c-ver',s.ver); set('c-proj',s.proj);
+  set('c-sp',s.sp); set('c-usr',s.usr); set('c-spw',s.spw); set('c-dbu',s.dbu); set('c-dbpw',s.dbpw); set('c-pat',s.pat); set('c-ver',s.ver); set('c-proj',s.proj);
 }
 export function getToken(): string { return (document.getElementById('c-pat') as HTMLInputElement)?.value || S.envConfig.azdo?.token || ''; }
 export function getRepo(): string { return (document.getElementById('c-repo') as HTMLInputElement)?.value || S.envConfig.azdo?.repository || ''; }
@@ -618,7 +622,7 @@ function buildConfig(): EnvConfig {
     deactivate_metadata_conversion: mdCheckbox ? !mdCheckbox.checked : (S.envConfig.deactivate_metadata_conversion || false),
     packages: S.cachedPackages.length ? getSelectedPackages() : v('c-pkg').split(',').map(s=>s.trim()).filter(Boolean),
     local: { site_path: v('c-sp'), parent_site: buildParentSite(ver), user: v('c-usr') || 'admin', password: v('c-spw'),
-             db_user: S.envConfig.local?.db_user, db_password: S.envConfig.local?.db_password },
+             db_user: v('c-dbu') || 'sa', db_password: v('c-dbpw') },
     azdo: { organization: getOrg(), project: v('c-proj') || getProject(), token: v('c-pat'), repository: v('c-repo'),
             repository_metadata: S.envConfig.azdo?.repository_metadata },
     git: S.envConfig.git,
