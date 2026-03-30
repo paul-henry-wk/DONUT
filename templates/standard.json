@@ -1,0 +1,22 @@
+{
+    "_template": {
+        "name": "Standard Feature",
+        "description": "Feature branch workflow with metadata conversion"
+    },
+    "workitem_id": "",
+    "feature_branch": "",
+    "target_branch": "",
+    "packages": [],
+    "deactivate_metadata_conversion": false,
+    "local": {
+        "site_path": "",
+        "parent_site": "",
+        "password": ""
+    },
+    "azdo": {
+        "organization": "",
+        "project": "",
+        "token": "",
+        "repository": ""
+    }
+}

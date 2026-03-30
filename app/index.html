@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DONUT</title>
+<style>body{opacity:0}body.ready{opacity:1;transition:opacity .15s}</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-donut">&#127849;</div>
+  <div class="loading-text">D&#127849;NUT</div>
+  <div class="loading-sub" id="loadingSub">Warming up the oven...</div>
+  <div class="loading-steps" id="loadingSteps">
+    <div class="loading-step active" id="ls-init">Initializing...</div>
+    <div class="loading-step" id="ls-env">Loading environments</div>
+    <div class="loading-step" id="ls-prereqs">Checking prerequisites</div>
+  </div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="logo" onclick="dropDonut()">D<span class="logo-o">&#127849;</span>NUT</div>
+  <span class="logo-sub">DevOps Nabsic Unified Tool</span>
+  <span class="logo-ver" id="ver"></span>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('scripts',this)" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/></svg>Scripts</button>
+    <button class="tab" onclick="showTab('devops',this)" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>DevOps</button>
+    <button class="tab" onclick="showTab('config',this)" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>Config</button>
+  </div>
+  <div class="topbar-right">
+    <div class="health-widget" id="healthWidget" title="Click to refresh" role="button" aria-label="System health status"></div>
+    <div id="prereqs"></div>
+    <select class="env-select" id="envSel" onchange="loadEnv()" aria-label="Select working environment"></select>
+    <div class="theme-picker" id="themePicker">
+      <button class="theme-btn" onclick="toggleThemeList()">
+        <span class="theme-dot" id="themeDot"></span>
+        <span id="themeLabel">Dark</span>
+        <span class="theme-arrow">&#9662;</span>
+      </button>
+      <div class="theme-list" id="themeList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Workspace -->
+<div class="workspace">
+  <div class="panel">
+    <div class="panel-toggle" onclick="togglePanel()">&#9650; show panel</div>
+    <!-- SCRIPTS TAB -->
+    <div class="page active" id="tab-scripts">
+      <div class="workflow-bar" id="workflowBar"></div>
+      <div class="selected-info" id="selectedInfo"></div>
+      <div class="scripts-grid" id="scriptsGrid"></div>
+    </div>
+
+    <!-- DEVOPS TAB -->
+    <div class="page" id="tab-devops">
+      <div id="devopsContent"></div>
+    </div>
+
+    <!-- CONFIG TAB -->
+    <div class="page" id="tab-config">
+      <div class="cfg-layout">
+        <div class="cfg-envs" id="cfgEnvs"></div>
+        <div class="cfg-form" id="cfgForm"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run bar -->
+  <div class="run-bar" id="runBar">
+    <span class="run-label">select a script above</span>
+  </div>
+
+  <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <!-- Resize handle -->
+  <div class="resizer" id="resizer"></div>
+
+  <!-- Terminal -->
+  <div class="terminal" id="terminal">
+    <div class="term-bar">
+      <div class="term-bar-left">
+        <div class="indicator idle" id="termIndicator"></div>
+        <span class="term-label">terminal</span>
+        <span class="term-script" id="termScript"></span>
+        <span class="term-timer" id="termTimer" style="display:none"></span>
+        <span class="term-step" id="termStep"></span>
+      </div>
+      <div class="term-bar-right">
+        <button class="stop-btn" id="stopBtn" onclick="doStop()" aria-label="Stop running script">stop</button>
+        <button class="stop-btn rerun-btn" id="rerunBtn" onclick="reRunLast()" aria-label="Re-run last script">re-run</button>
+        <span class="term-filter-group">
+          <button class="term-filter-btn active" data-filter="all" onclick="setTypeFilter('all')">all</button>
+          <button class="term-filter-btn" data-filter="err" onclick="setTypeFilter('err')">err</button>
+          <button class="term-filter-btn" data-filter="warn" onclick="setTypeFilter('warn')">warn</button>
+          <button class="term-filter-btn" data-filter="success" onclick="setTypeFilter('success')">ok</button>
+        </span>
+        <input class="term-search" id="termSearch" type="text" placeholder="search..." oninput="filterTerm(this.value)" autocomplete="off" aria-label="Search terminal output">
+        <button class="clear-btn term-wrap-btn active" onclick="toggleWordWrap()" title="Toggle word wrap">wrap</button>
+        <button class="clear-btn term-reltime-btn" onclick="toggleRelativeTime()" title="Toggle relative timestamps">&#916;t</button>
+        <button class="clear-btn" onclick="exportTerm()" title="Export log">export</button>
+        <button class="clear-btn" onclick="copyTerm()">copy</button>
+        <button class="clear-btn" onclick="clearTerm()">clear</button>
+        <button class="clear-btn" onclick="togglePanel()" title="Hide/show panel">&#9650; panel</button>
+      </div>
+    </div>
+    <div class="diff-nav" id="diffNav" style="display:none"></div>
+    <button class="term-scroll-btn" id="termScrollBtn" onclick="scrollTermToBottom()" title="Scroll to bottom">&#9660;</button>
+    <div class="term-output" id="termOutput" style="font-family:'JetBrains Mono',monospace">
+      <div class="line dim">      .:::::.          </div>
+      <div class="line dim">   .::       ::.       </div>
+      <div class="line dim">  ::   .:::.   ::   <span class="sys" id="termVer">DONUT</span></div>
+      <div class="line dim">  ::   :   :   ::   <span class="sys">DevOps Nabsic Unified Tool</span></div>
+      <div class="line dim">  ::   ':::'   ::      </div>
+      <div class="line dim">   '::       ::'       </div>
+      <div class="line dim">      ':::::'          </div>
+      <div class="line sys"> </div>
+      <div class="line sys">Ready. Select a script and click RUN.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<!-- Keyboard shortcuts -->
+<div class="shortcuts">
+  <span><kbd>1</kbd>-<kbd>0</kbd> select</span>
+  <span><kbd>Enter</kbd>/<kbd>Ctrl+Enter</kbd> run</span>
+  <span><kbd>Ctrl+F</kbd> search</span>
+  <span><kbd>F8</kbd> next error</span>
+  <span><kbd>Ctrl+</kbd><kbd>+</kbd>/<kbd>-</kbd> zoom</span>
+  <span><kbd>Esc</kbd> exit fullscreen</span>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

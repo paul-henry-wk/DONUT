@@ -1,0 +1,26 @@
+# Runtime state
+/.bin
+
+# User environment configs (contain credentials)
+/working-environments/.env.json
+/working-environments/.env-*.json
+
+# Build artifacts
+DONUT.exe
+DONUT-*.zip
+src-tauri/target/
+src-tauri/binaries/
+app/dist/
+app/node_modules/
+app/public/app.js
+
+# IDE
+.vscode/
+*.code-workspace
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Tests
+_mytests.*

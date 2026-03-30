@@ -1,0 +1,523 @@
+{
+    "Mapping": {
+        "ACS_LI": {
+            "26f591d8e1674b1f9774ee57fe5834b2": "ACS_LI",
+            "2d2a821986d941a8adc991c4956409c1": "ACS_LI"
+        },
+        "AP": {
+            "9646DC36EAAF7E4CBCF5C92000C97C8A": "AP",
+            "6FC5FEA1B5ECDF11A6E1002219617A68": "ActionPlans",
+            "be28ec7cc7b64d2aa4df2b236249bbd6": "IntegrationAPMaps",
+            "50B8B2C7A3C07444A90507A54DF9D802": "IntegrationHOAP"
+        },
+        "AP_Test": {
+            "a587bbba4826487ebf15c81a6d9669f7": "AP_Test",
+            "ac6084f19e3c47c88b0ad60eeab2b480": "AP_Mod_Test"
+        },
+        "AQS": {
+            "88105BF593741143BEA0425F4009185E": "AQS",
+            "197551203BF4DF11A6E1002219617A68": "AQS",
+            "6D022C3699C1B44CA79C7126E049066F": "Int1AQSHO"
+        },
+        "AQSinACSPkg": {
+            "3133ea2a37ea4757ac25c4b9e409e6cd": "AQSinACSPkg",
+            "25cda7d170c044b3ba6df4ef935a1ab4": "IntegrationACSAQS"
+        },
+        "AQSinCMSPkg": {
+            "A72F3348A1555E45B48ED1ACE0CC6508": "AQSinCMSPkg",
+            "C8E2FF76680BD344B0ACD5D9D15778E5": "IntegrationCMSAQS"
+        },
+        "AQSinIMSPkg": {
+            "76F490276A39DE4782B9E3CB2AD8B739": "AQSinIMSPkg",
+            "0A571629D4AD5E4981A63DE5EABBCD96": "IntegrationIMSAQS"
+        },
+        "AQSinRCMPkg": {
+            "7D3D535DD3661F44A95EE08B7F97E5DB": "AQSinRCMPkg",
+            "E8163DB1EC2ADB42A10A771D66B63F19": "i1_RCM_AQS"
+        },
+        "AQSinSDPkg": {
+            "400432479D7AC8489862567516FDDA6F": "AQSinSDPkg",
+            "B9300789957CEC4088DFC7641947351E": "i1_AQS_SD"
+        },
+        "ACS": {
+            "6B7F49E185FAEF4CBFA1CBBD9DAF13AE": "ACS",
+            "9176C93C3DE53C48BB40AB4674691392": "ACS",
+            "8B44B5C7457C3A48AD2F52FA1906CE2F": "IM",
+            "A1E64CFE056807499D5217083A324EC9": "IntegrationACSAP",
+            "FEA03B4EDBF4A5469346C4701A0FBF2F": "IntegrationHOACS",
+            "46C1B5D71E49C54A8B9E7C8D957C4DE2": "RoCauACS"
+        },
+        "AutoDelivery": {
+            "10188AACCB57B9468B96D0882235CC3C": "AutoDelivery",
+            "B686F9E1B51D4842ADC4E1CC95030C44": "AutomatedDelivery"
+        },
+        "ADEVSTS": {
+            "d121972d1d16433d82f6f24df3865b75": "ADEVSTS",
+            "f4bf7fa9627b477a92bc65033eca8fef": "ADEVSTS"
+        },
+        "BCM": {
+            "D904AAD0CED119489514F6F696881F4D": "BCM",
+            "1813A867DA36D14E8574925B9DE4A8FA": "BCM"
+        },
+        "BCM_Test": {
+            "b80134e6946749da95512a211cda0d2d": "BCM_Test",
+            "ab6afcf6b38946788d389a7d0ea8bc87": "BCMMod_Test"
+        },
+        "BetaEventSM": {
+            "04cb74696143461cafe644a99886294c": "BetaEventSM",
+            "981bb1e3cceb4cb68009d97105ebb23d": "BetaEventSM"
+        },
+        "BetaSmartForm": {
+            "fc0612b40b1047d8b1f93d0545e3db57": "BetaSmartForm",
+            "70cef3aa8b89435d82ef298007c84dd2": "BetaSmartForms"
+        },      
+        "CMS": {
+            "A14F2E1943D0CD449B2CF1E169100BD9": "CMS",
+            "FE9AC238992DC3448266FCE2AD68A561": "CMS",
+            "DCDA6FB1497E7149A0661CF99B1EBB87": "ChemAdvisor",
+            "E9412EB50CE4A6489C1B0220F617D621": "IntegrationChemicalRCM",
+            "9DC82D04767BDF4982D2325AEDB7A395": "IntegrationHOCMS"
+        },
+        "CMSNAB": {
+            "9330C14E1BD8884B96E4F69165650CC6": "CMSNAB",
+            "614B80454338F3418613B45806F99CE5": "EVRC",
+            "D41FF00E575CF246AE139FD9FE2BC0BF": "IntegrationAPEVRC"
+        },
+        "CLAPKG": {
+            "E20EA07B3C394C488AB7B6FCEBE6EF16": "CLAPKG",
+            "F0FA9DFE25FE1D4BAA4F9A990C98D230": "CLA"
+        },
+        "CMSQA": {
+            "0531e2a7fa9445d8a658736ca896317d": "CMSQA",
+            "4c6365f8cb9d4597bd6b93fa3df04443": "CMSQA"
+        },
+        "CA": {
+            "4710435C398367418BADB206247004B2": "CA",
+            "07A4F7D879FBDC408DB3D3A7CE10E91E": "CA"
+        },
+        "CA_Test": {
+            "c76ea0509e2f46369b093d09bb72a1cb": "CA_Test",
+            "d2e088a3466f43349c1b88d2836b435d": "CA_Mod_Test"
+        },
+        "CIT": {
+            "be0e929b31a04efd8461a1fac86c1230": "CIT",
+            "37419a9b0f8746ab87ccf57322004c80": "CIT"
+        },
+        "CSR": {
+            "83390D00BF6B2C4FAE4C1C423A75FEE0": "CSR",
+            "88609DF8228ED04681EFCEC4A7409A16": "CSR",
+            "507B4B634B7E0C448E768CF7321DE74A": "Objectives",
+            "7C23877243A46B418779EEF990FA0F96": "SRM"
+        },
+        "CSRMoC": {
+            "d83067ddbcaa4a9581f830887a16d0c9": "CSRMoC",
+            "0b2d85bf55dd47cf93686ff7b8602b34": "CSRMoC"
+        },
+        "SDCSR": {
+            "2D239BC6F3A03748AB66BE503762EDDF": "SDCSR",
+            "C2C9CA010F8E0047BC0AB6217AB232DA": "SDObjectives",
+            "4D8F4AFCC6B5C947BF7F9AF5119534CF": "SDSRM"
+        },
+        "CSRSDNab": {
+            "3fa6aa400e794b76b8dd1194fb0d7120": "CSRSDNab",
+            "0491a54a41964a47a6ea7cb36f27585e": "CSRSP"
+        },
+        "EAinRCMPkg": {
+            "C9F0A9B43EECEE40B21EC3497087BA6C": "EAinRCMPkg",
+            "10DC57C1592C0A48A42CB551495969E9": "IntegrationRCMAE"
+        },
+        "EMSACS": {
+            "ea6e3b277c2547c5bdfb8a146440b523": "EMSACS",
+            "febe00e0aa304f819748e3c1b37d22c3": "IMSACS"
+        },
+        "Integration_IMS_RCM": {
+            "AA143777C58B164EA284E16A2367A418": "Integration_IMS_RCM",
+            "72615EE0C7A20D469DB41491623B26B2": "Integration_IMS_RCM"
+        },
+        "EMSSD": {
+            "7b8ea7798bf64400aa535a82040ee289": "EMSSD",
+            "a28a8bed1fbb416f9b19abd148af944e": "IMSSD"
+        },
+        "EMSNABQA": {
+            "2436d3429a0644468cf9032431a26996": "EMSNABQA",
+            "5b5e8837f1ab432f93c76a028a32f348": "EMSNABQA"
+        },
+        "EnvironAnalysisPkg": {
+            "CACA0759CB8D5F47989C56DB3F6CA30C": "EnvironAnalysisPkg",
+            "F95732556CF98B46A0BF54CFD5F324C1": "EnvironAnalysis"
+        },
+        "ERMIntegration": {
+            "9C567635CDA1DE42BE1769C8AB3ABA31": "ERMIntegration",
+            "B6BFAFD1D49899498BDD38359DBA2B9A": "ERMIntegration"
+        },
+        "EMS": {
+            "632440D6A56AEA4F8B19843DCE5F60BA": "EMS",
+            "E13D442F00E5A24B8D94CED751843F02": "EMS",
+            "467EF219CFECDF11A6E1002219617A68": "IMS6",
+            "2F2B1085C2E7144297AC12AF30AB6660": "IntegrationAPJSA",
+            "91E9DE24DE02C046B04A6100B2CAC262": "IntegrationEMSEHS",
+            "A3F144DD2BA5024BB39C93113E4EAB7B": "IntegrationIMSAP",
+            "D7117F6E1DF9A4488365539824E4F062": "IntegrationIMSJSA",
+            "B2A4F52041FB1F4B8F8174FCF2B8C9F6": "IntegrationIMSMaps",
+            "7EDC28843006234B90DDD578E32E4696": "IntegrationPermitsAP",
+            "8E61CD43A6D81D418F4886EEB17771B1": "JSA",
+            "5BF10AB57D8D2A4E8EE77CCB72922333": "Permits",
+            "132270C181AECB4B95003F0B3E3582BE": "Waste",
+            "C0228CC3E43C7741A613EF7B65EEE6AB": "WasteInPermits"
+        },
+        "EMS_Test": {
+            "f8dcfddada33443c957bcbc185d52795": "EMS_Test",
+            "23d25e8df9cb4cb3a9a198bd29e69a46": "EMS_Mod_Test"
+        },
+        "EMSNAB": {
+            "373D00DA2CD2D34A93F8E1CAE6FC039C": "EMSNAB",
+            "35414FC17471E84692F57C6B83F3C8F3": "APinErgo",
+            "1BD4780A109AB2469B667424F1F17F3A": "BBS",
+            "2D155EDF6EAB4947B17E898F88C27EED": "Ergonomics",
+            "482F365AAE42BC419AF623BEB2550DC9": "IH",
+            "6d6962ae7bd649e09b226553aabd6d0a": "IHintegrationinOH",
+            "A49C43B32B6BB34283EBE33C4FE840AF": "Inspection",
+            "EA4DAD7F01D1774DA0E5F5DF32DB1FBB": "IntegrationAPBBS",
+            "2995F85956DA804CB662FB003FD96127": "IntegrationAPIH",
+            "5DA4D48CA8B01D4AAAB760682B597DBB": "IntegrationAPInspection",
+            "e3ffd14bccd348c1896f7ef58bb78191": "IntegrationIMSBBS",
+            "EB043E2CE8A956438130D4F812A8B7F1": "IntegrationIMSOH",
+            "bee4969d92664765a5a4b39556c784e3": "JSAIntOH",
+            "3819ED8EECADE046B0456A975B921A6D": "OH",
+            "ffeee625cebc422f9594d6e9acc8c82e": "PermitToWork",
+            "79611ae9bbe44411937cdf6e140c77f0": "RCMOH"
+        },
+        "HOQA": {
+            "9da46cff79fc4001803c3e00759e2be9": "HOQA",
+            "aac256e6f13c4d3281ed1717b712d2b9": "HOQA"
+        },
+        "IntAPRCA": {
+            "dec77a8b3ff741deb54daf9eec906175": "IntAPRCA",
+            "084993eaee4d49988387b82aea368656": "IntAPRCA"
+        },
+        "APRCA_Test": {
+            "307768a8abd548d183e67faef5f33789": "APRCA_Test",
+            "f7e5f293f3744e6fb085857168269e32": "APRCA_Mod_Test"
+        },
+        "IntBCMIA": {
+            "82a5a53d1f74424bb6d6e17d248664cf": "IntBCMIA",
+            "508226c8b9b1423ea6463cc47b656251": "IntBCMIA"
+        },
+        "RMCBM": {
+            "971875421974EC428423979E5A00E32E": "RMCBM",
+            "50EEE16143A9FB4BB7636C14C76F70D4": "RMBCM"
+        },
+        "IntCABCM": {
+            "1790633eef75431f9d867c5d089727a5": "IntCABCM",
+            "5e805ff9dbf94f27b6378a793f2f6a02": "IntCABCM"
+        },
+        "IntCAIA": {
+            "eb3dc8bf3fdb49f981b337d76e108e9f": "IntCAIA",
+            "411d1ef452ec458287d0470b16f3ece5": "IntCAIA"
+        },
+        "CARCM": {
+            "E77FE90FC2A3F345A7D4C177B2A0DAB8": "CARCM",
+            "013287F811719D45A5983C3F26C714A3": "CARCM"
+        },
+        "RMCA": {
+            "23FB3B8D641D0B4EB3C551F9C0EDDAF3": "RMCA",
+            "714FF61749C6B2448617F4019AE8FCA7": "RMCA"
+        },
+        "Integration_IMS_CMS": {
+            "8BC9DDCAB1D05544BF71DC2E93BEF211": "Integration_IMS_CMS",
+            "553CC39D836FE942BAA50104B25F7017": "IntegrationIMSCMS"
+        },
+        "EMSIA": {
+            "e77309b8e6c641a897caa2d5b6c32732": "EMSIA",
+            "7381a2dea4b748bb96979edac1fd8c42": "IMSIA"
+        },
+        "Integration_EMS_MOC": {
+            "b5cdf46529c444b880fec57b572d96c3": "Integration_EMS_MOC",
+            "254ccecaee794d289945ac4933f1e8a7": "Inegration_IMS_MOC"
+        },
+        "IAACS": {
+            "b8820f73283a44ba8f7f41217b317589": "IAACS",
+            "962c9c9f3dd34c2bba216060215d75e0": "IAACS"
+        },
+        "IAMOC": {
+            "a6e7d1c9376441d4a714902589e1f40f": "IAMOC",
+            "0d8cc3e23fd54ecf9f5023270bd90c42": "IAMOC"
+        },
+        "IntICBCM": {
+            "e4a5dfd58a09498ebc57555905ca2179": "IntICBCM",
+            "ab91ea55cd714dff85b96e3c2e22968d": "IntICBCM"
+        },
+        "IntICIA": {
+            "0f63bb4f6ce74d89ae93ba571586b041": "IntICIA",
+            "938137a2002948ce9eb6a5cb33fc850d": "IntICIA"
+        },
+        "RMIC": {
+            "242F261C7927A14B9AAB244D7E11E6F8": "RMIC",
+            "6C6254E85E369245A6566AC1B0C6F4B5": "RMIC"
+        },
+        "IMSBCM": {
+            "6a6a1830fe834404b1960357bf09cce6": "IMSBCM",
+            "d1103fa917064d33a0a62cbc0b66423c": "IMSBCM"
+        },
+        "RMIMS": {
+            "076AEE79DE7A4947A60E7817EB4A21C2": "RMIMS",
+            "E7A09BF54AC3E348A7D78313DB78970A": "RMIMS"
+        },
+        "LightEMS": {
+            "7a98518bfacc4e2295276f05f92b4fb7": "LightEMS",
+            "82d806bf80ae42339956d0eaf9dcd102": "LightIMS"
+        },
+        "IntMOCRMpkg": {
+            "5fd7d721c66545f38d895ea131cfbc87": "IntMOCRMpkg",
+            "ffe3592315f64dcd85b200448ceee58b": "IntMOCRM"
+        },
+        "ICRCM": {
+            "A9435777F4B42545B7ADBEFC4A31C97A": "ICRCM",
+            "775B0A23CB90A24E8809800CB369C584": "ICRCM"
+        },
+        "RMRCM": {
+            "5D08343C3D060643A9EC38AD1E0B164F": "RMRCM",
+            "DF440D0EEEEBB944A643FC724C9C9523": "RMRCM"
+        },
+        "RMACS": {
+            "3fac2c30d85547a78045fff7930faff5": "RMACS",
+            "f9042981827a45d09f2193c069c6c603": "RMACS"
+        },
+        "RMCSR": {
+            "41d00984b79d419b9f83cafce0514e70": "RMCSR",
+            "38f60386bbc746c6a2df4a0a672de9cc": "RMCSR"
+        },
+        "IARM": {
+            "3B5957FAEBCBC8409CD5206811221FEF": "IARM",
+            "7CA8AD195DD69245995132AA5B98A0E9": "IARM"
+        },
+        "RMSD": {
+            "38ae9f7238c34ca487559144456386b0": "RMSD",
+            "162cdc775d174562bc134cf3a63865d6": "RMSD"
+        },
+        "IA": {
+            "132BFD3DEDCD8C449122CD52AFBF8FB8": "IA",
+            "5C98405CADEDDF11A6E1002219617A68": "IA"
+        },
+        "IA_Test": {
+            "b8fd0ac9642e4a3483b33cf089ce36a2": "IA_Test",
+            "c22950f582dd4eefb1c01f9ca1ba7727": "IA_Mod_Test"
+        },
+        "IC": {
+            "C92C43CFDD4F4A439FEB8726A9E85914": "IC",
+            "9787A2CE047CD14295AD47DD4B878942": "IC"
+        },
+        "IC_Test": {
+            "b779ea15c1524487ba7124780ddbc3f8": "IC_Test",
+            "4c90ddc38a114fdd83d5c5a4c477c7ed": "IC_Mod_Test"
+        },
+        "ITGovernance": {
+            "66CE6EA569EEF44F9B9CE007EC31EAF2": "ITGovernance",
+            "18BFA911CC74CC40A5AA8F443B53B976": "ITGovernance"
+        },
+        "LI_Maps": {
+            "ce0b28b97b354d42a55af55d700c2ffa": "LI_Maps",
+            "7f9044b816f046ea8d88901d2cd78d19": "LI_Maps"
+        },
+        "MoC": {
+            "F017FF5FA0AAF948998685BA63B70488": "MoC",
+            "E76BFA3031399D4F96F7260AE99B73DA": "MoC"
+        },
+        "MOCinRCMPkg": {
+            "85ebdb25399e4146b87d3d2bd3cc092c": "MOCinRCMPkg",
+            "05d550877dff4dfe9feef605016cae62": "IntegrationMOCRCM"
+        },
+        "EhsSpcNabPkg": {
+            "841F6DF383E49D45B6F45535DCA05C22": "EhsSpcNabPkg",
+            "6BD61A0FD35D194F943E209183F4D093": "Risk"
+        },
+        "NabIT": {
+            "dc5a7a5b042e423489deeabc7cd10aff": "NabIT",
+            "b4271400dbc84626a44a4b6108a53c74": "NabIT"
+        },
+        "OTT": {
+            "8e1196b7d7774ae494d56ac529fadabc": "OTT",
+            "4b6b396fe7074338afce572c7dd0887a": "OTT"
+        },
+        "Offline": {
+            "0881E8D9A46A504DA62085694C0E7516": "Offline",
+            "5E869CFFFD7043458A2BA4FC0F214357": "OfflineMode"
+        },
+        "PCM": {
+            "A7068C8866A5534E987D0E31EC6D4520": "PCM",
+            "AFACF8B48C8E794B887E8F0F639AFD1E": "PCM"
+        },
+        "PHA": {
+            "2c80ef10fa0d4363837d4cf6afd928b5": "PHA",
+            "91daf590c9e34fcea5040e38e56a3dd9": "PHA"
+        },
+        "PHAMOC": {
+            "6d83ed22d7d24730885b5e3656b58bac": "PHAMOC",
+            "5b666c81da9548679abb9177620d43e6": "PHAMOC"
+        },
+        "PYPKG": {
+            "3873B1BA3183944E9766EF126A8235F3": "PYPKG",
+            "240C4A5F267C9A4CB950813DA098C78F": "PY"
+        },
+        "HO": {
+            "53B0BCD6758F0340887C5AF0C6184DAC": "HO",
+            "8BBFED4C74F1224D8105C27259E4A36A": "DocumentEngine",
+            "D61D1DF8B4ECDF11A6E1002219617A68": "HO",
+            "A4D8CDCF132AD64A910EEC5BD6C4A34C": "HODocumentControl",
+            "C5589230F5F4D04DA688BF6A40E9C94C": "MapsManager",
+            "10AB142770995346A3F32332655689F7": "RoCauAnal"
+        },
+        "RMProf": {
+            "82854b2de312486490ce3f76abee0802": "RMProf",
+            "c2c48eec66ac475ba51610959934daf3": "RMProf"
+        },
+        "Prof": {
+            "252FFD7C056C1E46A3446E704820DFD6": "Prof",
+            "657F090744A11C4CB325FC5F1DC59CA6": "PROF"
+        },
+        "RMPY": {
+            "582a4d462ee340a7af0389279e818170": "RMPY",
+            "7b005c32d2ed47a3b67286eb22ae26f5": "RMPY"
+        },
+        "RCM": {
+            "5D0DBD61E2208E4FA8D32E3911B156A5": "RCM",
+            "c9c847c8fdba4ec6a43ecab9548b07ea": "IntegrationHORCM",
+            "0DCB436B4FECDF11A6E1002219617A68": "RCM",
+            "A89E60583266C24E90180AB670E269F8": "RCMContentProviders",
+            "2C3AA54E0045CB43A1FD622621A9AE83": "i1_RCM_AP"
+        },
+        "RCM_ACS_Pck": {
+            "40CF870FEA9CE24F99B9490CAF2F3837": "RCM_ACS_Pck",
+            "3A9F58182B884549AD82F96415F3717C": "i1_RCM_ACS"
+        },
+        "RCM_EMS_Pck": {
+            "AC3CFEA0F5098A44B491B84F8D576DA1": "RCM_EMS_Pck",
+            "17612909B6C861499F102D21A2C8EA70": "Integration_RCM_IMS"
+        },
+        "RCMInspectionInt": {
+            "9D3D48716EE8E7438D902D75FD925C8D": "RCMInspectionInt",
+            "9A65F2828174C4489EC3AF34010A8671": "IntegrationRCM_IM"
+        },
+        "RCM_LI": {
+            "23dd62246e9f48d693d4a83ac23e8a3e": "RCM_LI",
+            "03a1d7fad88a406eaeb90db5d64ff995": "RCM_LI"
+        },
+        "RCM_TRI_Pck": {
+            "42A5EF7D44389F4598BF149F8FC7DBC3": "RCM_TRI_Pck",
+            "3EC39F56DBFAD2409CCEBC31A6210D1F": "TRI"
+        },
+        "RTT": {
+            "93125e34f143414ebc557d6080190e34": "RTT",
+            "abf3ad592158429ca69285f387fb94ac": "RTT"
+        },
+        "Repository": {
+            "edc1836d9ea948068309276fcbd6fb37": "Repository",
+            "0b4c0f09da254b1086dafa5d972234d7": "ExternalRepository",
+            "f8520c55f953481aab563dca8d4ccb66": "InternalRepository"
+        },
+        "RM": {
+            "E87279EB689DF64DA7DD297850D700D8": "RM",
+            "5718E8352ABA6C4C83AE7903D3497015": "RM"
+        },
+        "RM_Test": {
+            "258d3b59dc6a4d8196d79889c018fb62": "RM_Test",
+            "1316141519334c39b7a30cd4fe4e3049": "RM_Mod_Test"
+        },
+        "RiskToolsPkg": {
+            "377f5654d6534500a1f1edfadb8dcf50": "RiskToolsPkg",
+            "4c5d74a2da4942d684d324c8a25ac1f3": "RiskTools"
+        },
+        "SampleAQSInt": {
+            "22D2282F2BEE1E47B6CC8344505451F5": "SampleAQSInt",
+            "B4E685175BFDAC47AFF7F1A095BB1198": "IntSampleAQS"
+        },
+        "Sampling": {
+            "61ABFC4CD2D5754CB095346E956778A4": "Sampling",
+            "AB9FE650E5C00E4A97C0EC2D70EF4389": "Sampling"
+        },
+        "SDCB": {
+            "0B11EF554FC4F04EBBD9BCCCDC287440": "SDCB",
+            "FA654125527E3E48B48A175E96FBF983": "APIntegrationInSP",
+            "DAB5D47F04FEDF11A6E1002219617A68": "SP"
+        },
+        "SDQA": {
+            "cbb205f5e161465c842e3f7016714cac": "SDQA",
+            "2dcc68343948490a888895288ee6defb": "SDQA"
+        },
+        "SDSA": {
+            "802a4c1f362740e184c8fad8053e2714": "SDSA",
+            "E4351252BE85A34AAC9EDD3D5109EC31": "SDScenario"
+        },
+        "LI": {
+            "1ffb035e98414ece9944f71b9e97d3e8": "LI",
+            "327446771e344ad5b3c02c8d50ab51f4": "LI"
+        },
+        "HO_LI": {
+            "990d1495f5c14d1483de2b1adab309a3": "HO_LI",
+            "b6a382618c5d499eaba5f2b0de69880e": "LightCore"
+        },
+        "StdEhsSpfc": {
+            "9F05BC4B690BEB4F86606A6CC3C970E1": "StdEhsSpfc",
+            "C67BF0A1C884F14EBF1195C4BCCEEBA7": "EHS5Deprecatred",
+            "5ED3C4DF95AFE0409291B6A67E2F6F73": "IntegrationAPEHS",
+            "9494ADA320FEDF11A6E1002219617A68": "IntegrationHOEHS"
+        },
+        "SD": {
+            "BF4B64A6A194A1438E8C98A2B360769A": "SD",
+            "ECC9C9D588FCDF11A6E1002219617A68": "SD",
+            "232CE2A494DA464BBE3218334C1B088C": "SDAP",
+            "8A3CA5F15175CE44BA4C9262430BE378": "SDBox",
+            "F0CF94DDD46B644A8CA36CA26219E66A": "SDHO"
+        },
+        "TMP": {
+            "754ED3E392D512488DDF71C7553EED6A": "TMP",
+            "53E084F81504FA45B7219B510838613A": "AssetManagement",
+            "28C355BB5CB7454E8712DE12C84675AB": "Unassigned"
+        },
+        "TestingTools": {
+            "01e69ff507fe448b8bb0c6c68ca40c1d": "TestingTools",
+            "273c525419b04719bfb8cd2bc305aae7": "TT"
+        },
+        "TRIIntegration": {
+            "826DA59377BC1245A042A83EE2AAE7BA": "TRIIntegration",
+            "579A0ED3B755134F9F733997B53B4559": "IntTRIAQS",
+            "136491D8AA92E34E97E4F2EA7F266B61": "IntTRIWMS"
+        },
+        "TRIIntegration60": {
+            "223945C81E4B5E4C89E99AD5DB1973FA": "TRIIntegration60"
+        },
+        "UDM": {
+            "d346e02ba8294dd89a637f8cafb1be80": "UDM",
+            "AFC07AEAF31C5C47AB94823A72944145": "EHSInUDM",
+            "4789C642B5B8B348B849CAE26E848D6E": "UDM"
+        },
+        "UXThemes": {
+            "f4288f240ad7445687e573cdf22307db": "UXThemes",
+            "b0fda8f56cbf4517a2f7d02be7230ec8": "UXThemes"
+        },
+        "WizFrame": {
+            "71FA86F7213BDE48896DAE718E3BF92A": "WizFrame",
+            "9768AAB8E7A8414F8A0BA811AC0F53A4": "CustNav",
+            "01AC59AEA7E7614B8A450808ACFA2037": "FWBuilderTools",
+            "2105225648C3DE1187EA002219617A68": "WizFrame"
+        },
+        "Waste": {
+            "D0899746372E4E45B832F15FA84AACF9": "Waste",
+            "346AB8D357E5384A8EAC0E6FA5D5B6D5": "ObjectProperties",
+            "694FF31D193D61408A1130A2AE0E6127": "WMS",
+            "ADC4C804537D8149BA4CC72C54102B6B": "i1_HO_WMS",
+            "03CCE299C4C02442A66B1F99A3AB8575": "i1_RCM_WMS"
+        },
+        "XMLReportingPkg": {
+            "73221615DA9F0E4BBC90D3AF785963B9": "XMLReportingPkg",
+            "FE5E4DFE4F08394184F24D7BE09A756E": "XMLReporting"
+        },
+        "Risk_TestingFramework": {
+            "774d4d1d1aaa4e92b5656e5144a13cda": "Risk_TestingFramework",
+            "67e6cec8706a4f4589b40e0caac7aa7c": "Risk_TestingFramework"
+        }
+    },
+    "Excluded": [
+        "85a6a4dc10fe4915a0b6c4b7fff8dd5e"
+    ]
+}

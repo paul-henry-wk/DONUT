@@ -1,0 +1,30 @@
+{
+  "productName": "DONUT",
+  "version": "1.0.0",
+  "identifier": "com.donut.app",
+  "build": {
+    "frontendDist": "../app/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "DONUT",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.ico", "icons/128x128.png", "icons/32x32.png"]
+  },
+  "plugins": {}
+}

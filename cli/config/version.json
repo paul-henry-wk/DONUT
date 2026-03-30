@@ -1,0 +1,10 @@
+{
+    "name": "DONUT",
+    "fullname": "DevOps Nabsic Unified Tool",
+    "version": "1.0.0",
+    "dependencies": {
+        "git4inno": "0.3.14",
+        "auto_delivery": "7.9.227",
+        "gum": "0.17.0"
+    }
+}

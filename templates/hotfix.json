@@ -1,0 +1,22 @@
+{
+    "_template": {
+        "name": "Hotfix",
+        "description": "Quick fix without metadata conversion"
+    },
+    "workitem_id": "",
+    "feature_branch": "",
+    "target_branch": "",
+    "packages": [],
+    "deactivate_metadata_conversion": true,
+    "local": {
+        "site_path": "",
+        "parent_site": "",
+        "password": ""
+    },
+    "azdo": {
+        "organization": "",
+        "project": "",
+        "token": "",
+        "repository": ""
+    }
+}
