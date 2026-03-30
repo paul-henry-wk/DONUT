@@ -306,21 +306,22 @@ export async function loadEnv(): Promise<void> {
     const proj = S.envConfig.azdo?.project || '';
     const repo = S.envConfig.azdo?.repository || '';
     const sp = S.envConfig.local?.site_path || '';
+    const org = S.envConfig.azdo?.organization || '';
     // Cascade: PAT -> projects -> repos -> branches
     if (token) {
-      invoke<string[]>('list_azdo_projects', { token }).then((p: string[]) => {
+      invoke<string[]>('list_azdo_projects', { token, organization: org }).then((p: string[]) => {
         if (thisVersion === _loadEnvVersion) { S.cachedProjects = p; renderConfig(); }
       }).catch(() => {});
       if (proj) {
-        invoke<string[]>('list_azdo_repos', { token, project: proj }).then((r: string[]) => {
+        invoke<string[]>('list_azdo_repos', { token, project: proj, organization: org }).then((r: string[]) => {
           if (thisVersion === _loadEnvVersion) { S.cachedRepos = r; renderConfig(); }
         }).catch(() => {});
-        invoke<WorkItem[]>('search_work_items', { token, project: proj, query: '' }).then((w: WorkItem[]) => {
+        invoke<WorkItem[]>('search_work_items', { token, project: proj, query: '', organization: org }).then((w: WorkItem[]) => {
           if (thisVersion === _loadEnvVersion) { S.cachedWorkItems = w; }
         }).catch(() => {});
       }
       if (proj && repo) {
-        invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo }).then((b: string[]) => {
+        invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo, organization: org }).then((b: string[]) => {
           if (thisVersion === _loadEnvVersion) { S.cachedBranches = b; renderConfig(); }
         }).catch(() => {});
       }

@@ -3,7 +3,7 @@
 // =====================================================================
 
 import type { PullRequest, BuildStatus, WorkItem, ModalOptions } from './types';
-import { esc, toast, invoke, ICO, S } from './state';
+import { esc, toast, invoke, ICO, S, getOrg } from './state';
 import { getToken, getRepo } from './config';
 import { getProject } from './state';
 
@@ -56,11 +56,11 @@ export async function renderDevops(): Promise<void> {
 
   // Load all data in parallel
   const results = await Promise.allSettled([
-    invoke<PullRequest[]>('list_azdo_prs', { token, project: getProject(), repository: repo }),
-    invoke<BuildStatus[]>('list_azdo_builds', { token, project: getProject(), repository: repo, branch: fb || null }),
-    fb && tb ? invoke<DevopsCache['diff']>('compare_branches', { token, project: getProject(), repository: repo, sourceBranch: fb, targetBranch: tb }) : Promise.resolve(null),
-    fb && tb ? invoke<DevopsCache['conflicts']>('check_merge_conflicts', { token, project: getProject(), repository: repo, sourceBranch: fb, targetBranch: tb }) : Promise.resolve(null),
-    fb ? invoke<WorkItem[]>('list_branch_work_items', { token, project: getProject(), repository: repo, branch: fb }) : Promise.resolve([]),
+    invoke<PullRequest[]>('list_azdo_prs', { token, project: getProject(), repository: repo, organization: getOrg() }),
+    invoke<BuildStatus[]>('list_azdo_builds', { token, project: getProject(), repository: repo, branch: fb || null, organization: getOrg() }),
+    fb && tb ? invoke<DevopsCache['diff']>('compare_branches', { token, project: getProject(), repository: repo, sourceBranch: fb, targetBranch: tb, organization: getOrg() }) : Promise.resolve(null),
+    fb && tb ? invoke<DevopsCache['conflicts']>('check_merge_conflicts', { token, project: getProject(), repository: repo, sourceBranch: fb, targetBranch: tb, organization: getOrg() }) : Promise.resolve(null),
+    fb ? invoke<WorkItem[]>('list_branch_work_items', { token, project: getProject(), repository: repo, branch: fb, organization: getOrg() }) : Promise.resolve([]),
   ]);
 
   devopsCache.prs = results[0].status === 'fulfilled' ? (results[0].value as PullRequest[]) : [];
@@ -247,7 +247,7 @@ export async function reassignWI(id: number): Promise<void> {
   if (!result) return;
   const token = getToken();
   try {
-    await invoke('assign_work_item', { token, project: getProject(), workItemId: id, assignTo: (result as string).trim() });
+    await invoke('assign_work_item', { token, project: getProject(), workItemId: id, assignTo: (result as string).trim(), organization: getOrg() });
     toast('Work item #' + id + ' reassigned', 'success');
     renderDevops();
   } catch (e) {

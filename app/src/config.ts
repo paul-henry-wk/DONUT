@@ -144,6 +144,7 @@ export function renderConfig(): void {
     ${wizStep(1, 'Local Site & Packages', true, !!sitePath, sitePath ? esc(sitePath) : '', `
       <div class="cfg-fields">
         ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)')}
+        ${field('c-ps','parent site URL',c.local?.parent_site||'','full','text','Full URL of the reference/parent site used to download packages (e.g. https://myserver/10.11/WizRisk.10.11/)')}
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
         ${field('c-spw','site password',c.local?.password||'','','password','Site admin password')}
@@ -154,6 +155,7 @@ export function renderConfig(): void {
     `)}
     ${wizStep(2, 'Azure DevOps — Connection', true, okToken, okToken ? `${S.cachedProjects.length} projects` : '', `
       <div class="cfg-fields">
+        ${field('c-org','organization',c.azdo?.organization||'','','text','Azure DevOps organization name — appears in the URL: dev.azure.com/{organization}')}
         ${field('c-pat','personal access token (PAT)',token,'full','password','Personal Access Token — create one at Azure DevOps > User Settings > Personal Access Tokens. Required scopes: Code (Read & Write), Work Items (Read & Write)')}
       </div>
       <div style="margin-top:8px">
@@ -166,6 +168,7 @@ export function renderConfig(): void {
       <div class="cfg-fields">
         <div class="cfg-field"><label>project <button class="refresh-mini" onclick="wizValidatePat()" title="Refresh projects">↻</button></label>${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}</div>
         <div class="cfg-field ss-wrap"><label>repository <button class="refresh-mini" onclick="refreshRepos()" title="Refresh repos">↻</button></label>${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}</div>
+        ${field('c-rdm','metadata repository',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB','full','text','Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB')}
       </div>
     `)}
     ${wizStep(4, 'Branches', okRepo, okFb && okTb, okFb ? `${c.feature_branch} → ${c.target_branch||'?'}` : '', `
@@ -184,17 +187,17 @@ export function renderConfig(): void {
   `;
   // Auto-load cascade
   if (token && !S.cachedProjects.length) {
-    invoke<string[]>('list_azdo_projects', { token }).then(p => {
+    invoke<string[]>('list_azdo_projects', { token, organization: getOrg() }).then(p => {
       if (p.length) { S.cachedProjects = p; renderConfig(); }
     }).catch(() => {});
   }
   if (okProj && !S.cachedRepos.length) {
-    invoke<string[]>('list_azdo_repos', { token, project: proj }).then(r => {
+    invoke<string[]>('list_azdo_repos', { token, project: proj, organization: getOrg() }).then(r => {
       if (r.length) { S.cachedRepos = r; renderConfig(); }
     }).catch(() => {});
   }
   if (okRepo && !S.cachedBranches.length) {
-    invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo }).then(b => {
+    invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo, organization: getOrg() }).then(b => {
       if (b.length) { S.cachedBranches = b; renderConfig(); }
     }).catch(() => {});
   }
@@ -285,11 +288,14 @@ document.addEventListener('click', (e: MouseEvent) => {
 
 // ── Wizard cascade triggers ──
 export async function wizValidatePat(): Promise<void> {
+  const org = (document.getElementById('c-org') as HTMLInputElement)?.value || '';
+  if (org) { if (!S.envConfig.azdo) S.envConfig.azdo = {}; S.envConfig.azdo.organization = org; }
   const token = (document.getElementById('c-pat') as HTMLInputElement)?.value || '';
   if (!token) { toast('Enter a PAT first', 'warn'); return; }
+  if (!org) { toast('Enter an organization first', 'warn'); return; }
   toast('Validating PAT & loading projects...', 'info');
   try {
-    S.cachedProjects = await invoke('list_azdo_projects', { token });
+    S.cachedProjects = await invoke('list_azdo_projects', { token, organization: org });
     if (S.cachedProjects.length) {
       autoSave();
       const snap = getFormValues(); renderConfig(); setFormValues(snap);
@@ -308,7 +314,7 @@ export async function onProjectChange(proj: string): Promise<void> {
   toast('Loading repos for ' + proj + '...', 'info');
   const token = getToken();
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj });
+    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj, organization: getOrg() });
     S.cachedBranches = [];
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     const snap = getFormValues(); snap.proj = proj; renderConfig(); setFormValues(snap);
@@ -320,7 +326,7 @@ export async function refreshRepos(): Promise<void> {
   if (!token || !proj) { toast('Need PAT & project first', 'warn'); return; }
   toast('Refreshing repos...', 'info');
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj });
+    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj, organization: getOrg() });
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     const snap = getFormValues(); renderConfig(); setFormValues(snap);
   } catch(e) { toast('Repos: ' + e, 'error'); }
@@ -331,7 +337,7 @@ export async function refreshBranches(): Promise<void> {
   if (!token || !repo) { toast('Need PAT & repository first', 'warn'); return; }
   toast('Refreshing branches...', 'info');
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo });
+    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo, organization: getOrg() });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     const snap = getFormValues(); renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: ' + e, 'error'); }
@@ -343,7 +349,7 @@ export async function onRepoChange(repo: string): Promise<void> {
   toast('Loading branches...', 'info');
   const token = getToken();
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo });
+    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo, organization: getOrg() });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     const snap = getFormValues(); snap.repo = repo; renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: ' + e, 'error'); }
@@ -373,6 +379,8 @@ function getVersion(c: EnvConfig): string {
   return m2 ? m2[1] : '10.7';
 }
 function buildParentSite(ver: string): string {
+  const fromField = (document.getElementById('c-ps') as HTMLInputElement)?.value;
+  if (fromField) return fromField;
   return `/${ver}/WizRisk.${ver}`;
 }
 export function onVersionChange(_ver: string): void {
@@ -434,7 +442,7 @@ export async function loadWorkItems(): Promise<void> {
   if (!token) { toast('Fill PAT & save config first', 'warn'); return; }
   toast('Loading recent work items...', 'info');
   try {
-    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '' });
+    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '', organization: getOrg() });
     if (S.cachedWorkItems.length) {
       toast(S.cachedWorkItems.length + ' work items loaded', 'success');
       renderWIResults(S.cachedWorkItems);
@@ -448,7 +456,7 @@ export async function loadMyWorkItems(): Promise<void> {
   if (!token) { toast('Fill PAT & save config first', 'warn'); return; }
   toast('Loading my work items...', 'info');
   try {
-    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '@me' });
+    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '@me', organization: getOrg() });
     if (S.cachedWorkItems.length) {
       toast(S.cachedWorkItems.length + ' items assigned to you', 'success');
       renderWIResults(S.cachedWorkItems);
@@ -468,7 +476,7 @@ export function searchWI(query: string): void {
     const token = getToken();
     if (!token) return;
     try {
-      const items: WorkItem[] = await invoke('search_work_items', { token, project: getProject(), query });
+      const items: WorkItem[] = await invoke('search_work_items', { token, project: getProject(), query, organization: getOrg() });
       renderWIResults(items);
     } catch(e) { toast('Search: '+e, 'error'); }
   }, 400);
@@ -538,10 +546,10 @@ export async function createBranch(): Promise<void> {
 
   toast('Creating branch...', 'info');
   try {
-    await invoke('create_azdo_branch', { token, project: getProject(), repository, branchName, sourceBranch });
+    await invoke('create_azdo_branch', { token, project: getProject(), repository, branchName, sourceBranch, organization: getOrg() });
     toast('Branch "' + branchName + '" created!', 'success');
     // Refresh branches and select the new one
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository });
+    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository, organization: getOrg() });
     const snap = getFormValues();
     snap.fb = branchName;
     renderConfig();
@@ -561,11 +569,14 @@ export async function doBrowse(id: string): Promise<void> {
 
 interface FormSnapshot {
   wi: string | null;
+  org: string | null;
   repo: string | null;
+  rdm: string | null;
   fb: string | null;
   tb: string | null;
   pkg: string | null;
   sp: string | null;
+  ps: string | null;
   usr: string | null;
   spw: string | null;
   dbu: string | null;
@@ -577,14 +588,14 @@ interface FormSnapshot {
 
 function getFormValues(): FormSnapshot {
   const v = (id: string): string | null => (document.getElementById(id) as HTMLInputElement)?.value ?? null;
-  return { wi:v('c-wi'), repo:v('c-repo'), fb:v('c-fb'), tb:v('c-tb'), pkg:v('c-pkg'),
-    sp:v('c-sp'), usr:v('c-usr'), spw:v('c-spw'), dbu:v('c-dbu'), dbpw:v('c-dbpw'), pat:v('c-pat'), ver:v('c-ver'), proj:v('c-proj') };
+  return { wi:v('c-wi'), org:v('c-org'), repo:v('c-repo'), rdm:v('c-rdm'), fb:v('c-fb'), tb:v('c-tb'), pkg:v('c-pkg'),
+    sp:v('c-sp'), ps:v('c-ps'), usr:v('c-usr'), spw:v('c-spw'), dbu:v('c-dbu'), dbpw:v('c-dbpw'), pat:v('c-pat'), ver:v('c-ver'), proj:v('c-proj') };
 }
 function setFormValues(s: FormSnapshot): void {
   if (!s) return;
   const set = (id: string, val: string | null): void => { const el = document.getElementById(id) as HTMLInputElement | null; if(el && val!==null) el.value=val; };
-  set('c-wi',s.wi); set('c-repo',s.repo); set('c-fb',s.fb); set('c-tb',s.tb); set('c-pkg',s.pkg);
-  set('c-sp',s.sp); set('c-usr',s.usr); set('c-spw',s.spw); set('c-dbu',s.dbu); set('c-dbpw',s.dbpw); set('c-pat',s.pat); set('c-ver',s.ver); set('c-proj',s.proj);
+  set('c-wi',s.wi); set('c-org',s.org); set('c-repo',s.repo); set('c-rdm',s.rdm); set('c-fb',s.fb); set('c-tb',s.tb); set('c-pkg',s.pkg);
+  set('c-sp',s.sp); set('c-ps',s.ps); set('c-usr',s.usr); set('c-spw',s.spw); set('c-dbu',s.dbu); set('c-dbpw',s.dbpw); set('c-pat',s.pat); set('c-ver',s.ver); set('c-proj',s.proj);
 }
 export function getToken(): string { return (document.getElementById('c-pat') as HTMLInputElement)?.value || S.envConfig.azdo?.token || ''; }
 export function getRepo(): string { return (document.getElementById('c-repo') as HTMLInputElement)?.value || S.envConfig.azdo?.repository || ''; }
@@ -596,7 +607,7 @@ export async function loadBranches(): Promise<void> {
   if (!token || !repository) { toast('Fill PAT & select a repository first', 'warn'); return; }
   toast('Loading branches...', 'info');
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository });
+    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository, organization: getOrg() });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: '+e, 'error'); }
@@ -607,7 +618,7 @@ export async function loadRepos(): Promise<void> {
   if (!token) { toast('Fill PAT first', 'warn'); return; }
   toast('Loading repos...', 'info');
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: getProject() });
+    S.cachedRepos = await invoke('list_azdo_repos', { token, project: getProject(), organization: getOrg() });
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     renderConfig(); setFormValues(snap);
   } catch(e) { toast('Repos: '+e, 'error'); }
@@ -621,10 +632,10 @@ function buildConfig(): EnvConfig {
     workitem_id: v('c-wi'), feature_branch: v('c-fb'), target_branch: v('c-tb'),
     deactivate_metadata_conversion: mdCheckbox ? !mdCheckbox.checked : (S.envConfig.deactivate_metadata_conversion || false),
     packages: S.cachedPackages.length ? getSelectedPackages() : v('c-pkg').split(',').map(s=>s.trim()).filter(Boolean),
-    local: { site_path: v('c-sp'), parent_site: buildParentSite(ver), user: v('c-usr') || 'admin', password: v('c-spw'),
+    local: { site_path: v('c-sp'), parent_site: v('c-ps') || buildParentSite(ver), user: v('c-usr') || 'admin', password: v('c-spw'),
              db_user: v('c-dbu') || 'sa', db_password: v('c-dbpw') },
-    azdo: { organization: getOrg(), project: v('c-proj') || getProject(), token: v('c-pat'), repository: v('c-repo'),
-            repository_metadata: S.envConfig.azdo?.repository_metadata },
+    azdo: { organization: v('c-org') || getOrg(), project: v('c-proj') || getProject(), token: v('c-pat'), repository: v('c-repo'),
+            repository_metadata: v('c-rdm') || 'Test.Package.Metadata.GitObjectDB' },
     git: S.envConfig.git,
   };
 }
@@ -682,7 +693,7 @@ export async function deleteBranch(): Promise<void> {
   const repo = getRepo();
   if (!token || !repo) { toast('Configure PAT & repository first', 'warn'); return; }
   if (!S.cachedBranches.length) {
-    try { S.cachedBranches = await invoke('list_azdo_branches', { token, project:getProject(), repository:repo }); } catch {}
+    try { S.cachedBranches = await invoke('list_azdo_branches', { token, project:getProject(), repository:repo, organization: getOrg() }); } catch {}
   }
   const fb = S.envConfig.feature_branch || '';
   const result = await (window as any).showModal({
@@ -697,7 +708,7 @@ export async function deleteBranch(): Promise<void> {
   if (!branchName) return;
   toast('Deleting branch...', 'info');
   try {
-    await invoke('delete_azdo_branch', { token, project:getProject(), repository:repo, branchName });
+    await invoke('delete_azdo_branch', { token, project:getProject(), repository:repo, branchName, organization: getOrg() });
     toast('Branch "' + branchName + '" deleted', 'success');
     S.cachedBranches = S.cachedBranches.filter(b => b !== branchName);
     renderConfig();
