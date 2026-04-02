@@ -54,7 +54,7 @@ import {
   setTheme, toggleThemeList, closeThemeList,
   loadEnv, init, setupEventListeners,
   installPrereq, installAllPrereqs,
-  checkForUpdates, applyUpdate,
+  checkForUpdates, applyUpdate, reportBug,
 } from './app';
 
 import { toggleDonutPet } from './donut-pet';
@@ -144,6 +144,7 @@ window.installPrereq = installPrereq;
 window.installAllPrereqs = installAllPrereqs;
 window.checkForUpdates = checkForUpdates;
 window.applyUpdate = applyUpdate;
+window.reportBug = reportBug;
 
 // From donut-pet.ts
 window.toggleDonutPet = toggleDonutPet;

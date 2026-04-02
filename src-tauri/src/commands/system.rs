@@ -130,12 +130,12 @@ pub(crate) fn open_url(url: String) -> Result<(), AppError> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err(AppError::Validation("Invalid URL".into()));
     }
-    // Use cmd /C start with empty title to open URLs correctly (handles query params).
-    // URL is pre-validated to start with http(s):// above, safe from injection.
-    #[cfg(windows)]
+    // Open URL in default browser. Use rundll32 instead of cmd /C start
+    // because cmd interprets & in URLs as command separators.
+    #[cfg(all(windows, not(test)))]
     {
-        let _ = std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
+        let _ = std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", &url])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn();
     }
@@ -430,6 +430,78 @@ pub(crate) async fn apply_update(
 
     app.exit(0);
     Ok(())
+}
+
+// ── Bug report ──
+
+#[tauri::command]
+pub(crate) fn build_bug_report_url(comment: String, context: String) -> Result<String, AppError> {
+    let version = std::fs::read_to_string(app_root().join("cli").join("config").join("version.json"))
+        .ok()
+        .and_then(|d| serde_json::from_str::<serde_json::Value>(&d).ok())
+        .and_then(|j| j["version"].as_str().map(String::from))
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+
+    let os_version = {
+        let out = hidden_cmd("cmd").args(["/C", "ver"]).output();
+        out.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+           .unwrap_or_else(|_| "Windows".into())
+    };
+
+    let title = if comment.len() > 80 {
+        format!("{}...", &comment[..77])
+    } else if comment.is_empty() {
+        "Bug report".to_string()
+    } else {
+        comment.clone()
+    };
+
+    // Sanitize context: remove anything that looks like a token/password
+    let safe_context = context
+        .lines()
+        .map(|line| {
+            if line.to_lowercase().contains("token") || line.to_lowercase().contains("password") || line.to_lowercase().contains("pat") {
+                let parts: Vec<&str> = line.splitn(2, ':').collect();
+                if parts.len() == 2 { format!("{}: [REDACTED]", parts[0]) } else { line.to_string() }
+            } else { line.to_string() }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let body = format!(
+        "{}\n\n<details>\n<summary>System context (auto-generated)</summary>\n\n- **DONUT**: v{}\n- **OS**: {}\n\n```\n{}\n```\n\n</details>",
+        if comment.is_empty() { "" } else { &comment },
+        version,
+        os_version,
+        safe_context,
+    );
+
+    // Build GitHub new issue URL with pre-filled title & body
+    let url = format!(
+        "https://github.com/{}/issues/new?title={}&body={}&labels=bug",
+        GITHUB_REPO,
+        urlencoding::encode(&title),
+        urlencoding::encode(&body),
+    );
+
+    // GitHub URLs have a ~8000 char limit; truncate body if needed
+    if url.len() > 7500 {
+        let short_body = format!(
+            "{}\n\n<details>\n<summary>System context (auto-generated)</summary>\n\n- **DONUT**: v{}\n- **OS**: {}\n\n(context truncated — too large for URL)\n\n</details>",
+            if comment.is_empty() { "" } else { &comment },
+            version,
+            os_version,
+        );
+        let short_url = format!(
+            "https://github.com/{}/issues/new?title={}&body={}&labels=bug",
+            GITHUB_REPO,
+            urlencoding::encode(&title),
+            urlencoding::encode(&short_body),
+        );
+        return Ok(short_url);
+    }
+
+    Ok(url)
 }
 
 #[cfg(test)]

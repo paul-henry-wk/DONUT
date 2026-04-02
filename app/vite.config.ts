@@ -1,4 +1,32 @@
 import { defineConfig, Plugin } from 'vite';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { resolve, dirname, join } from 'path';
+
+// Concatenate CSS @imports into a single file for Tauri compatibility.
+// Tauri's custom protocol doesn't reliably resolve CSS @import url() chains.
+// Source files stay split in public/css/ for maintainability.
+function concatCss(): Plugin {
+  return {
+    name: 'concat-css',
+    enforce: 'post',
+    writeBundle() {
+      const distDir = resolve(__dirname, 'dist');
+      const stylePath = join(distDir, 'style.css');
+      if (!existsSync(stylePath)) return;
+      const root = readFileSync(stylePath, 'utf-8');
+      const merged = root.replace(/@import\s+url\(['"]?([^'")\s]+)['"]?\)\s*;?/g, (_match, url) => {
+        const filePath = join(distDir, url);
+        if (existsSync(filePath)) {
+          return `/* ── ${url} ── */\n` + readFileSync(filePath, 'utf-8') + '\n';
+        }
+        return _match; // keep original if file not found
+      });
+      // Fix font paths: css/base.css references ../fonts/ but the merged file is at dist root
+      const fixed = merged.replace(/url\(['"]?\.\.\/fonts\//g, "url('fonts/");
+      writeFileSync(stylePath, fixed);
+    },
+  };
+}
 
 // Fix for Tauri webview: remove type="module" and crossorigin from script tags.
 // Tauri's custom protocol (tauri://) has issues with ES module loading.
@@ -24,7 +52,7 @@ function tauriFix(): Plugin {
 export default defineConfig({
   root: '.',
   base: './',
-  plugins: [tauriFix()],
+  plugins: [tauriFix(), concatCss()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

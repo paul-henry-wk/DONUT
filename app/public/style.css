@@ -8,4 +8,7 @@
 @import url('css/scripts.css');
 @import url('css/config.css');
 @import url('css/devops.css');
+@import url('css/diff-viewer.css');
+@import url('css/loading.css');
+@import url('css/health.css');
 @import url('css/extras.css');

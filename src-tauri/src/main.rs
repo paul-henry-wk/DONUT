@@ -77,7 +77,7 @@ fn main() {
             search_work_items, list_branch_work_items, assign_work_item,
             get_pr_files, get_file_diff,
             list_sql_packages, kill_running_script, reset_git_credentials, is_admin, open_url, open_file, scan_local_sites, scan_enablon_instances,
-            check_for_updates, apply_update,
+            check_for_updates, apply_update, build_bug_report_url,
             start_watch, stop_watch, is_watching,
         ])
         .build(tauri::generate_context!())

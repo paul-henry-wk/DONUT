@@ -1,17 +1,18 @@
 # DONUT — DevOps Nabsic Unified Tool
 
-Standalone desktop application for managing delivery workflows: versioning, metadata, Azure DevOps integration — in a single ~12 MB executable.
+Standalone desktop application for managing delivery workflows: versioning, metadata, Azure DevOps integration — in a single ~5.5 MB executable.
 
 ## Tech Stack
 
 | Layer | Technology | Details |
 |-------|-----------|---------|
-| Desktop shell | [Tauri 2](https://tauri.app/) | Lightweight native window, ~12 MB |
-| Backend | Rust | Async process streaming, Azure DevOps API, error handling |
-| Frontend | TypeScript / Vite | Vanilla HTML/CSS, JetBrains Mono, 6 themes |
+| Desktop shell | [Tauri 2](https://tauri.app/) | Lightweight native window, ~5.5 MB |
+| Backend | Rust | Async process streaming, Azure DevOps API with retry, error handling |
+| Frontend | TypeScript / Vite | Vanilla HTML/CSS, JetBrains Mono, 9 themes |
 | Scripts | PowerShell 7 | Git, .NET tools, Azure DevOps REST API |
 | Database | SQL Server (local) | Package discovery via `sqlcmd` |
-| API | Azure DevOps REST | Repos, branches, PRs, work items |
+| API | Azure DevOps REST | Repos, branches, PRs, builds, work items |
+| Tests | Vitest + Cargo test + Pester | Frontend, backend, and CLI test suites |
 
 ## Quick Start
 
@@ -30,54 +31,105 @@ Missing prerequisites show as red dots in the header — click for install comma
 
 ### Azure DevOps PAT
 
-Create a PAT on your Azure DevOps organization (`https://dev.azure.com/<your-org>/_usersSettings/tokens`) with: **Code** (Read & Write) + **Work Items** (Read).
+Create a PAT on your Azure DevOps organization (`https://dev.azure.com/<your-org>/_usersSettings/tokens`) with: **Code** (Read & Write) + **Work Items** (Read & Write).
 
 ## Commands
 
-### Workflow
+### Setup
 | # | Command | Description |
 |---|---------|-------------|
-| 1 | **Set Master Packages** | Close all packages, open configured ones, regenerate metadata |
-| 2 | **Pull Force** | Reset local site to parent, checkout branch, process commits |
-| 3 | **Reset** | Pull Force from scratch (discards branch history) |
-| 4 | **Pull** | Incremental update without reset |
-| 5 | **Commit** | Push changes, create PRs (code + metadata view-diff) |
+| 1 | **Install Site** | Deploy .ENA archive to local IIS |
+| 2 | **Setup Auth** | Configure admin credentials & restart IIS |
+| 3 | **Set Packages** | Select which packages are open for dev |
 
-### Tools
+### Synchronize
+| # | Command | Description |
+|---|---------|-------------|
+| 4 | **Pull Force** | Full download: reset site & apply all commits |
+| 5 | **Full Reset** | Wipe & rebuild site from scratch (no history) |
+| 6 | **Pull** | Apply new commits without resetting site |
+| 7 | **Commit** | Push local changes & create pull request |
+
+### Diagnostic
 | Key | Command | Description |
 |-----|---------|-------------|
-| s | **Status** | Site, branch, packages, active PRs |
+| s | **Status** | Show site, branch & PR status |
 | d | **Diff** | Preview local changes before commit |
+| h | **Health Check** | Deep diagnostic of site, DB, git, APIs |
+
+### Git
+| Key | Command | Description |
+|-----|---------|-------------|
 | m | **Merge** | Merge feature branch into target |
-| r | **Rollback** | Undo commits via safe revert |
-| h | **Health Check** | Deep diagnostic: site, SQL, Git, APIs, IIS, disk |
-| l | **Logs** | Browse session logs |
-| i | **Init** | Create new environment interactively |
+| r | **Rollback** | Undo commits (safe revert) |
+
+## Features
+
+- **9 themes**: Dark, Light, Dark Choco, Chocolate, Strawberry, Rainbow, Windows 95, Windows XP, Mac OS X
+- **DevOps dashboard**: Build status, PRs, branch diff, merge conflicts, quick links, activity timeline
+- **Workflow state machine**: Tracks your progress through setup → synchronize → commit → merge
+- **Adaptive health check**: Polls fast when issues detected, slow when stable
+- **Azure DevOps API retry**: Automatic retry with backoff on network errors and rate limits
+- **PR diff viewer**: Side-by-side and unified diff with Enablon metadata support
 
 ## Project Structure
 
 ```
-DONUT.exe                  <- user entry point
+DONUT.exe                  <- user entry point (~5.5 MB)
 app/                       <- frontend (TypeScript / Vite)
+  ├── src/                 <- TypeScript modules
+  │   ├── app/             <- themes, modals
+  │   ├── config/          <- form field helpers
+  │   ├── devops/          <- PR diff viewer
+  │   ├── terminal/        <- syntax HL, diff nav, controls
+  │   └── __tests__/       <- Vitest test suite
+  └── public/
+      ├── css/             <- split CSS (base, components, themes)
+      └── fonts/           <- JetBrains Mono
 cli/                       <- PowerShell scripts & modules
   ├── config/              <- version.json, packages.json
   ├── modules/             <- reusable PowerShell modules
   └── scripts/             <- workflow scripts (1 per command)
 src-tauri/                 <- Rust backend (Tauri 2)
 tests/                     <- Pester test suite
+templates/                 <- environment config templates
 working-environments/      <- user environment configs (.env.json)
 dev/                       <- developer tools
-  ├── donut.bat/ps1        <- CLI mode (dev/debug without compilation)
-  └── build-cargo.cmd      <- compile DONUT.exe
 ```
 
 ## Building
 
-```
-dev\build-cargo.cmd
+```bash
+# Frontend
+cd app && npm install && npm run build
+
+# Full app (release, optimized ~5.5 MB)
+cd src-tauri && cargo build --release
+
+# Dev mode (hot-reload)
+node app/node_modules/@tauri-apps/cli/tauri.js dev
 ```
 
 Requires: Rust toolchain + Visual Studio Build Tools (C++).
+
+## Testing
+
+```bash
+# Frontend (Vitest)
+cd app && npm test
+
+# TypeScript type check
+cd app && npx tsc --noEmit
+
+# Rust tests
+cd src-tauri && cargo test
+
+# Rust lint
+cd src-tauri && cargo clippy -- -D warnings
+
+# PowerShell Pester tests
+pwsh -Command "Invoke-Pester -Path ./tests -Output Detailed"
+```
 
 ## CLI Mode (dev)
 
@@ -93,7 +145,7 @@ Environment files in `working-environments/` as `.env.json` or `.env-{name}.json
 
 ## Sharing
 
-Zip the project folder (excluding `src-tauri/target/`, `.bin/`, `.env*.json`). Recipients unzip and double-click `DONUT.exe`.
+Download the latest release from [GitHub Releases](../../releases). Or zip the project folder (excluding `src-tauri/target/`, `.bin/`, `.env*.json`). Recipients unzip and double-click `DONUT.exe`.
 
 ## Contribute
 

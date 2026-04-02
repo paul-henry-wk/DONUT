@@ -361,10 +361,24 @@ export function setupEventListeners(): void {
       const endLabel = ok ? 'SUCCESS' : `FAILED (exit ${msg.code})`;
       const out = document.getElementById('termOutput');
       if (out) {
+        // Count terminal lines by type for summary
+        const lines = out.querySelectorAll('.line');
+        let errCount = 0, warnCount = 0, totalLines = 0;
+        lines.forEach(l => {
+          totalLines++;
+          if (l.classList.contains('err')) errCount++;
+          if (l.classList.contains('warn')) warnCount++;
+        });
+        const stats: string[] = [];
+        stats.push(`${totalLines} lines`);
+        if (errCount > 0) stats.push(`<span style="color:var(--danger)">${errCount} error${errCount > 1 ? 's' : ''}</span>`);
+        if (warnCount > 0) stats.push(`<span style="color:var(--warn)">${warnCount} warning${warnCount > 1 ? 's' : ''}</span>`);
+        const statsHtml = stats.join(' \u00B7 ');
         out.insertAdjacentHTML('beforeend',
           `<div class="run-end-banner ${endCls}">` +
           `<span class="run-end-icon">${endIcon}</span>` +
           `<span class="run-end-info"><strong>${esc(scriptName)}</strong> — ${endLabel} in ${esc(duration)}</span>` +
+          `<span class="run-end-stats">${statsHtml}</span>` +
           `<span class="run-end-msg">${esc(endMsg)}</span>` +
           `</div>`);
         out.scrollTop = out.scrollHeight;
@@ -504,4 +518,73 @@ export function setupEventListeners(): void {
     const o = document.getElementById('loadingOverlay');
     if (o) { o.classList.add('hidden'); setTimeout(() => o.remove(), 400); }
   }, 8000);
+}
+
+// ── Bug Report ──
+export async function reportBug(): Promise<void> {
+  const result = await showPrompt(
+    'Report a Bug \uD83D\uDC1B',
+    'Describe what happened (the system context will be attached automatically):',
+  );
+  if (!result || typeof result !== 'string') return;
+  const comment = result;
+
+  // Collect context from the current state
+  const lines: string[] = [];
+  lines.push(`Environment: ${S.currentEnv || 'none'}`);
+  lines.push(`Feature branch: ${S.envConfig.feature_branch || 'none'}`);
+  lines.push(`Target branch: ${S.envConfig.target_branch || 'none'}`);
+  lines.push(`Repository: ${S.envConfig.azdo?.repository || 'none'}`);
+  lines.push(`Site path: ${S.envConfig.local?.site_path || 'none'}`);
+  lines.push(`Packages: ${(S.envConfig.packages || []).join(', ') || 'none'}`);
+
+  // Last run result
+  if (S.lastRunResult) {
+    lines.push(`Last run: ${S.lastRunResult.script} — ${S.lastRunResult.ok ? 'success' : 'FAILED'} (${S.lastRunResult.duration})`);
+  }
+
+  // Run history (last 5)
+  const history = S.runHistory.slice(-5);
+  if (history.length) {
+    lines.push(`Recent runs: ${history.map(h => `${h.script}(${h.ok ? 'ok' : 'FAIL'})`).join(', ')}`);
+  }
+
+  // Health status details
+  const hw = document.getElementById('healthWidget');
+  if (hw) {
+    const led = hw.querySelector('.hw-led');
+    lines.push(`Health: ${led?.classList.contains('ok') ? 'all OK' : led?.classList.contains('fail') ? 'FAILING' : 'unknown'}`);
+  }
+
+  // Current script selection
+  if (S.selectedScript) {
+    lines.push(`Selected script: ${S.selectedScript}`);
+  }
+
+  // Last 40 lines of terminal output (truncated per line to fit URL limit)
+  const termOut = document.getElementById('termOutput');
+  if (termOut) {
+    const termLines = Array.from(termOut.querySelectorAll('.line'))
+      .slice(-40)
+      .map(el => {
+        const text = (el as HTMLElement).textContent?.trim() || '';
+        return text.length > 120 ? text.substring(0, 117) + '...' : text;
+      })
+      .filter(l => l.length > 0);
+    if (termLines.length > 0) {
+      lines.push('');
+      lines.push('--- Last terminal output ---');
+      termLines.forEach(l => lines.push(l));
+    }
+  }
+
+  const context = lines.join('\n');
+
+  try {
+    const url = await invoke<string>('build_bug_report_url', { comment: comment.trim(), context });
+    openUrl(url);
+    toast('Opening GitHub — paste & submit the issue', 'success');
+  } catch (e) {
+    toast('Bug report failed: ' + e, 'error');
+  }
 }

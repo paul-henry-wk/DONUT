@@ -69,6 +69,9 @@ if (Test-Path $wizManager) {
 }
 
 # ── 2. Update user account ──
+if ($AdminUsername -notmatch '^[a-zA-Z0-9_\-\.@]+$') {
+    throw "Invalid admin username: '$AdminUsername'"
+}
 Print_Title "Updating user account '$AdminUsername'"
 Invoke-SqlCommand -Query @"
 UPDATE S_Adm_Users

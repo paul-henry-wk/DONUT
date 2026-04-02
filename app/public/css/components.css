@@ -1,5 +1,6 @@
 body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:13px; transition:background .3s, color .3s; }
-.term-output, .term-bar, .diff-body, .shortcuts kbd, .run-bar input { font-family:'JetBrains Mono',monospace; }
+.term-output { font-family:'Consolas','Lucida Console','Courier New',monospace; font-size:12.5px; }
+.term-bar, .diff-body, .shortcuts kbd, .run-bar input { font-family:'JetBrains Mono',monospace; }
 
 /* ── Top bar ── */
 .topbar { display:flex; align-items:center; padding:0 16px; height:40px; background:var(--bg-bar); border-bottom:1px solid var(--border-bar); flex-shrink:0; gap:8px; overflow:visible; position:relative; z-index:300; }
@@ -11,6 +12,9 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .logo-o:active { transform:scale(0.9); }
 .logo-sub { color:var(--text-dim); font-weight:400; font-size:10.5px; letter-spacing:0; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .logo-ver { color:var(--text-dim); font-weight:400; font-size:10.5px; flex-shrink:0; }
+.bug-btn { background:none; border:none; cursor:pointer; padding:2px; color:var(--text-dim); opacity:.6; transition:all .15s; display:inline-flex; align-items:center; }
+.bug-btn svg { width:14px; height:14px; }
+.bug-btn:hover { opacity:1; color:var(--text); transform:scale(1.1); }
 .update-btn { display:none; background:none; border:none; cursor:pointer; padding:2px; margin-left:4px; vertical-align:middle; color:var(--text-dim); opacity:.5; }
 .update-btn svg { width:14px; height:14px; }
 .update-btn.available { display:inline-flex; align-items:center; opacity:1; color:var(--accent); animation:update-pulse 2s ease-in-out infinite; }

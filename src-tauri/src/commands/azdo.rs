@@ -54,6 +54,10 @@ pub(crate) async fn create_azdo_branch(state: tauri::State<'_, AppState>, token:
     if token.is_empty() || project.is_empty() || repository.is_empty() || branch_name.is_empty() || source_branch.is_empty() {
         return Err(AppError::Validation("Fill all fields: PAT, project, repository, branch name, source branch.".into()));
     }
+    if branch_name.len() > 250 { return Err(AppError::Validation("Branch name is too long.".into())); }
+    if branch_name.contains('\0') || branch_name.contains("..") || branch_name.ends_with(".lock") || branch_name.contains('~') || branch_name.contains('^') || branch_name.contains(':') || branch_name.contains('\\') || branch_name.contains(' ') {
+        return Err(AppError::Validation("Branch name contains invalid characters.".into()));
+    }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let auth = azdo_auth(&token);
 
@@ -252,6 +256,9 @@ pub(crate) struct WorkItem { id: u64, title: String, state: String, #[serde(rena
 #[tauri::command]
 pub(crate) async fn assign_work_item(state: tauri::State<'_, AppState>, token: String, project: String, work_item_id: u64, assign_to: String, organization: Option<String>) -> Result<(), AppError> {
     if token.is_empty() { return Err(AppError::Validation("Fill PAT first.".into())); }
+    if assign_to.is_empty() { return Err(AppError::Validation("Assignee must not be empty.".into())); }
+    if assign_to.len() > 256 { return Err(AppError::Validation("Assignee value is too long.".into())); }
+    if assign_to.contains('\0') { return Err(AppError::Validation("Assignee contains invalid characters.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/wit/workitems/{}?api-version=7.0", url_encode(org), url_encode(&project), work_item_id);
     let body = serde_json::json!([{
@@ -322,6 +329,8 @@ pub(crate) async fn list_branch_work_items(state: tauri::State<'_, AppState>, to
 #[tauri::command]
 pub(crate) async fn search_work_items(state: tauri::State<'_, AppState>, token: String, project: String, query: String, organization: Option<String>) -> Result<Vec<WorkItem>, AppError> {
     if token.is_empty() || project.is_empty() { return Err(AppError::Validation("Fill PAT & project first.".into())); }
+    if query.len() > 500 { return Err(AppError::Validation("Search query is too long.".into())); }
+    if query.contains('\0') { return Err(AppError::Validation("Search query contains invalid characters.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let safe_project = project.replace("%20", " ").replace('\'', "''");
     let wiql = if query.is_empty() {
