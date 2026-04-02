@@ -25,9 +25,9 @@ jobs:
           if [ -z "$latest" ]; then
             next="1.0.0"
           else
-            # Strip 'v' prefix, bump minor, reset patch
+            # Strip 'v' prefix, bump patch
             IFS='.' read -r major minor patch <<< "${latest#v}"
-            next="${major}.$((minor + 1)).0"
+            next="${major}.${minor}.$((patch + 1))"
           fi
           echo "version=$next" >> "$GITHUB_OUTPUT"
           echo "tag=v$next" >> "$GITHUB_OUTPUT"
