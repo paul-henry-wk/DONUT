@@ -50,12 +50,20 @@ Describe 'UpdateMasterPackages' {
 
 Describe 'RegenerateMetadata' {
     BeforeEach {
+        $script:savedDonutGui = $env:DONUT_GUI
+        $env:DONUT_GUI = $null
+        # Force non-gum path so Read-Host is used (gum would be interactive)
+        InModuleScope update-master-packages { $script:UseGum = $false }
         Mock Write-Host { }
         Mock Print_Text { } -ModuleName update-master-packages
         Mock Print_Title { } -ModuleName update-master-packages
         Mock Print_Status { } -ModuleName update-master-packages
         Mock Print_Warning { } -ModuleName update-master-packages
         Mock Print_Request { return 'N' } -ModuleName update-master-packages
+    }
+
+    AfterEach {
+        $env:DONUT_GUI = $script:savedDonutGui
     }
 
     It 'should skip regeneration when user declines' {

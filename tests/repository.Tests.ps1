@@ -6,7 +6,7 @@ BeforeAll {
 
 Describe 'CheckoutBranch' {
     BeforeEach {
-        Mock git { } -ModuleName repository
+        Mock git { $global:LASTEXITCODE = 0 } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
         Mock Print_SubTitle { } -ModuleName repository
@@ -15,6 +15,7 @@ Describe 'CheckoutBranch' {
 
     It 'should checkout existing remote branch and pull' {
         Mock git {
+            $global:LASTEXITCODE = 0
             if ($args -contains 'show-ref' -and $args -contains 'refs/remotes/origin/feature/test') { return 'abc123' }
             if ($args -contains 'show-ref' -and $args -contains 'refs/heads/feature/test') { return $null }
         } -ModuleName repository
@@ -26,6 +27,7 @@ Describe 'CheckoutBranch' {
 
     It 'should create new branch from source when branch does not exist' {
         Mock git {
+            $global:LASTEXITCODE = 0
             if ($args -contains 'show-ref') { return $null }
         } -ModuleName repository
 
@@ -35,6 +37,7 @@ Describe 'CheckoutBranch' {
 
     It 'should throw when ExpectedToExist is true and branch not found' {
         Mock git {
+            $global:LASTEXITCODE = 0
             if ($args -contains 'show-ref') { return $null }
         } -ModuleName repository
 
@@ -45,7 +48,7 @@ Describe 'CheckoutBranch' {
 
 Describe 'EmptyCommitsFolder' {
     BeforeEach {
-        Mock git { } -ModuleName repository
+        Mock git { $global:LASTEXITCODE = 0 } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
         Mock Remove-Item { } -ModuleName repository
@@ -71,7 +74,7 @@ Describe 'EmptyCommitsFolder' {
 
 Describe 'Commit' {
     BeforeEach {
-        Mock git { } -ModuleName repository
+        Mock git { $global:LASTEXITCODE = 0 } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
     }
@@ -87,7 +90,7 @@ Describe 'Commit' {
 
 Describe 'Push' {
     BeforeEach {
-        Mock git { } -ModuleName repository
+        Mock git { $global:LASTEXITCODE = 0 } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
     }
