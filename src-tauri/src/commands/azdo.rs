@@ -1,5 +1,5 @@
 use crate::error::{azdo_status_err, AppError};
-use crate::helpers::{azdo_auth, url_encode};
+use crate::helpers::{azdo_auth, azdo_get_json, url_encode};
 use crate::AppState;
 
 #[tauri::command]
@@ -17,9 +17,7 @@ pub(crate) async fn list_azdo_projects(state: tauri::State<'_, AppState>, token:
     if token.is_empty() { return Err(AppError::Validation("Fill PAT first.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/_apis/projects?api-version=7.0&$top=100", org);
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token)).send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let mut projects: Vec<String> = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| v["name"].as_str().map(String::from)).collect()
     }).unwrap_or_default();
@@ -32,10 +30,7 @@ pub(crate) async fn list_azdo_repos(state: tauri::State<'_, AppState>, token: St
     if token.is_empty() || project.is_empty() { return Err(AppError::Validation("Fill PAT & project first.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories?api-version=7.0", url_encode(org), url_encode(&project));
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token))
-        .send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let repos = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| v["name"].as_str().map(String::from)).collect()
     }).unwrap_or_default();
@@ -47,10 +42,7 @@ pub(crate) async fn list_azdo_branches(state: tauri::State<'_, AppState>, token:
     if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository first.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/refs?filter=heads/&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository));
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token))
-        .send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let branches = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| v["name"].as_str().map(|n| n.strip_prefix("refs/heads/").unwrap_or(n).to_string())).collect()
     }).unwrap_or_default();
@@ -129,9 +121,7 @@ pub(crate) async fn list_azdo_prs(state: tauri::State<'_, AppState>, token: Stri
     if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository first.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?searchCriteria.status=active&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository));
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token)).send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let prs = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| {
             Some(PullRequest {
@@ -161,9 +151,7 @@ pub(crate) async fn list_azdo_builds(state: tauri::State<'_, AppState>, token: S
     if let Some(b) = &branch {
         url.push_str(&format!("&branchName=refs/heads/{}", url_encode(b)));
     }
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token)).send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let builds = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| {
             Some(BuildStatus {
@@ -192,9 +180,7 @@ pub(crate) async fn compare_branches(state: tauri::State<'_, AppState>, token: S
     if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository.".into())); }
     let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/diffs/commits?baseVersion={}&baseVersionType=branch&targetVersion={}&targetVersionType=branch&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository), url_encode(&target_branch), url_encode(&source_branch));
-    let resp = state.http.get(&url).header("Authorization", azdo_auth(&token)).send().await?;
-    if !resp.status().is_success() { return Err(azdo_status_err(resp.status())); }
-    let json: serde_json::Value = resp.json().await?;
+    let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let ahead = json["aheadCount"].as_u64().unwrap_or(0);
     let behind = json["behindCount"].as_u64().unwrap_or(0);
     let changes = json["changes"].as_array().map(|arr| {

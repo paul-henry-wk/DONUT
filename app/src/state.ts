@@ -25,21 +25,23 @@ export const ICONS: Record<string, string> = {
 
 // ── Data ──
 export const SCRIPT_GROUPS: ScriptGroup[] = [
-  { label: 'Workflow', scripts: [
-    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive via WizManager', requires: [] },
-    { id: 'setup-local-auth',    num: '01', name: 'Setup Local Auth',    desc: 'reset local DB auth & restart IIS', requires: ['site_path'] },
-    { id: 'set-master-packages', num: '02', name: 'Set Master Packages', desc: 'close/open packages on local site', requires: ['site_path'] },
-    { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'download & reset site from repo', requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'reset',               num: '04', name: 'Reset',               desc: 'pull force from scratch, no history', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'pull',                num: '05', name: 'Pull',                desc: 'incremental update, no reset', requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'commit',              num: '06', name: 'Commit',              desc: 'publish changes & create PRs', needsMsg: true, requires: ['site_path', 'feature_branch', 'target_branch', 'repository', 'token'] },
+  { label: 'Setup', scripts: [
+    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive to local IIS', requires: [] },
+    { id: 'setup-local-auth',    num: '01', name: 'Setup Auth',          desc: 'configure admin credentials & restart IIS', requires: ['site_path'] },
+    { id: 'set-master-packages', num: '02', name: 'Set Packages',        desc: 'select which packages are open for dev', requires: ['site_path'] },
+  ]},
+  { label: 'Synchronize', scripts: [
+    { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'full download: reset site & apply all commits', requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'reset',               num: '04', name: 'Full Reset',          desc: 'wipe & rebuild site from scratch (no history)', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'pull',                num: '05', name: 'Pull',                desc: 'apply new commits without resetting site', requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'commit',              num: '06', name: 'Commit',              desc: 'push local changes & create pull request', needsMsg: true, requires: ['site_path', 'feature_branch', 'target_branch', 'repository', 'token'] },
   ]},
   { label: 'Diagnostic', scripts: [
     { id: 'status',              num: '07', name: 'Status',              desc: 'show site, branch & PR status', requires: ['repository', 'token'] },
     { id: 'diff',                num: '08', name: 'Diff',                desc: 'preview local changes before commit', requires: ['site_path', 'feature_branch'] },
     { id: 'health-check',        num: '09', name: 'Health Check',        desc: 'deep diagnostic of site, DB, git, APIs', requires: ['site_path'] },
   ]},
-  { label: 'Actions', scripts: [
+  { label: 'Git', scripts: [
     { id: 'merge',               num: '10', name: 'Merge',               desc: 'merge feature branch into target', requires: ['site_path', 'feature_branch', 'target_branch'] },
     { id: 'rollback',            num: '11', name: 'Rollback',            desc: 'undo commits (safe revert)', danger: true, requires: ['site_path', 'feature_branch'] },
   ]},

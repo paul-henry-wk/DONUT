@@ -5,6 +5,11 @@
 import type { EnvConfig, WorkItem } from './types';
 import { S, esc, toast, invoke, getOrg, getProject } from './state';
 import { renderSelectedInfo } from './scripts';
+import {
+  field, fieldVersion, fieldBrowse, fieldWorkItem,
+  nativeSelectInline, ssInputInline, ssField, ssFieldWithCreate,
+  wizStep, wizClosed,
+} from './config/form-fields';
 
 // ── Config ──
 interface TemplateInfo { name: string; description: string; filename: string; }
@@ -139,8 +144,23 @@ export function renderConfig(): void {
   const okBranches = okRepo && S.cachedBranches.length > 0;
   const okFb = okBranches && !!c.feature_branch;
   const okTb = okBranches && !!c.target_branch;
+  const pkgCount = (c.packages || []).length;
+
+  // Config summary banner
+  const summaryItems: string[] = [];
+  if (sitePath) summaryItems.push(`<span class="cfg-sum-item ok" title="${esc(sitePath)}">&#9679; ${esc(sitePath.split(/[\\\/]/).pop() || sitePath)}</span>`);
+  else summaryItems.push('<span class="cfg-sum-item miss">&#9675; no site</span>');
+  if (c.feature_branch) summaryItems.push(`<span class="cfg-sum-item ok">&#9679; ${esc(c.feature_branch)}</span>`);
+  else summaryItems.push('<span class="cfg-sum-item miss">&#9675; no branch</span>');
+  if (c.target_branch) summaryItems.push(`<span class="cfg-sum-item dim">\u2192 ${esc(c.target_branch)}</span>`);
+  if (repo) summaryItems.push(`<span class="cfg-sum-item ok">&#9679; ${esc(repo)}</span>`);
+  else summaryItems.push('<span class="cfg-sum-item miss">&#9675; no repo</span>');
+  if (pkgCount) summaryItems.push(`<span class="cfg-sum-item ok">${pkgCount} pkg${pkgCount > 1 ? 's' : ''}</span>`);
+  if (okToken) summaryItems.push('<span class="cfg-sum-item ok" title="PAT valid">&#9679; PAT</span>');
+  else if (token) summaryItems.push('<span class="cfg-sum-item miss" title="PAT not validated">&#9675; PAT?</span>');
 
   cfgForm.innerHTML = `
+    <div class="cfg-summary">${summaryItems.join('<span class="cfg-sum-sep">\u00B7</span>')}</div>
     ${wizStep(1, 'Local Site & Packages', true, !!sitePath, sitePath ? esc(sitePath) : '', `
       <div class="cfg-fields">
         ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)')}
@@ -205,22 +225,6 @@ export function renderConfig(): void {
 }
 
 // ── Wizard helpers ──
-let wizClosed: Record<number, boolean> = {};
-function wizStep(num: number, title: string, unlocked: boolean, isOk: boolean, summary: string, content: string): string {
-  if (!unlocked) return `<div class="wiz-step locked"><div class="wiz-step-header"><span class="wiz-num">${num}</span><span class="wiz-title">${esc(title)}</span><span class="wiz-lock">complete previous steps</span></div></div>`;
-  const isOpen = !wizClosed[num];
-  // 'done' class = green indicator, even when open
-  const cls = (isOpen ? 'active' : '') + (isOk ? ' done' : '');
-  return `<div class="wiz-step ${cls}">
-    <div class="wiz-step-header" onclick="toggleWizStep(${num})">
-      <span class="wiz-num">${isOk ? '✓' : num}</span>
-      <span class="wiz-title">${esc(title)}</span>
-      ${!isOpen && summary ? `<span class="wiz-summary">${esc(summary)}</span>` : ''}
-      <span class="wiz-chevron">${isOpen ? '▾' : '▸'}</span>
-    </div>
-    <div class="wiz-body">${content}</div>
-  </div>`;
-}
 export function toggleWizStep(num: number): void {
   wizClosed[num] = !wizClosed[num];
   const snap = getFormValues();
@@ -228,28 +232,6 @@ export function toggleWizStep(num: number): void {
   setFormValues(snap);
 }
 
-// ── Native select (for small lists like projects) ──
-function nativeSelectInline(id: string, value: string, options: string[], onChange?: string): string {
-  const opts = (options||[]).map(o => `<option value="${esc(o)}" ${o===value?'selected':''}>${esc(o)}</option>`).join('');
-  const onCh = onChange ? `onchange="if(window['${onChange}'])window['${onChange}'](this.value)"` : '';
-  return `<select id="${id}" class="cfg-select" ${onCh}>${value && !options.includes(value) ? `<option value="${esc(value)}" selected>${esc(value)}</option>` : ''}${opts}</select>`;
-}
-function ssInputInline(id: string, value: string, options: string[], onChange?: string): string {
-  const items = (options||[]).map(o => `<div class="ss-item${o===value?' selected':''}" onclick="ssSelect('${id}','${esc(o)}'${onChange?`,'${onChange}'`:''})">` + esc(o) + '</div>').join('');
-  return `<input id="${id}" type="text" class="ss-input" value="${esc(value||'')}" placeholder="type to filter..." oninput="ssFilter('${id}')" onfocus="ssOpen('${id}')" autocomplete="off"><div class="ss-results" id="${id}-list">${items || '<div class="ss-empty">no data</div>'}</div>`;
-}
-
-// ── Searchable select (custom dropdown) ──
-function ssField(id: string, label: string, value: string | undefined, options: string[], onChange?: string, tooltip?: string): string {
-  const items = (options||[]).map(o => `<div class="ss-item${o===value?' selected':''}" onclick="ssSelect('${id}','${esc(o)}'${onChange?`,'${onChange}'`:''})">` + esc(o) + '</div>').join('');
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field ss-wrap"><label>${esc(label)}${tip}</label><input id="${id}" type="text" class="ss-input" value="${esc(value||'')}" placeholder="type to filter..." oninput="ssFilter('${id}')" onfocus="ssOpen('${id}')" autocomplete="off"><div class="ss-results" id="${id}-list">${items || '<div class="ss-empty">no data — load first</div>'}</div></div>`;
-}
-function ssFieldWithCreate(id: string, label: string, value: string | undefined, options: string[], tooltip?: string): string {
-  const items = (options||[]).map(o => `<div class="ss-item${o===value?' selected':''}" onclick="ssSelect('${id}','${esc(o)}')">` + esc(o) + '</div>').join('');
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field ss-wrap"><label>${esc(label)}${tip}</label><div style="display:flex;gap:4px"><input id="${id}" type="text" class="ss-input" value="${esc(value||'')}" placeholder="type to filter..." oninput="ssFilter('${id}')" onfocus="ssOpen('${id}')" autocomplete="off" style="flex:1"><button class="browse-btn" onclick="createBranch()" title="Create new branch">+</button></div><div class="ss-results" id="${id}-list">${items || '<div class="ss-empty">no data</div>'}</div></div>`;
-}
 export function ssOpen(id: string): void {
   document.querySelectorAll('.ss-results.open').forEach(el => { el.classList.remove('open'); });
   const input = document.getElementById(id) as HTMLInputElement | null;
@@ -356,20 +338,10 @@ export async function onRepoChange(repo: string): Promise<void> {
   } catch(e) { toast('Branches: ' + e, 'error'); }
 }
 
-function field(id: string, label: string, value: string, cls?: string, type?: string, tooltip?: string): string {
-  const isPassword = type === 'password';
-  const eye = isPassword ? `<button class="pwd-toggle" onclick="togglePwd('${id}')" title="Show/hide" type="button">👁</button>` : '';
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field ${cls||''}"><label>${esc(label)}${tip}</label><div class="field-pwd-wrap"><input id="${id}" type="${type||'text'}" value="${esc(value||'')}" autocomplete="off" oninput="autoSave()">${eye}</div></div>`;
-}
 export function togglePwd(id: string): void {
   const el = document.getElementById(id) as HTMLInputElement | null;
   if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
-}
-function fieldVersion(id: string, label: string, value: string, tooltip?: string): string {
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field"><label>${esc(label)}${tip}</label><input id="${id}" type="text" value="${esc(value||'')}" placeholder="ex: 10.7" oninput="onVersionChange(this.value)" autocomplete="off"></div>`;
 }
 function getVersion(c: EnvConfig): string {
   const sp = c.local?.site_path || '';
@@ -401,18 +373,6 @@ export async function loadPackages(): Promise<void> {
 }
 function getSelectedPackages(): string[] {
   return Array.from(document.querySelectorAll('.pkg-chip.selected')).map(el => (el as HTMLElement).dataset.pkg!);
-}
-function fieldWorkItem(id: string, label: string, value: string | undefined, tooltip?: string): string {
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field full wi-search">
-    <label>${esc(label)}${tip}</label>
-    <div style="display:flex;gap:4px">
-      <input id="${id}" type="text" value="${esc(value||'')}" placeholder="search by ID or title..." oninput="searchWI(this.value)" onfocus="showWIResultsCached()" autocomplete="off" style="flex:1">
-      <button class="browse-btn" onclick="loadWorkItems()" title="Load recent work items">load</button>
-      <button class="browse-btn" onclick="loadMyWorkItems()" title="Load my assigned items">@me</button>
-    </div>
-    <div class="wi-results" id="wiResults"></div>
-  </div>`;
 }
 let wiDebounce: ReturnType<typeof setTimeout> | null = null;
 function renderWIResults(items: WorkItem[]): void {
@@ -507,15 +467,6 @@ export async function selectWI(id: number): Promise<void> {
 document.addEventListener('click', (e: MouseEvent) => {
   if (!(e.target as HTMLElement).closest('.wi-search')) document.getElementById('wiResults')?.classList.remove('open');
 });
-function fieldBrowse(id: string, label: string, value: string | undefined, cls?: string, tooltip?: string): string {
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  return `<div class="cfg-field ${cls||''} drop-zone" style="position:relative" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'${id}')"><label>${esc(label)}${tip}<span class="drop-hint">drop folder here</span></label><div style="display:flex;gap:4px"><input id="${id}" type="text" value="${esc(value||'')}" style="flex:1" autocomplete="off" oninput="autoSave()"><button class="browse-btn" onclick="doBrowse('${id}')">...</button></div></div>`;
-}
-function fieldBrowseFile(id: string, label: string, value: string | undefined, cls?: string, tooltip?: string, filter?: string): string {
-  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
-  const f = filter ? esc(filter) : '';
-  return `<div class="cfg-field ${cls||''} drop-zone" style="position:relative" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'${id}')"><label>${esc(label)}${tip}<span class="drop-hint">drop file here</span></label><div style="display:flex;gap:4px"><input id="${id}" type="text" value="${esc(value||'')}" style="flex:1" autocomplete="off" oninput="autoSave()"><button class="browse-btn" onclick="doBrowseFile('${id}','${f}')">...</button></div></div>`;
-}
 export function handleDrop(e: DragEvent, id: string): void {
   e.preventDefault();
   (e.currentTarget as HTMLElement).classList.remove('drag-over');
@@ -582,6 +533,19 @@ export async function doBrowseFile(id: string, filter?: string): Promise<void> {
       toast('Selected: ' + path, 'success');
     }
   } catch(e) { toast('Browse failed: '+e, 'error'); }
+}
+
+// ── Inline validation ──
+export function validatePath(id: string): void {
+  const el = document.getElementById(id) as HTMLInputElement | null;
+  const badge = document.getElementById(id + '-valid');
+  if (!el || !badge) return;
+  const path = el.value.trim();
+  if (!path) { badge.innerHTML = ''; return; }
+  const looksValid = /^[a-zA-Z]:[\\\/]/.test(path) && path.length > 5;
+  badge.innerHTML = looksValid
+    ? '<span class="cfg-valid-ok" title="Path looks valid">\u2714</span>'
+    : '<span class="cfg-valid-err" title="Invalid path format">\u2718</span>';
 }
 
 interface FormSnapshot {
@@ -670,10 +634,8 @@ export async function saveConfig(): Promise<void> {
   }
 }
 
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 export function autoSave(): void {
-  clearTimeout(autoSaveTimer!);
-  autoSaveTimer = setTimeout(() => { if (S.currentEnv) saveConfig(); }, 1500);
+  if (S.currentEnv) saveConfig();
 }
 
 let _pkgFilterDebounce: ReturnType<typeof setTimeout> | null = null;

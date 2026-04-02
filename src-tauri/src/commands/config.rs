@@ -4,8 +4,17 @@ use crate::helpers::{app_root, validate_env_name};
 #[tauri::command]
 pub(crate) fn get_version() -> Result<serde_json::Value, AppError> {
     let path = app_root().join("cli").join("config").join("version.json");
-    let data = std::fs::read_to_string(&path)?;
-    Ok(serde_json::from_str(&data)?)
+    if let Ok(data) = std::fs::read_to_string(&path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) {
+            return Ok(json);
+        }
+    }
+    // Fallback: use the version embedded at compile time from tauri.conf.json / Cargo.toml
+    Ok(serde_json::json!({
+        "name": "DONUT",
+        "fullname": "DevOps Nabsic Unified Tool",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
 }
 
 /// Returns a flat map of GUID (lowercase, no dashes) → friendly package name

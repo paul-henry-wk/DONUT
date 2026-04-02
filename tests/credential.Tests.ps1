@@ -35,3 +35,103 @@ Describe "Resolve-PAT" {
         $result | Should -Be $token
     }
 }
+
+Describe "Get-StoredPAT" {
+    It "Returns environment variable when credential manager has no entry" {
+        InModuleScope credential {
+            Mock cmdkey { return "no entry" }
+            Mock Get-Module { return $null }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", "env-token-value", "User")
+                $result = Get-StoredPAT -Organization "testorg"
+                $result | Should -Be "env-token-value"
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+
+    It "Returns null when no credential and no environment variable" {
+        InModuleScope credential {
+            Mock cmdkey { return "no entry" }
+            Mock Get-Module { return $null }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $null, "User")
+                $result = Get-StoredPAT -Organization "testorg"
+                $result | Should -BeNullOrEmpty
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+}
+
+Describe "Set-StoredPAT" {
+    It "Calls cmdkey to store the credential" {
+        InModuleScope credential {
+            Mock cmdkey { }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                $result = Set-StoredPAT -Token "my-secret-token" -Organization "testorg"
+                $result | Should -BeTrue
+                Should -Invoke cmdkey -Times 1 -ParameterFilter {
+                    $args -contains '/add:DONUT_AzDo_PAT_testorg'
+                }
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+
+    It "Falls back to environment variable when cmdkey fails" {
+        InModuleScope credential {
+            Mock cmdkey { throw "cmdkey not available" }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                $result = Set-StoredPAT -Token "fallback-token" -Organization "testorg"
+                $result | Should -BeTrue
+                $envVal = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+                $envVal | Should -Be "fallback-token"
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+}
+
+Describe "Remove-StoredPAT" {
+    It "Calls cmdkey /delete to remove the credential" {
+        InModuleScope credential {
+            Mock cmdkey { }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", "to-be-removed", "User")
+                Remove-StoredPAT -Organization "testorg"
+                Should -Invoke cmdkey -Times 1 -ParameterFilter {
+                    $args -contains '/delete:DONUT_AzDo_PAT_testorg'
+                }
+                $envVal = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+                $envVal | Should -BeNullOrEmpty
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+
+    It "Clears environment variable even when cmdkey fails" {
+        InModuleScope credential {
+            Mock cmdkey { throw "cmdkey failed" }
+            $originalEnv = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+            try {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", "should-be-cleared", "User")
+                Remove-StoredPAT -Organization "testorg"
+                $envVal = [System.Environment]::GetEnvironmentVariable("DONUT_AZDO_TOKEN", "User")
+                $envVal | Should -BeNullOrEmpty
+            } finally {
+                [System.Environment]::SetEnvironmentVariable("DONUT_AZDO_TOKEN", $originalEnv, "User")
+            }
+        }
+    }
+}

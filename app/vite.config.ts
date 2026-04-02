@@ -30,7 +30,7 @@ export default defineConfig({
     emptyOutDir: true,
     target: 'es2021',
     minify: 'esbuild',
-    sourcemap: true,
+    sourcemap: false,
     modulePreload: false,
     rollupOptions: {
       output: {

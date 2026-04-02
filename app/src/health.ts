@@ -6,8 +6,13 @@ import type { HealthStatus, PrereqCheck } from './types';
 import { esc, toast, invoke, S } from './state';
 
 // ── Module-private state ──
-let _healthTimer: ReturnType<typeof setInterval> | null = null;
+let _healthTimer: ReturnType<typeof setTimeout> | null = null;
 let _lastHealth: HealthStatus | null = null;
+
+// Adaptive polling intervals (ms)
+const POLL_FAST = 6_000;   // when any check is failing
+const POLL_SLOW = 30_000;  // when all checks pass
+let _pollInterval = POLL_FAST; // start fast
 
 export async function refreshHealth(): Promise<void> {
   const sp = S.envConfig.local?.site_path || '';
@@ -21,8 +26,11 @@ export async function refreshHealth(): Promise<void> {
       dbPassword: S.envConfig.local?.db_password || S.envConfig.local?.password || '',
       parentSite: S.envConfig.local?.parent_site || '',
     });
+    const allOk = h.iis && h.sql && h.site && h.vpn;
+    _pollInterval = allOk ? POLL_SLOW : POLL_FAST;
     renderHealthWidget(h);
   } catch {
+    _pollInterval = POLL_FAST;
     renderHealthWidget(null);
   }
 }
@@ -81,10 +89,19 @@ export function toggleHealthPopup(): void {
   }), 0);
 }
 
+function _scheduleNextPoll(): void {
+  if (_healthTimer) clearTimeout(_healthTimer);
+  _healthTimer = setTimeout(async () => {
+    await refreshHealth();
+    _scheduleNextPoll();
+  }, _pollInterval);
+}
+
 export function startHealthPolling(): void {
-  if (_healthTimer) clearInterval(_healthTimer);
+  if (_healthTimer) clearTimeout(_healthTimer);
+  _pollInterval = POLL_FAST; // reset to fast on start
   refreshHealth();
-  _healthTimer = setInterval(refreshHealth, 120000); // every 2 min
+  _scheduleNextPoll();
 }
 
 export async function autoFixHealth(service: string): Promise<void> {

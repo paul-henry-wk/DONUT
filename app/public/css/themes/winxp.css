@@ -1,0 +1,180 @@
+/* ═══ Windows XP — Luna Blue, green Start button, glossy gel buttons ═══ */
+[data-theme="winxp"] {
+  --bg:          #ece9d8; --bg-raised:   #f1efe2; --bg-input:    #fff;
+  --bg-bar:      #ece9d8; --border:      #aca899; --border-bar:  #7f9db9;
+  --text:        #1a1a1a; --text-dim:    #4a4a4a; --text-muted:  #333;
+  --text-label:  #1a3c6e; --accent:      #316ac5; --accent-dim:  #21559e;
+  --accent-hover:#2160b0; --accent-bg:   #d6e5f8; --accent-glow: rgba(49,106,197,.12);
+  --danger:      #c80000; --danger-bg:   #fde8e8; --warn:        #8c6900;
+  --success:     #2b7e00; --overlay:     rgba(0,0,0,.35);
+  --card-hover:  #dce8f8; --term-bg:     #012456; --term-bar:    #ece9d8;
+  --confirm-bg:  #f1efe2; --select-bg:   #fff;
+  --radius-sm:   3px;     --radius:      5px;
+  --scrollbar:   #d4d0c8; --scrollbar-h: #a0b8d0;
+  --scanline:    transparent;
+  --diff-add-bg: rgba(43,126,0,.12); --diff-del-bg: rgba(200,0,0,.12);
+  --diff-add-hl: rgba(43,126,0,.25); --diff-del-hl: rgba(200,0,0,.25);
+  --diff-ctx:    rgba(0,0,0,.35);     --diff-ln:     rgba(0,0,0,.15);
+  --diff-border: #7f9db9;             --diff-header-bg: #d6e5f8;
+  --diff-body-bg:#fff;                --diff-sep:    #b8cde8;
+}
+/* XP: Tahoma font */
+[data-theme="winxp"] body,
+[data-theme="winxp"] button,
+[data-theme="winxp"] input,
+[data-theme="winxp"] select { font-family:Tahoma,'Segoe UI',sans-serif !important; }
+[data-theme="winxp"] .term-output { font-family:'Lucida Console','Courier New',monospace !important; }
+
+/* ── XP Title bar — the iconic blue gradient with rounded top ── */
+[data-theme="winxp"] .topbar { background:linear-gradient(180deg, #0058e6 0%, #3a8cf4 6%, #408af0 50%, #1e68d3 94%, #0044aa 100%); border-bottom:1px solid #003399; box-shadow:0 2px 4px rgba(0,0,0,.25); }
+[data-theme="winxp"] .logo { color:#fff; font-weight:700; text-shadow:1px 1px 2px rgba(0,0,50,.6); }
+[data-theme="winxp"] .logo-o { color:#fff; }
+[data-theme="winxp"] .logo-sub { color:#c8dfff; }
+[data-theme="winxp"] .logo-ver { color:#90b8ff; }
+/* XP: tabs on blue bar — gel capsule feel */
+[data-theme="winxp"] .tabs { background:rgba(0,0,0,.12); border-radius:4px; padding:2px; }
+[data-theme="winxp"] .tab { color:#c8dfff; border-radius:3px; }
+[data-theme="winxp"] .tab:hover { color:#fff; background:rgba(255,255,255,.18); }
+[data-theme="winxp"] .tab.active { color:#003399; background:linear-gradient(180deg, #fff, #e8eef5); box-shadow:0 1px 2px rgba(0,0,0,.15); font-weight:700; }
+[data-theme="winxp"] .tab-icon { opacity:1; }
+[data-theme="winxp"] .theme-btn { background:rgba(0,0,0,.15); border:1px solid rgba(255,255,255,.2); color:#fff; }
+[data-theme="winxp"] .theme-btn:hover { background:rgba(255,255,255,.2); }
+[data-theme="winxp"] .theme-list { background:#f1efe2; border:1px solid #7f9db9; box-shadow:2px 2px 8px rgba(0,0,0,.25); }
+[data-theme="winxp"] .env-select { background:rgba(255,255,255,.92); border:1px solid rgba(255,255,255,.3); color:#1a1a1a; }
+
+/* ── XP Script cards — Control Panel grouped panels ── */
+[data-theme="winxp"] .s-card { background:linear-gradient(180deg, #fff 0%, #eef2f9 100%); border:1px solid #7f9db9; box-shadow:0 1px 3px rgba(0,50,150,.08); }
+[data-theme="winxp"] .s-card:hover { background:linear-gradient(180deg, #edf4ff 0%, #d6e5f8 100%); box-shadow:0 1px 6px rgba(49,106,197,.2); border-color:#316ac5; }
+[data-theme="winxp"] .s-card.active { background:linear-gradient(180deg, #c1d9f5 0%, #a3c4e8 100%); border:2px solid #316ac5; box-shadow:0 0 8px rgba(49,106,197,.3); }
+[data-theme="winxp"] .s-card.danger { border-color:#c80000; }
+[data-theme="winxp"] .s-card.danger.active { border-color:#c80000; background:linear-gradient(180deg, #fde8e8, #f5d0d0); }
+[data-theme="winxp"] .s-card-icon { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-right:1px solid #7f9db9; color:#003399; }
+[data-theme="winxp"] .s-group-label { color:#003399; font-weight:700; }
+[data-theme="winxp"] .s-group-label::after { background:linear-gradient(90deg, #316ac5, transparent); height:1px; }
+
+/* ── XP RUN button — the iconic green Start button style ── */
+[data-theme="winxp"] .run-btn { background:linear-gradient(180deg, #69ce3e 0%, #3fa828 30%, #2d8c14 70%, #1e7a05 100%) !important; color:#fff !important; border:1px solid #1a6600; box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 4px rgba(0,0,0,.2), 0 0 10px rgba(100,210,60,.3); text-shadow:0 -1px 0 rgba(0,0,0,.35); animation:xpBtnGlow 2s ease-in-out infinite !important; font-weight:700; letter-spacing:.5px; }
+[data-theme="winxp"] .run-btn:hover { background:linear-gradient(180deg, #7cdf50 0%, #4cb830 30%, #35a01c 70%, #248a0c 100%) !important; }
+[data-theme="winxp"] .run-btn:active { background:linear-gradient(180deg, #1e7a05 0%, #2d8c14 50%, #3fa828 100%) !important; box-shadow:0 2px 4px rgba(0,0,0,.3) inset; }
+[data-theme="winxp"] .cfg-env-btn:hover, [data-theme="winxp"] .browse-btn:hover, [data-theme="winxp"] .modal-btn:hover { box-shadow:0 0 4px rgba(255,165,0,.5), 0 1px 3px rgba(0,0,0,.15); }
+[data-theme="winxp"] .run-btn.danger { background:linear-gradient(180deg, #f08080 0%, #d03030 30%, #b01010 70%, #900000 100%) !important; border-color:#600; }
+[data-theme="winxp"] .run-arrows { color:#2b7e00; }
+[data-theme="winxp"] .save-btn { background:linear-gradient(180deg, #69ce3e 0%, #3fa828 30%, #2d8c14 70%, #1e7a05 100%) !important; color:#fff !important; border:1px solid #1a6600; text-shadow:0 -1px 0 rgba(0,0,0,.3); }
+
+/* ── XP Run bar ── */
+[data-theme="winxp"] .run-bar { background:linear-gradient(180deg, #f1efe2, #ece9d8); border-top:1px solid #fff; }
+[data-theme="winxp"] .run-bar input { border:1px solid #7f9db9; box-shadow:1px 1px 2px rgba(0,0,0,.12) inset; }
+[data-theme="winxp"] .run-bar input:focus { border-color:#316ac5; box-shadow:0 0 4px rgba(49,106,197,.35); }
+
+/* ── XP Terminal — Windows cmd.exe on XP (dark blue background) ── */
+[data-theme="winxp"] .terminal { background:#ece9d8; }
+[data-theme="winxp"] .term-output { background:#012456; color:#cccccc; box-shadow:2px 2px 4px rgba(0,0,0,.3) inset; border:1px solid #7f9db9; }
+[data-theme="winxp"] .term-bar { background:linear-gradient(180deg, #f1efe2, #ece9d8); border-bottom:1px solid #aca899; }
+[data-theme="winxp"] .term-bar .clear-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#333; }
+[data-theme="winxp"] .term-bar .clear-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-color:#316ac5; color:#003399; }
+[data-theme="winxp"] .term-bar .stop-btn { background:linear-gradient(180deg, #f08080, #c80000); color:#fff; border:1px solid #800; text-shadow:0 -1px 0 rgba(0,0,0,.3); }
+[data-theme="winxp"] .term-bar .term-filter-btn { background:linear-gradient(180deg, #f1efe2, #ddd8c8); border:1px solid #aca899; }
+[data-theme="winxp"] .term-bar .term-filter-btn.active { background:linear-gradient(180deg, #c1d9f5, #a3c4e8); border-color:#316ac5; color:#003399; }
+[data-theme="winxp"] .term-search { border:1px solid #7f9db9; box-shadow:1px 1px 2px rgba(0,0,0,.1) inset; }
+[data-theme="winxp"] .term-search:focus { border-color:#316ac5; }
+/* XP: terminal text — bright colors on dark blue #012456 */
+[data-theme="winxp"] .term-output .info { color:#ccc; }
+[data-theme="winxp"] .term-output .title { color:#54ff54; font-weight:700; }
+[data-theme="winxp"] .term-output .status { color:#6eaaff; }
+[data-theme="winxp"] .term-output .success { color:#54ff54; font-weight:700; }
+[data-theme="winxp"] .term-output .warn { color:#ffd75e; }
+[data-theme="winxp"] .term-output .err { color:#ff6b6b; }
+[data-theme="winxp"] .term-output .sys { color:#54d7ff; }
+[data-theme="winxp"] .term-output .t { color:#5a7ea0; }
+[data-theme="winxp"] .term-output .dim { color:#5a7ea0; }
+[data-theme="winxp"] .term-output .line:last-child::after { color:#ccc; }
+
+/* ── XP Inputs — white with blue focus ── */
+[data-theme="winxp"] input, [data-theme="winxp"] select, [data-theme="winxp"] textarea { border:1px solid #7f9db9 !important; background:#fff !important; color:#1a1a1a !important; box-shadow:1px 1px 2px rgba(0,0,0,.08) inset; }
+[data-theme="winxp"] input:focus, [data-theme="winxp"] select:focus { border-color:#316ac5 !important; box-shadow:0 0 4px rgba(49,106,197,.35); outline:none; }
+
+/* ── XP Modals — blue title bar dialog ── */
+[data-theme="winxp"] .modal-box { background:#f1efe2; border:1px solid #003399; box-shadow:3px 3px 12px rgba(0,0,0,.35); }
+[data-theme="winxp"] .modal-title { background:linear-gradient(180deg, #0058e6 0%, #3a8cf4 6%, #408af0 50%, #1e68d3 94%, #0044aa 100%); color:#fff; font-weight:700; text-shadow:1px 1px 1px rgba(0,0,50,.5); padding:6px 10px; margin:-28px -32px 16px; border:none; border-radius:5px 5px 0 0; }
+[data-theme="winxp"] .modal-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#1a1a1a; box-shadow:0 1px 0 rgba(255,255,255,.6) inset; }
+[data-theme="winxp"] .modal-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-color:#316ac5; }
+[data-theme="winxp"] .modal-btn.danger { background:linear-gradient(180deg, #f08080, #c80000); color:#fff; border-color:#800; }
+[data-theme="winxp"] .modal-input { border:1px solid #7f9db9; }
+
+/* ── XP Resizer ── */
+[data-theme="winxp"] .resizer { background:linear-gradient(180deg, #f1efe2, #d4d0c8); }
+[data-theme="winxp"] .resizer:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); }
+
+/* ── XP DevOps panels — blue header group boxes ── */
+[data-theme="winxp"] .dv-panel { border:1px solid #7f9db9; background:#f1efe2; }
+[data-theme="winxp"] .dv-panel-header { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-bottom:1px solid #7f9db9; }
+[data-theme="winxp"] .dv-panel-header:hover { background:linear-gradient(180deg, #c1d9f5, #a3c4e8); filter:none; }
+[data-theme="winxp"] .dv-panel-title { color:#003399; font-weight:700; }
+[data-theme="winxp"] .dv-dashboard { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
+[data-theme="winxp"] .dv-refresh-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
+[data-theme="winxp"] .dv-tool-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .dv-tool-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-color:#316ac5; }
+
+/* ── XP Diff blocks ── */
+[data-theme="winxp"] .diff-block { border:1px solid #7f9db9; }
+[data-theme="winxp"] .diff-header { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); }
+[data-theme="winxp"] .diff-header:hover { background:linear-gradient(180deg, #c1d9f5, #a3c4e8); filter:none; }
+
+/* ── XP Tooltips — classic Windows yellow ── */
+[data-theme="winxp"] .s-tooltip { background:#ffffe1; border:1px solid #000; color:#1a1a1a; box-shadow:2px 2px 4px rgba(0,0,0,.2); }
+/* ── XP Toasts ── */
+[data-theme="winxp"] .toast { background:#f1efe2; border:1px solid #7f9db9; box-shadow:2px 2px 10px rgba(0,0,0,.2); }
+
+/* ── XP Loading — Bliss wallpaper ── */
+[data-theme="winxp"] .loading-overlay { background:linear-gradient(170deg, #3a80c8 0%, #5aa0e0 30%, #73c44c 55%, #4aa028 75%, #338818 100%); }
+[data-theme="winxp"] .loading-donut { filter:drop-shadow(0 0 24px rgba(255,255,255,.4)); }
+[data-theme="winxp"] .loading-text { color:#fff; text-shadow:1px 2px 4px rgba(0,0,0,.45); font-weight:700; }
+[data-theme="winxp"] .loading-sub { color:#d0f0b0; }
+[data-theme="winxp"] .loading-step { color:rgba(255,255,255,.55); }
+[data-theme="winxp"] .loading-step.active { color:#fff; }
+[data-theme="winxp"] .loading-step.done { color:#b0ff60; }
+
+/* ── XP Progress bar — segmented blue chunks ── */
+[data-theme="winxp"] .progress-bar { background:#ece9d8; border:1px solid #7f9db9; }
+[data-theme="winxp"] .progress-fill { background:repeating-linear-gradient(90deg, #3399ff 0px, #3399ff 8px, #2288ee 8px, #2288ee 10px); }
+
+/* ── XP Scrollbar — blue with gradient ── */
+[data-theme="winxp"] ::-webkit-scrollbar { width:17px; }
+[data-theme="winxp"] ::-webkit-scrollbar-track { background:#f0ede3; border-left:1px solid #d4d0c8; }
+[data-theme="winxp"] ::-webkit-scrollbar-thumb { background:linear-gradient(90deg, #b8d0f0, #8cb4e2, #b8d0f0); border:1px solid #7f9db9; border-radius:3px; min-height:40px; }
+[data-theme="winxp"] ::-webkit-scrollbar-thumb:hover { background:linear-gradient(90deg, #a0c0e8, #6898cc, #a0c0e8); }
+[data-theme="winxp"] ::-webkit-scrollbar-button { display:none; }
+
+/* ── XP Shortcuts bar ── */
+[data-theme="winxp"] .shortcuts { background:linear-gradient(180deg, #f1efe2, #ece9d8); border-top:1px solid #fff; }
+[data-theme="winxp"] .shortcuts kbd { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+
+/* ── XP Config area ── */
+[data-theme="winxp"] .cfg-env-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .cfg-env-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-color:#316ac5; }
+[data-theme="winxp"] .cfg-env-btn.del { color:#c80000; }
+[data-theme="winxp"] .cfg-env.active { background:linear-gradient(180deg, #316ac5, #21559e); color:#fff; border-color:#003399; }
+[data-theme="winxp"] .browse-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .browse-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); border-color:#316ac5; }
+[data-theme="winxp"] .refresh-btn, [data-theme="winxp"] .refresh-mini { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .pkg-chip { background:linear-gradient(180deg, #fff, #f1efe2); border:1px solid #7f9db9; }
+[data-theme="winxp"] .pkg-chip.selected { background:linear-gradient(180deg, #316ac5, #21559e); color:#fff; border-color:#003399; }
+/* ── XP Workflow bar ── */
+[data-theme="winxp"] .workflow-bar { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
+[data-theme="winxp"] .selected-info { background:#d6e5f8; border:1px solid #7f9db9; color:#003399; }
+[data-theme="winxp"] .wf-badge { box-shadow:0 1px 3px rgba(0,0,0,.12); }
+[data-theme="winxp"] .wf-action-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
+/* ── XP Error bar ── */
+[data-theme="winxp"] .term-error-bar { background:linear-gradient(180deg, #fde8e8, #f5d0d0); border:1px solid #c80000; }
+[data-theme="winxp"] .err-nav-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
+/* ── XP Watch button — green gel like Start ── */
+[data-theme="winxp"] .watch-btn { background:linear-gradient(180deg, #fff, #ece9d8) !important; border:1px solid #aca899 !important; color:#003399 !important; animation:none !important; }
+[data-theme="winxp"] .watch-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8) !important; border-color:#316ac5 !important; }
+[data-theme="winxp"] .watch-btn.active { background:linear-gradient(180deg, #69ce3e, #2d8c14) !important; color:#fff !important; border-color:#1a6600 !important; text-shadow:0 -1px 0 rgba(0,0,0,.3); }
+/* ── XP Health widget ── */
+[data-theme="winxp"] .health-widget { border:1px solid #7f9db9; background:linear-gradient(180deg, #d6e5f8, #c1d9f5); }
+[data-theme="winxp"] .prereq .dot { box-shadow:0 0 3px rgba(0,0,0,.25); }
+/* ── XP Indicator ── */
+[data-theme="winxp"] .indicator.running { background:#3399ff; box-shadow:0 0 6px rgba(51,153,255,.5); }
+[data-theme="winxp"] .indicator.success { background:#2b7e00; }
+@keyframes xpBtnGlow { 0%,100%{box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 4px rgba(0,0,0,.2), 0 0 8px rgba(100,210,60,.25)} 50%{box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 4px rgba(0,0,0,.2), 0 0 16px rgba(100,210,60,.5)} }

@@ -5,18 +5,71 @@
 import { S } from './state';
 import { SCRIPTS, esc, time, toast, invoke } from './state';
 
+// ── Sub-module imports ──
+import { syntaxHL, xmlHL, jsonHL } from './terminal/syntax';
+import {
+  _diffTotalAdds, _diffTotalDels, _diffTotalFiles,
+  _diffBlocks, _diffCurrentNav, _lastDiffGroup, _diffSummary,
+  resetDiffState, setDiffTotalAdds, setDiffTotalDels, setDiffTotalFiles,
+  incrDiffTotalAdds, incrDiffTotalDels, incrDiffTotalFiles,
+  setDiffCurrentNav, setLastDiffGroup, pushDiffBlock,
+  closeDiffBlock as _closeDiffBlockImpl,
+  diffObjectName, updateDiffSummary,
+  expandAllDiff, collapseAllDiff, toggleMetadataBlocks,
+  navigateDiffBlock,
+} from './terminal/diff-nav';
+import {
+  startSpinner, stopSpinner,
+  startRunTimer, stopRunTimer, formatDuration,
+  startProgress, stopProgress,
+  startPatienceMessages as _startPatienceMessagesImpl,
+  stopPatienceMessages,
+  addRunHistory,
+  showPRLink as _showPRLinkImpl,
+} from './terminal/controls';
+
+// ── Re-exports from sub-modules ──
+export { syntaxHL, xmlHL, jsonHL } from './terminal/syntax';
+export {
+  expandAllDiff, collapseAllDiff, toggleMetadataBlocks,
+  navigateDiffBlock,
+} from './terminal/diff-nav';
+export {
+  startSpinner, stopSpinner,
+  startRunTimer, stopRunTimer, formatDuration,
+  startProgress, stopProgress,
+  stopPatienceMessages,
+  addRunHistory,
+} from './terminal/controls';
+
+// ── Wrappers for sub-module functions that need local references ──
+export function closeDiffBlock(): void {
+  _closeDiffBlockImpl(_currentDiffBlock, _currentDiffBody, _currentDiffAdds, _currentDiffDels);
+  _inDiffBlock = false;
+  _currentDiffBlock = null;
+  _currentDiffBody = null;
+  _currentDiffObjectName = '';
+  _currentDiffAdds = 0;
+  _currentDiffDels = 0;
+  _currentDiffHunkIndex = 0;
+  _diffOldLine = 0;
+  _diffNewLine = 0;
+}
+
+export function showPRLink(): void {
+  _showPRLinkImpl(termScrollToBottom);
+}
+
+export function startPatienceMessages(): void {
+  _startPatienceMessagesImpl(appendLog);
+}
+
 // ── Reset terminal module state (called from app.ts on run-start) ──
 export function resetTerminalState(): void {
   _lastTitleTime = null;
   _currentErrorIdx = -1;
   _termUserScrolled = false;
-  _diffTotalAdds = 0;
-  _diffTotalDels = 0;
-  _diffTotalFiles = 0;
-  _diffBlocks = [];
-  _diffCurrentNav = -1;
-  _lastDiffGroup = '';
-  _diffSummary = { objects: 0, newCount: 0, modCount: 0, delCount: 0 };
+  resetDiffState();
 }
 
 // ── Terminal scroll ──
@@ -93,74 +146,15 @@ let _currentDiffBody: HTMLElement | null = null;
 let _currentDiffAdds = 0;
 let _currentDiffDels = 0;
 let _currentDiffHunkIndex = 0;
-let _diffTotalAdds = 0;
-let _diffTotalDels = 0;
-let _diffTotalFiles = 0;
 let _diffOldLine = 0;
 let _diffNewLine = 0;
-let _diffBlocks: HTMLElement[] = [];
-let _diffCurrentNav = -1;
 let _currentDiffObjectName = '';
-let _lastDiffGroup = '';
-let _diffSummary = { objects: 0, newCount: 0, modCount: 0, delCount: 0 };
 
-export function closeDiffBlock(): void {
-  if (_currentDiffBlock) {
-    const adds = _currentDiffAdds;
-    const dels = _currentDiffDels;
-
-    // Hide block if no actual changes
-    if (adds === 0 && dels === 0) {
-      _currentDiffBlock.remove();
-    } else {
-      // Action badge: new / modified / deleted
-      let actionBadge = '';
-      if (adds > 0 && dels === 0) { actionBadge = '<span class="diff-action new">new</span>'; _diffSummary.newCount++; }
-      else if (adds === 0 && dels > 0) { actionBadge = '<span class="diff-action del">del</span>'; _diffSummary.delCount++; }
-      else { actionBadge = '<span class="diff-action mod">mod</span>'; _diffSummary.modCount++; }
-      _diffSummary.objects++;
-
-      // Check if metadata-only (yaml with only XmlInfo/Product/Path/Special lines, no meaningful content)
-      const body = _currentDiffBody;
-      const contentLines = body?.querySelectorAll('.diff-line.add, .diff-line.del') || [];
-      let isMetadataOnly = contentLines.length > 0;
-      contentLines.forEach(line => {
-        const text = (line.querySelector('.dl-content') as HTMLElement)?.textContent?.trim() || '';
-        if (!text.match(/^(XmlInfo:|Id:|Product:|Path:|Special:|ReturnType:|Parameters:|!.*|)$/)) {
-          isMetadataOnly = false;
-        }
-      });
-
-      if (isMetadataOnly && contentLines.length > 0) {
-        _currentDiffBlock.classList.add('metadata-only');
-      }
-
-      // Update count + badge
-      const countEl = _currentDiffBlock.querySelector('.diff-count');
-      if (countEl) {
-        const parts: string[] = [actionBadge];
-        if (adds) parts.push(`<span style="color:var(--success)">+${adds}</span>`);
-        if (dels) parts.push(`<span style="color:var(--danger)">\u2212${dels}</span>`);
-        countEl.innerHTML = parts.join(' ');
-      }
-
-      // Update summary bar
-      updateDiffSummary();
-    }
-  }
-  _inDiffBlock = false;
-  _currentDiffBlock = null;
-  _currentDiffBody = null;
-  _currentDiffObjectName = '';
-  _currentDiffAdds = 0;
-  _currentDiffDels = 0;
-  _currentDiffHunkIndex = 0;
-  _diffOldLine = 0;
-  _diffNewLine = 0;
-}
+// ── Syntax highlighting current extension ──
+let _currentDiffExt = '';
 
 // ── Terminal ──
-function classifyLine(text: string): string {
+export function classifyLine(text: string): string {
   // 1. Tagged lines from Print module (reliable, preferred)
   if (text.startsWith('[TITLE] ') || text.startsWith('[SUB] ')) return 'title';
   if (text.startsWith('[STATUS] ')) return 'status';
@@ -212,142 +206,6 @@ function wordDiffHighlight(oldStr: string, newStr: string): [string, string] {
     }
   }
   return [hlOld, hlNew];
-}
-
-// ── Extract object name from file path for grouping ──
-function diffObjectName(filePath: string): string {
-  const dir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
-  const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-  const baseName = fileName.indexOf('.') > 0 ? fileName.substring(0, fileName.indexOf('.')) : fileName;
-  return dir + baseName;
-}
-
-// ── Diff summary bar ──
-function updateDiffSummary(): void {
-  let bar = document.getElementById('diffSummaryBar');
-  const out = document.getElementById('termOutput');
-  if (!bar) {
-    // Find the first diff block and insert summary before it
-    const firstBlock = out!.querySelector('.diff-block, .diff-group-label');
-    if (!firstBlock) return;
-    bar = document.createElement('div');
-    bar.id = 'diffSummaryBar';
-    bar.className = 'diff-summary-bar';
-    firstBlock.parentElement!.insertBefore(bar, firstBlock);
-  }
-  const s = _diffSummary;
-  const metaCount = out!.querySelectorAll('.diff-block.metadata-only').length;
-  let html = `<span class="dfs-count">${s.objects} object${s.objects > 1 ? 's' : ''}</span>`;
-  if (s.newCount) html += `<span class="dfs-new">${s.newCount} new</span>`;
-  if (s.modCount) html += `<span class="dfs-mod">${s.modCount} modified</span>`;
-  if (s.delCount) html += `<span class="dfs-del">${s.delCount} deleted</span>`;
-  html += `<span class="dfs-spacer"></span>`;
-  if (metaCount) html += `<button class="dfs-btn" onclick="toggleMetadataBlocks()">${metaCount} metadata-only</button>`;
-  html += `<button class="dfs-btn" onclick="expandAllDiff()">expand all</button>`;
-  html += `<button class="dfs-btn" onclick="collapseAllDiff()">collapse all</button>`;
-  bar.innerHTML = html;
-}
-
-export function expandAllDiff(): void {
-  document.querySelectorAll('.diff-block.collapsed').forEach(b => {
-    b.classList.remove('collapsed');
-    b.querySelector('.diff-toggle')!.innerHTML = '&#9660;';
-  });
-}
-
-export function collapseAllDiff(): void {
-  document.querySelectorAll('.diff-block:not(.collapsed)').forEach(b => {
-    b.classList.add('collapsed');
-    b.querySelector('.diff-toggle')!.innerHTML = '&#9654;';
-  });
-}
-
-export function toggleMetadataBlocks(): void {
-  const blocks = document.querySelectorAll('.diff-block.metadata-only');
-  const allHidden = blocks.length > 0 && blocks[0].classList.contains('meta-hidden');
-  blocks.forEach(b => b.classList.toggle('meta-hidden', !allHidden));
-  // Update button text
-  const btn = document.querySelector('.dfs-btn');
-}
-
-// ── Syntax highlighting (nabsic + YAML + XML + JSON) ──
-let _currentDiffExt = '';
-
-function syntaxHL(html: string): string {
-  const ext = _currentDiffExt.toLowerCase();
-  if (ext === 'xml' || ext === 'config' || ext === 'csproj' || ext === 'xaml') return xmlHL(html);
-  if (ext === 'json') return jsonHL(html);
-  // YAML keys (word followed by colon at start or after spaces)
-  if (html.match(/^\s*[\w.!$]+:/)) {
-    html = html.replace(/^(\s*)([\w.!$]+)(:)/, '$1<span class="sh-key">$2</span>$3');
-    return html;
-  }
-  // Nabsic keywords
-  html = html.replace(/\b(Dim|If|Else|ElseIf|End If|Then|New|Set|For|Each|Next|While|Do|Loop|With|End With|WithTrans|Catch|Function|Sub|End Function|End Sub|Return|Not|And|Or|True|False|Nothing|Null|Call|Append|Get|Insert|Split|FillText)\b/g, '<span class="sh-kw">$1</span>');
-  // Strings
-  html = html.replace(/(&quot;[^&]*?&quot;)/g, '<span class="sh-str">$1</span>');
-  // Comments (nabsic uses ')
-  html = html.replace(/^(\s*&#39;.*)$/gm, '<span class="sh-cmt">$1</span>');
-  // Variables (ending with @ # %)
-  html = html.replace(/\b(\w+[@#%])\b/g, '<span class="sh-var">$1</span>');
-  // Types/classes (PascalCase before . or #)
-  html = html.replace(/\b([A-Z][a-zA-Z]+[#]?)\b(?=[\.(])/g, '<span class="sh-type">$1</span>');
-  // Numbers
-  html = html.replace(/\b(\d+)\b/g, '<span class="sh-num">$1</span>');
-  return html;
-}
-
-function xmlHL(html: string): string {
-  // Comments
-  html = html.replace(/(&lt;!--.*?--&gt;)/g, '<span class="sh-cmt">$1</span>');
-  // Tag names
-  html = html.replace(/(&lt;\/?)([\w:.]+)/g, '$1<span class="sh-kw">$2</span>');
-  // Attribute names
-  html = html.replace(/\b([\w:.-]+)(=&quot;)/g, '<span class="sh-key">$1</span>$2');
-  // Attribute values
-  html = html.replace(/(=)(&quot;[^&]*?&quot;)/g, '$1<span class="sh-str">$2</span>');
-  return html;
-}
-
-function jsonHL(html: string): string {
-  // Keys
-  html = html.replace(/(&quot;)([\w.$-]+)(&quot;)(\s*:)/g, '<span class="sh-key">$1$2$3</span>$4');
-  // String values
-  html = html.replace(/(:\s*)(&quot;[^&]*?&quot;)/g, '$1<span class="sh-str">$2</span>');
-  // Booleans, null
-  html = html.replace(/\b(true|false|null)\b/g, '<span class="sh-kw">$1</span>');
-  // Numbers
-  html = html.replace(/(:\s*)(-?\d+\.?\d*)/g, '$1<span class="sh-num">$2</span>');
-  return html;
-}
-
-// ── Diff file navigator ──
-export function navigateDiffBlock(dir: number): void {
-  if (!_diffBlocks.length) return;
-  _diffCurrentNav += dir;
-  if (_diffCurrentNav >= _diffBlocks.length) _diffCurrentNav = 0;
-  if (_diffCurrentNav < 0) _diffCurrentNav = _diffBlocks.length - 1;
-  const block = _diffBlocks[_diffCurrentNav];
-  if (block) {
-    // Open it if collapsed
-    if (block.classList.contains('collapsed')) {
-      block.classList.remove('collapsed');
-      block.querySelector('.diff-toggle')!.innerHTML = '&#9660;';
-    }
-    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-  updateDiffNav();
-}
-
-function updateDiffNav(): void {
-  const el = document.getElementById('diffNav');
-  if (!el) return;
-  if (_diffBlocks.length > 0) {
-    el.innerHTML = `<button class="diff-nav-btn" onclick="navigateDiffBlock(-1)">&#9650;</button><span class="diff-nav-count">${_diffCurrentNav + 1}/${_diffBlocks.length}</span><button class="diff-nav-btn" onclick="navigateDiffBlock(1)">&#9660;</button>`;
-    el.style.display = 'flex';
-  } else {
-    el.style.display = 'none';
-  }
 }
 
 // File path detection for clickable paths (using data attributes to avoid onclick injection)
@@ -431,7 +289,7 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     escaped = escaped.replace(/(\d+ insertions?\(\+\))/, '<span style="color:var(--success)">$1</span>');
     escaped = escaped.replace(/(\d+ deletions?\(-\))/, '<span style="color:var(--danger)">$1</span>');
     // Reset diff totals for this run
-    _diffTotalAdds = 0; _diffTotalDels = 0; _diffTotalFiles = 0;
+    setDiffTotalAdds(0); setDiffTotalDels(0); setDiffTotalFiles(0);
   }
 
   // Update current step in term-bar
@@ -486,7 +344,7 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     closeDiffBlock();
 
     if (group !== _lastDiffGroup) {
-      _lastDiffGroup = group;
+      setLastDiffGroup(group);
       out!.insertAdjacentHTML('beforeend', `<div class="diff-group-label">${esc(group)}</div>`);
     }
 
@@ -510,12 +368,11 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     _currentDiffAdds = 0;
     _currentDiffDels = 0;
     _currentDiffHunkIndex = 0;
-    _diffTotalFiles++;
-    _diffBlocks.push(block);
-    _diffCurrentNav = _diffBlocks.length - 1;
+    incrDiffTotalFiles();
+    pushDiffBlock(block);
+    setDiffCurrentNav(_diffBlocks.length - 1);
     _inDiffBlock = true;
     termScrollToBottom();
-    updateDiffNav();
     return;
   }
 
@@ -544,8 +401,8 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
       const prefix = cls === 'diff-add' ? '+' : '-';
       let content = esc(raw);
 
-      if (cls === 'diff-add') { _currentDiffAdds++; _diffTotalAdds++; }
-      else { _currentDiffDels++; _diffTotalDels++; }
+      if (cls === 'diff-add') { _currentDiffAdds++; incrDiffTotalAdds(); }
+      else { _currentDiffDels++; incrDiffTotalDels(); }
 
       // Line numbers
       let oldLn: number | string = '';
@@ -563,21 +420,21 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
           const sbs = document.createElement('div');
           sbs.className = 'diff-sbs';
           sbs.onclick = function (this: HTMLElement) { copyLine(this); } as unknown as (ev: PointerEvent) => void;
-          sbs.innerHTML = `<div class="sbs-del"><span class="dl-ln">${prevOldLn}</span><span class="dl-gutter">\u2212</span><span class="dl-content">${syntaxHL(hlOld)}</span></div><div class="sbs-add"><span class="dl-ln">${newLn}</span><span class="dl-gutter">+</span><span class="dl-content">${syntaxHL(hlNew)}</span></div>`;
+          sbs.innerHTML = `<div class="sbs-del"><span class="dl-ln">${prevOldLn}</span><span class="dl-gutter">\u2212</span><span class="dl-content">${syntaxHL(hlOld, _currentDiffExt)}</span></div><div class="sbs-add"><span class="dl-ln">${newLn}</span><span class="dl-gutter">+</span><span class="dl-content">${syntaxHL(hlNew, _currentDiffExt)}</span></div>`;
           prevEl.replaceWith(sbs);
           termScrollToBottom();
           return;
         }
       }
 
-      content = syntaxHL(content);
+      content = syntaxHL(content, _currentDiffExt);
       const lnDisplay = cls === 'diff-del' ? oldLn : newLn;
       const rawAttr = (cls === 'diff-del') ? ` data-raw="${esc(raw)}" data-ln="${oldLn}"` : '';
       _currentDiffBody.insertAdjacentHTML('beforeend', `<div class="diff-line ${cls === 'diff-add' ? 'add' : 'del'}"${rawAttr} onclick="copyLine(this)"><span class="dl-ln">${lnDisplay}</span><span class="dl-gutter">${prefix}</span><span class="dl-content">${content}</span></div>`);
     } else if (cls === 'diff-ctx') {
       const ctxLn = _diffOldLine || _diffNewLine;
       _diffOldLine++; _diffNewLine++;
-      _currentDiffBody.insertAdjacentHTML('beforeend', `<div class="diff-line ctx" onclick="copyLine(this)"><span class="dl-ln">${ctxLn}</span><span class="dl-gutter"></span><span class="dl-content">${syntaxHL(esc(displayText))}</span></div>`);
+      _currentDiffBody.insertAdjacentHTML('beforeend', `<div class="diff-line ctx" onclick="copyLine(this)"><span class="dl-ln">${ctxLn}</span><span class="dl-gutter"></span><span class="dl-content">${syntaxHL(esc(displayText), _currentDiffExt)}</span></div>`);
     }
     // Detect XmlInfo from YAML content to replace ID in header with readable name
     if (_currentDiffBlock && !(_currentDiffBlock as any)._hasLabel) {
@@ -894,6 +751,7 @@ export function toggleFullscreen(): void {
   }
 }
 
+// ── Side-effect: Escape key exits fullscreen ──
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
     const term = document.getElementById('terminal');
@@ -904,165 +762,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 });
 
-// ── Spinner ──
-let spinnerInterval: ReturnType<typeof setInterval> | null = null;
-const spinFrames = ['   ', '   .', '   ..', '   ...', '   ....', '   .....', '   ....', '   ...', '   ..', '   .'];
-let spinIdx = 0;
-
-export function startSpinner(): void {
-  stopSpinner();
-  const el = document.createElement('div');
-  el.id = 'spinnerLine';
-  el.className = 'line dim';
-  el.textContent = spinFrames[0];
-  document.getElementById('termOutput')!.appendChild(el);
-  spinnerInterval = setInterval(() => {
-    spinIdx = (spinIdx + 1) % spinFrames.length;
-    const s = document.getElementById('spinnerLine');
-    if (s) s.textContent = spinFrames[spinIdx];
-  }, 150);
-}
-
-export function stopSpinner(): void {
-  if (spinnerInterval) { clearInterval(spinnerInterval); spinnerInterval = null; }
-  const s = document.getElementById('spinnerLine');
-  if (s) s.remove();
-}
-
-// ── Run timer (chronometre) ──
-function formatDuration(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return s + 's';
-  const m = Math.floor(s / 60);
-  return m + 'm ' + String(s % 60).padStart(2, '0') + 's';
-}
-
-export function startRunTimer(): void {
-  S.runStartTime = Date.now();
-  stopRunTimer();
-  const el = document.getElementById('termTimer');
-  if (el) { el.textContent = '0s'; el.style.display = 'inline'; }
-  S.runTimerInterval = setInterval(() => {
-    const el = document.getElementById('termTimer');
-    if (el) el.textContent = formatDuration(Date.now() - S.runStartTime);
-  }, 1000);
-}
-
-export function stopRunTimer(): string {
-  if (S.runTimerInterval) { clearInterval(S.runTimerInterval); S.runTimerInterval = null; }
-  const dur = S.runStartTime ? formatDuration(Date.now() - S.runStartTime) : '0s';
-  const el = document.getElementById('termTimer');
-  if (el) el.style.display = 'none';
-  return dur;
-}
-
-// ── Run history ──
-export function addRunHistory(script: string, ok: boolean, duration: string): void {
-  S.runHistory.unshift({ script, ok, duration, date: new Date().toLocaleString('fr') });
-  if (S.runHistory.length > 20) S.runHistory.length = 20;
-  localStorage.setItem('donut-history', JSON.stringify(S.runHistory));
-}
-
-// ── Progress bar (estimated based on history) ──
-function getEstimatedDuration(scriptId: string): number | null {
-  const hist = S.runHistory.filter(h => h.script === scriptId && h.ok);
-  if (!hist.length) return null;
-  // Parse duration string to ms
-  const toMs = (d: string): number | null => {
-    const m = d.match(/(\d+)m\s*(\d+)s/); if (m) return (parseInt(m[1]) * 60 + parseInt(m[2])) * 1000;
-    const s = d.match(/(\d+)s/); if (s) return parseInt(s[1]) * 1000;
-    return null;
-  };
-  const durations = hist.map(h => toMs(h.duration)).filter(Boolean) as number[];
-  if (!durations.length) return null;
-  return Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
-}
-
-let _progressTimer: ReturnType<typeof setInterval> | null = null;
-
-export function startProgress(scriptId: string): void {
-  stopProgress();
-  const est = getEstimatedDuration(scriptId);
-  const bar = document.getElementById('progressBar');
-  const fill = document.getElementById('progressFill') as HTMLElement | null;
-  if (!bar || !fill) return;
-  bar.classList.add('active');
-  fill.style.width = '0%';
-  if (!est) { fill.style.width = '100%'; fill.style.transition = 'none'; fill.style.opacity = '.3'; fill.style.animation = 'loadPulse 2s ease-in-out infinite'; return; }
-  const start = Date.now();
-  _progressTimer = setInterval(() => {
-    const elapsed = Date.now() - start;
-    const pct = Math.min(95, (elapsed / est) * 100); // never reach 100 until done
-    fill.style.transition = 'width .5s ease';
-    fill.style.opacity = '1';
-    fill.style.animation = 'none';
-    fill.style.width = pct + '%';
-  }, 500);
-}
-
-export function stopProgress(): void {
-  if (_progressTimer) { clearInterval(_progressTimer); _progressTimer = null; }
-  const bar = document.getElementById('progressBar');
-  const fill = document.getElementById('progressFill') as HTMLElement | null;
-  if (fill) { fill.style.transition = 'width .3s ease'; fill.style.width = '100%'; fill.style.opacity = '1'; fill.style.animation = 'none'; }
-  setTimeout(() => { if (bar) bar.classList.remove('active'); }, 500);
-}
-
-// ── PR link after commit ──
-export function showPRLink(): void {
-  const out = document.getElementById('termOutput');
-  if (!out) return;
-  // Find PR URL in terminal output
-  const lines = out.querySelectorAll('.line');
-  let prUrl: string | null = null;
-  for (const line of lines) {
-    const match = (line.textContent || '').match(/(https:\/\/dev\.azure\.com\/[^\s]+\/pullrequest\/\d+)/);
-    if (match) prUrl = match[1];
-  }
-  if (prUrl) {
-    const btn = document.createElement('div');
-    btn.className = 'pr-link-banner';
-    btn.innerHTML = `<span>Pull Request created!</span><button onclick="openUrl('${esc(prUrl)}')">Open PR in Azure DevOps \u2192</button>`;
-    out.appendChild(btn);
-    termScrollToBottom();
-  }
-}
-
-// ── Patience messages (during long operations) ──
-const PATIENCE_MSGS = [
-  'Still baking... the dough needs time to rise',
-  'Patience, the oven is doing its thing...',
-  'Good donuts take time to make...',
-  'Sprinkling magic dust... almost there',
-  'The donut machine is warming up...',
-  'Quality control in progress...',
-  'Adding extra frosting while we wait...',
-  'The baker is working hard...',
-  'Flipping the donuts... hold on',
-  'Checking the glaze consistency...',
-  'Rolling out another batch...',
-  'The secret ingredient is patience...',
-  'Donut worry, be happy...',
-  'Kneading the dough a bit more...',
-  'The fryer is at the perfect temperature...',
-];
-
-let _patienceTimer: ReturnType<typeof setInterval> | null = null;
-
-export function startPatienceMessages(): void {
-  stopPatienceMessages();
-  let idx = 0;
-  _patienceTimer = setInterval(() => {
-    appendLog(PATIENCE_MSGS[idx % PATIENCE_MSGS.length], 'dim');
-    idx++;
-  }, 30000);
-}
-
-export function stopPatienceMessages(): void {
-  if (_patienceTimer) { clearInterval(_patienceTimer); _patienceTimer = null; }
-}
-
-// ── Resize terminal ──
+// ── Side-effect: Resize terminal ──
 {
   const resizer = document.getElementById('resizer');
   const terminal = document.getElementById('terminal');

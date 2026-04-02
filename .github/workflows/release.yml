@@ -75,12 +75,16 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          mkdir -p dist
-          cp src-tauri/target/release/donut.exe dist/DONUT.exe
+          mkdir -p dist/DONUT
+          cp src-tauri/target/release/donut.exe dist/DONUT/DONUT.exe
+          cp -r cli dist/DONUT/cli
+          cp -r templates dist/DONUT/templates
+          mkdir -p dist/DONUT/working-environments
+          cp working-environments/README.md dist/DONUT/working-environments/ 2>/dev/null || true
           cp src-tauri/target/release/bundle/nsis/DONUT_${VERSION}_x64-setup.exe dist/ 2>/dev/null || true
           cd dist
-          7z a "DONUT_${VERSION}_x64.zip" DONUT.exe DONUT_${VERSION}_x64-setup.exe 2>/dev/null || \
-            powershell -Command "Compress-Archive -Path 'DONUT.exe','DONUT_${VERSION}_x64-setup.exe' -DestinationPath 'DONUT_${VERSION}_x64.zip' -Force"
+          7z a "DONUT_${VERSION}_x64.zip" DONUT/ DONUT_${VERSION}_x64-setup.exe 2>/dev/null || \
+            powershell -Command "Compress-Archive -Path 'DONUT','DONUT_${VERSION}_x64-setup.exe' -DestinationPath 'DONUT_${VERSION}_x64.zip' -Force"
 
       # ── Release ──
       - name: Create tag and release

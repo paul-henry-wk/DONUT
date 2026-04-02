@@ -1,0 +1,754 @@
+/* ═══ Mac OS X Aqua — candy gel, pinstripes, brushed metal, 2001 vibes ═══ */
+[data-theme="aqua"] {
+  --bg:          #dddde3; --bg-raised:   #eeeef3; --bg-input:    #fff;
+  --bg-bar:      #c8c8d0; --border:      #98989f; --border-bar:  #8a8a92;
+  --text:        #1a1a1a; --text-dim:    #555566; --text-muted:  #3a3a48;
+  --text-label:  #3a3a48; --accent:      #2094e8; --accent-dim:  #1878c8;
+  --accent-hover:#1060a8; --accent-bg:   #d0e4fb; --accent-glow: rgba(32,148,232,.2);
+  --danger:      #ff3b30; --danger-bg:   #ffedeb; --warn:        #ff9500;
+  --success:     #28c840; --overlay:     rgba(0,0,20,.35);
+  --card-hover:  #c8daf0; --term-bg:     #fffffc; --term-bar:    #d0d0d8;
+  --confirm-bg:  #e4e4ea; --select-bg:   #fff;
+  --radius-sm:   6px;     --radius:      14px;
+  --scrollbar:   #6ab0e0; --scrollbar-h: #3890cc;
+  --scanline:    transparent;
+  --diff-add-bg: rgba(40,200,64,.1);   --diff-del-bg: rgba(255,59,48,.1);
+  --diff-add-hl: rgba(40,200,64,.22);  --diff-del-hl: rgba(255,59,48,.22);
+  --diff-ctx:    rgba(0,0,0,.3);        --diff-ln:     rgba(0,0,0,.12);
+  --diff-border: #98989f;              --diff-header-bg: #d4dcea;
+  --diff-body-bg:#fff;                 --diff-sep:    #b8bcc8;
+}
+
+/* ── Aqua: Lucida Grande — THE Mac typeface ── */
+[data-theme="aqua"] body,
+[data-theme="aqua"] button,
+[data-theme="aqua"] input,
+[data-theme="aqua"] select,
+[data-theme="aqua"] .tab,
+[data-theme="aqua"] .s-desc,
+[data-theme="aqua"] .s-name,
+[data-theme="aqua"] .run-bar,
+[data-theme="aqua"] .dv-panel-title,
+[data-theme="aqua"] .modal-box,
+[data-theme="aqua"] .toast,
+[data-theme="aqua"] .loading-text { font-family:'Lucida Grande','Helvetica Neue','Segoe UI',sans-serif !important; }
+[data-theme="aqua"] .term-output { font-family:'Monaco','Menlo','Courier New',monospace !important; }
+
+/* ── Aqua: pinstripe texture — the iconic Mac OS X horizontal lines ── */
+[data-theme="aqua"] .panel {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,.35) 0px, rgba(255,255,255,.35) 1px,
+      transparent 1px, transparent 2px
+    ),
+    linear-gradient(180deg, #dddde3, #d8d8de);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BRUSHED METAL — used on topbar, term-bar, run-bar, resizer, modal-title
+   Fine horizontal streaks with random-looking variation
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Aqua Title bar — brushed metal with fine horizontal texture ── */
+[data-theme="aqua"] .topbar {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.09) 1px,
+      rgba(0,0,0,.04) 2px, rgba(255,255,255,0) 3px,
+      rgba(0,0,0,.02) 4px, rgba(255,255,255,.06) 5px,
+      rgba(0,0,0,.03) 6px, rgba(255,255,255,0) 7px
+    ),
+    linear-gradient(180deg, #d8d8de 0%, #c0c0c8 35%, #b4b4bc 65%, #c4c4cc 100%);
+  border-bottom:1px solid #7a7a84;
+  box-shadow:0 1px 5px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.55);
+}
+[data-theme="aqua"] .logo { color:#2a2a2a; font-weight:700; text-shadow:0 1px 0 rgba(255,255,255,.7); }
+[data-theme="aqua"] .logo-o { color:#2094e8; }
+[data-theme="aqua"] .logo-sub { color:#505060; text-shadow:0 1px 0 rgba(255,255,255,.5); }
+[data-theme="aqua"] .logo-ver { color:#70707e; text-shadow:0 1px 0 rgba(255,255,255,.4); }
+
+/* ── Aqua: tabs — translucent gel pills on the metal bar ── */
+[data-theme="aqua"] .tabs { background:rgba(0,0,0,.08); border-radius:14px; padding:2px; box-shadow:inset 0 1px 3px rgba(0,0,0,.12); }
+[data-theme="aqua"] .tab { color:#3a3a4a; border-radius:12px; text-shadow:0 1px 0 rgba(255,255,255,.5); }
+[data-theme="aqua"] .tab:hover { color:#1a1a2a; background:rgba(255,255,255,.5); box-shadow:inset 0 1px 0 rgba(255,255,255,.6); }
+[data-theme="aqua"] .tab.active {
+  color:#fff;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.75) 0%, rgba(255,255,255,.3) 46%,
+      rgba(255,255,255,0) 50%,
+      rgba(255,255,255,.12) 100%),
+    linear-gradient(180deg, #4cb0f8 0%, #1c88e4 45%, #0a68c4 55%, #1888e0 100%);
+  box-shadow:0 1px 4px rgba(0,50,130,.4), inset 0 1px 0 rgba(255,255,255,.65);
+  text-shadow:0 -1px 0 rgba(0,40,100,.4);
+  font-weight:700;
+  border:1px solid rgba(8,70,140,.45);
+}
+[data-theme="aqua"] .tab-icon { opacity:1; }
+
+/* ── Aqua: theme picker — gel capsule button ── */
+[data-theme="aqua"] .theme-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#333;
+  box-shadow:0 1px 3px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.8);
+  border-radius:12px;
+}
+[data-theme="aqua"] .theme-btn:hover { background:linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.3) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.15) 100%), linear-gradient(180deg, #f0f0f6, #d8d8e0); }
+[data-theme="aqua"] .theme-list { background:rgba(240,240,244,.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(0,0,0,.2); box-shadow:0 8px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.2) inset; border-radius:12px; }
+[data-theme="aqua"] .theme-opt:hover { background:linear-gradient(180deg, #3a9cf0, #2080d8); color:#fff; border-radius:4px; margin:0 4px; }
+[data-theme="aqua"] .env-select {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e4e4ea, #d0d0d8);
+  border:1px solid #8a8a94;
+  color:#1a1a1a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.1);
+  border-radius:10px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   GEL BUTTONS — the signature Aqua look
+   White highlight on top half → transparent break → subtle base glow
+   This is what makes it "lickable"
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Aqua Script cards — rounded white panels, glass border ── */
+[data-theme="aqua"] .s-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.4) 100%),
+    linear-gradient(180deg, #f4f4fa, #e4e4ec);
+  border:1px solid #a0a0a8;
+  box-shadow:0 2px 6px rgba(0,0,0,.1), inset 0 1px 0 rgba(255,255,255,.9);
+  border-radius:12px;
+}
+[data-theme="aqua"] .s-card:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.9) 0%, rgba(220,238,255,.6) 100%),
+    linear-gradient(180deg, #e8f0ff, #d0e0f8);
+  box-shadow:0 3px 10px rgba(32,148,232,.2), inset 0 1px 0 rgba(255,255,255,.8);
+  border-color:#70a8d8;
+}
+[data-theme="aqua"] .s-card.active {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #b0d8f8 0%, #88c0f0 100%);
+  border:2px solid #2094e8;
+  box-shadow:0 0 12px rgba(32,148,232,.3), inset 0 1px 0 rgba(255,255,255,.55);
+}
+[data-theme="aqua"] .s-card.danger { border-color:#ff3b30; }
+[data-theme="aqua"] .s-card.danger.active { border-color:#ff3b30; background:linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.1)), linear-gradient(180deg, #fdd, #f8c0bc); }
+[data-theme="aqua"] .s-card-icon {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 100%),
+    linear-gradient(180deg, #c8dcf4, #a8c4e8);
+  border-right:1px solid #90a8c8;
+  color:#0c5ca0;
+  border-radius:12px 0 0 12px;
+}
+[data-theme="aqua"] .s-group-label { color:#0c5ca0; font-weight:700; }
+[data-theme="aqua"] .s-group-label::after { background:linear-gradient(90deg, #2094e8, transparent); height:1px; }
+
+/* ── Aqua RUN button — the ICONIC candy blue gel with glossy highlight ── */
+[data-theme="aqua"] .run-btn {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.82) 0%,
+      rgba(255,255,255,.38) 45%,
+      rgba(255,255,255,0)   50%,
+      rgba(255,255,255,.12) 100%),
+    linear-gradient(180deg, #50b4f8 0%, #2090e8 42%, #0868c0 58%, #1888e0 100%) !important;
+  color:#fff !important;
+  border:1px solid rgba(4,60,120,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    0 1px 1px rgba(0,60,140,.2),
+    0 2px 8px rgba(0,80,180,.35);
+  text-shadow:0 -1px 0 rgba(0,40,100,.5);
+  font-weight:700;
+  letter-spacing:.3px;
+  border-radius:20px;
+  animation:aquaPulse 2s ease-in-out infinite !important;
+}
+[data-theme="aqua"] .run-btn:hover {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.88) 0%,
+      rgba(255,255,255,.44) 45%,
+      rgba(255,255,255,0)   50%,
+      rgba(255,255,255,.18) 100%),
+    linear-gradient(180deg, #60c0ff 0%, #2c9cf0 42%, #1078d0 58%, #2498ec 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.8),
+    0 1px 1px rgba(0,60,140,.2),
+    0 4px 14px rgba(0,80,180,.45);
+}
+[data-theme="aqua"] .run-btn:active {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.15) 0%,
+      rgba(255,255,255,.05) 50%,
+      rgba(255,255,255,.3) 100%),
+    linear-gradient(180deg, #0860b8 0%, #1880d8 50%, #40a8f0 100%) !important;
+  box-shadow:inset 0 2px 6px rgba(0,40,100,.45);
+  animation:none !important;
+}
+[data-theme="aqua"] .run-btn.danger {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.78) 0%, rgba(255,255,255,.32) 45%,
+      rgba(255,255,255,0)  50%, rgba(255,255,255,.1)  100%),
+    linear-gradient(180deg, #ff7870 0%, #e83028 42%, #c01808 58%, #e02820 100%) !important;
+  border-color:rgba(120,8,0,.5);
+  animation:none !important;
+}
+@keyframes aquaPulse {
+  0%,100% { box-shadow:inset 0 1px 0 rgba(255,255,255,.75), 0 1px 1px rgba(0,60,140,.2), 0 2px 8px rgba(0,80,180,.35); }
+  50%     { box-shadow:inset 0 1px 0 rgba(255,255,255,.75), 0 1px 1px rgba(0,60,140,.2), 0 2px 8px rgba(0,80,180,.35), 0 0 22px rgba(32,148,232,.5); }
+}
+[data-theme="aqua"] .run-arrows { color:#0c5ca0; }
+[data-theme="aqua"] .save-btn {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.82) 0%, rgba(255,255,255,.38) 45%,
+      rgba(255,255,255,0)  50%, rgba(255,255,255,.12) 100%),
+    linear-gradient(180deg, #50b4f8 0%, #2090e8 42%, #0868c0 58%, #1888e0 100%) !important;
+  color:#fff !important;
+  border:1px solid rgba(4,60,120,.55);
+  text-shadow:0 -1px 0 rgba(0,40,100,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75), 0 2px 6px rgba(0,60,140,.3);
+  border-radius:20px;
+}
+
+/* ── Aqua Run bar — brushed metal texture ── */
+[data-theme="aqua"] .run-bar {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.07) 1px,
+      rgba(0,0,0,.03) 2px, rgba(255,255,255,0) 3px,
+      rgba(0,0,0,.02) 4px, rgba(255,255,255,.05) 5px
+    ),
+    linear-gradient(180deg, #dcdce2, #ccccd4);
+  border-top:1px solid rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .run-bar input {
+  border:1px solid #8a8a94;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.12), 0 1px 0 rgba(255,255,255,.5);
+  border-radius:20px;
+  padding-left:12px;
+}
+[data-theme="aqua"] .run-bar input:focus {
+  border-color:#2094e8;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.08), 0 0 6px rgba(32,148,232,.5);
+}
+
+/* ── Aqua Terminal — white Terminal.app classic style ── */
+[data-theme="aqua"] .terminal {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.06) 1px,
+      rgba(0,0,0,.03) 2px, rgba(255,255,255,0) 3px
+    ),
+    linear-gradient(180deg, #d8d8de, #ccccd4);
+}
+[data-theme="aqua"] .term-output {
+  background:#fffffc;
+  color:#1a1a1a;
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.12), inset 0 0 0 1px rgba(0,0,0,.06);
+  border:1px solid #88888f;
+  border-radius:0 0 8px 8px;
+}
+[data-theme="aqua"] .term-bar {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.08) 1px,
+      rgba(0,0,0,.04) 2px, rgba(255,255,255,0) 3px
+    ),
+    linear-gradient(180deg, #e0e0e6, #ccccd4);
+  border-bottom:1px solid #90909a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+  border-radius:8px 8px 0 0;
+  padding-left:72px !important;
+}
+[data-theme="aqua"] .term-bar::before {
+  content:'';
+  position:absolute;
+  left:14px;
+  top:50%;
+  width:12px; height:12px;
+  margin-top:-6px;
+  border-radius:50%;
+  background:linear-gradient(180deg, #ff8a80 0%, #ff5f57 50%, #e24640 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.45),
+    20px 0 0 #febc2e,
+    40px 0 0 #28c840;
+}
+[data-theme="aqua"] .term-bar .clear-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#333;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.1);
+  border-radius:10px;
+}
+[data-theme="aqua"] .term-bar .clear-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.8) 0%, rgba(255,255,255,.28) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.12) 100%),
+    linear-gradient(180deg, #f0f0f6, #d8d8e0);
+}
+[data-theme="aqua"] .term-bar .stop-btn {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.7) 0%, rgba(255,255,255,.25) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #ff6860, #d82018);
+  color:#fff;
+  border:1px solid rgba(140,8,0,.5);
+  text-shadow:0 -1px 0 rgba(0,0,0,.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 1px 3px rgba(180,0,0,.3);
+  border-radius:10px;
+}
+[data-theme="aqua"] .term-bar .term-filter-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.12) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.06) 100%),
+    linear-gradient(180deg, #e0e0e6, #ccccd4);
+  border:1px solid #8a8a94;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  border-radius:8px;
+}
+[data-theme="aqua"] .term-bar .term-filter-btn.active {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.7) 0%, rgba(255,255,255,.25) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #4cb0f8, #1878c8);
+  border-color:rgba(8,70,140,.45);
+  color:#fff;
+  text-shadow:0 -1px 0 rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+[data-theme="aqua"] .term-search {
+  border:1px solid #8a8a94;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.1);
+  border-radius:20px;
+  padding-left:12px;
+}
+[data-theme="aqua"] .term-search:focus { border-color:#2094e8; box-shadow:inset 0 1px 2px rgba(0,0,0,.06), 0 0 6px rgba(32,148,232,.45); }
+
+/* Aqua: terminal text — dark on white, classic Terminal.app */
+[data-theme="aqua"] .term-output .info { color:#1a1a1a; }
+[data-theme="aqua"] .term-output .title { color:#0050a0; font-weight:700; }
+[data-theme="aqua"] .term-output .status { color:#1870b0; }
+[data-theme="aqua"] .term-output .success { color:#1e8c30; font-weight:700; }
+[data-theme="aqua"] .term-output .warn { color:#c07000; }
+[data-theme="aqua"] .term-output .err { color:#d01818; }
+[data-theme="aqua"] .term-output .sys { color:#6838a8; font-style:normal; }
+[data-theme="aqua"] .term-output .t { color:#8080a0; }
+[data-theme="aqua"] .term-output .dim { color:#8080a0; }
+[data-theme="aqua"] .term-output .line:last-child::after { color:#2094e8; }
+
+/* ── Aqua Inputs — pill-shaped white, deep inset, glowing blue focus ── */
+[data-theme="aqua"] input, [data-theme="aqua"] select, [data-theme="aqua"] textarea {
+  border:1px solid #8a8a94 !important;
+  background:#fff !important;
+  color:#1a1a1a !important;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.12);
+  border-radius:10px;
+}
+[data-theme="aqua"] input:focus, [data-theme="aqua"] select:focus {
+  border-color:#2094e8 !important;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.06), 0 0 6px rgba(32,148,232,.55);
+  outline:none;
+}
+
+/* ── Aqua Modals — sheet dialog with brushed metal title ── */
+[data-theme="aqua"] .modal-box {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,.3) 0px, rgba(255,255,255,.3) 1px,
+      transparent 1px, transparent 2px
+    ),
+    linear-gradient(180deg, #eeeef3, #dddde3);
+  border:1px solid #88888f;
+  box-shadow:0 12px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.15) inset;
+  border-radius:16px;
+}
+[data-theme="aqua"] .modal-title {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.08) 1px,
+      rgba(0,0,0,.04) 2px, rgba(255,255,255,0) 3px
+    ),
+    linear-gradient(180deg, #d8d8de 0%, #bfbfc6 40%, #b2b2ba 60%, #c0c0c8 100%);
+  color:#1a1a1a;
+  font-weight:700;
+  text-shadow:0 1px 0 rgba(255,255,255,.55);
+  padding:8px 14px;
+  margin:-28px -32px 16px;
+  border-bottom:1px solid #88888f;
+  border-radius:16px 16px 0 0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .modal-title.danger {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #ff6860, #d82018);
+  color:#fff; text-shadow:0 -1px 0 rgba(0,0,0,.35); border-bottom-color:#901008;
+}
+[data-theme="aqua"] .modal-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #f0f0f6, #d8d8e0);
+  border:1px solid #8a8a94;
+  color:#1a1a1a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 1px 3px rgba(0,0,0,.12);
+  border-radius:14px;
+}
+[data-theme="aqua"] .modal-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.3) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.15) 100%),
+    linear-gradient(180deg, #f8f8fc, #e2e2ea);
+}
+[data-theme="aqua"] .modal-btn.danger {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 45%,
+      rgba(255,255,255,0)  50%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #ff6860, #d82018);
+  color:#fff; border-color:rgba(140,8,0,.5);
+  text-shadow:0 -1px 0 rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 1px 3px rgba(180,0,0,.25);
+}
+[data-theme="aqua"] .modal-input {
+  border:1px solid #8a8a94;
+  border-radius:10px;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.12);
+}
+[data-theme="aqua"] .modal-overlay .modal-box { animation:aquaSheet .3s ease-out; }
+@keyframes aquaSheet { from{transform:translateY(-30px) scale(.97);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }
+[data-theme="aqua"] .modal-btn.primary { animation:aquaPulse 2s ease-in-out infinite; }
+
+/* ── Aqua Resizer — brushed metal strip ── */
+[data-theme="aqua"] .resizer {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.08) 1px,
+      rgba(0,0,0,.04) 2px, rgba(255,255,255,0) 3px
+    ),
+    linear-gradient(180deg, #d0d0d8, #c0c0c8);
+}
+[data-theme="aqua"] .resizer:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #a0cce8, #70a8d4);
+}
+
+/* ── Aqua DevOps panels — glass grouped boxes ── */
+[data-theme="aqua"] .dv-panel {
+  border:1px solid #98989f;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.25)),
+    #e4e4ec;
+  border-radius:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+[data-theme="aqua"] .dv-panel-header {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #c8dcf4, #a8c4e8);
+  border-bottom:1px solid #90a8c8;
+  border-radius:12px 12px 0 0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .dv-panel-header:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 100%),
+    linear-gradient(180deg, #b8d4f4, #98b8e4);
+  filter:none;
+}
+[data-theme="aqua"] .dv-panel-title { color:#0c5ca0; font-weight:700; }
+[data-theme="aqua"] .dv-dashboard {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,.1)),
+    linear-gradient(180deg, #d0e0f4, #bccce4);
+  border:1px solid #90a8c8;
+  border-radius:10px;
+}
+[data-theme="aqua"] .dv-refresh-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+[data-theme="aqua"] .dv-tool-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#0c5ca0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+[data-theme="aqua"] .dv-tool-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #d0e4f8, #b0c8e8);
+  border-color:#6898c4;
+}
+
+/* ── Aqua Diff blocks ── */
+[data-theme="aqua"] .diff-block { border:1px solid #98989f; border-radius:10px; overflow:hidden; }
+[data-theme="aqua"] .diff-header {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #d0dcec, #bcc8dc);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4);
+}
+[data-theme="aqua"] .diff-header:hover { background:linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.12)), linear-gradient(180deg, #c0d4ec, #a8bcd8); filter:none; }
+
+/* ── Aqua Tooltips ── */
+[data-theme="aqua"] .s-tooltip { background:rgba(255,255,240,.95); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid #c0b440; color:#1a1a1a; box-shadow:0 4px 12px rgba(0,0,0,.2); border-radius:8px; }
+/* ── Aqua Toasts — glass panel ── */
+[data-theme="aqua"] .toast {
+  background:rgba(238,238,243,.88);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(0,0,0,.18);
+  box-shadow:0 6px 24px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.5);
+  border-radius:14px;
+}
+
+/* ── Aqua Loading — deep blue gradient, Mac OS X boot feel ── */
+[data-theme="aqua"] .loading-overlay { background:linear-gradient(180deg, #4898d8 0%, #2870b8 25%, #1850a0 55%, #0a3060 100%); }
+[data-theme="aqua"] .loading-donut { filter:drop-shadow(0 0 24px rgba(255,255,255,.4)) brightness(1.1); }
+[data-theme="aqua"] .loading-text { color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.5); font-weight:700; letter-spacing:.5px; }
+[data-theme="aqua"] .loading-sub { color:#a8ccf0; }
+[data-theme="aqua"] .loading-step { color:rgba(255,255,255,.45); }
+[data-theme="aqua"] .loading-step.active { color:#fff; }
+[data-theme="aqua"] .loading-step.done { color:#80f0a0; }
+
+/* ── Aqua Progress bar — gel capsule with candy-stripe animation ── */
+[data-theme="aqua"] .progress-bar {
+  background:#d0d0d8;
+  border:1px solid #8a8a94;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.15);
+}
+[data-theme="aqua"] .progress-fill {
+  background:
+    repeating-linear-gradient(-45deg,
+      rgba(255,255,255,.2) 0px, rgba(255,255,255,.2) 6px,
+      transparent 6px, transparent 12px),
+    linear-gradient(180deg,
+      rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #50b4f8, #1888e0 40%, #0868c0 60%, #2094e8);
+  background-size:18px 18px, 100% 100%, 100% 100%;
+  border-radius:20px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+  animation:aquaStripe 1s linear infinite;
+}
+@keyframes aquaStripe { 0%{background-position:0 0, 0 0, 0 0} 100%{background-position:18px 0, 0 0, 0 0} }
+
+/* ── Aqua Scrollbar — the iconic blue gel capsule ── */
+[data-theme="aqua"] ::-webkit-scrollbar { width:15px; }
+[data-theme="aqua"] ::-webkit-scrollbar-track { background:#dddde3; border-left:1px solid #c0c0c8; box-shadow:inset 1px 0 3px rgba(0,0,0,.06); }
+[data-theme="aqua"] ::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,.45) 0%, rgba(255,255,255,.12) 35%,
+      rgba(255,255,255,0) 50%,
+      rgba(255,255,255,.12) 65%, rgba(255,255,255,.3) 100%),
+    linear-gradient(90deg, #80c4f0, #3898d8, #5cacec, #80c4f0);
+  border:1px solid #2878b0;
+  border-radius:10px;
+  min-height:40px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.08);
+}
+[data-theme="aqua"] ::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,.55) 0%, rgba(255,255,255,.18) 35%,
+      rgba(255,255,255,0) 50%,
+      rgba(255,255,255,.18) 65%, rgba(255,255,255,.4) 100%),
+    linear-gradient(90deg, #70b8ec, #2888cc, #4ca0e4, #70b8ec);
+}
+[data-theme="aqua"] ::-webkit-scrollbar-button { display:none; }
+
+/* ── Aqua Shortcuts bar — brushed metal ── */
+[data-theme="aqua"] .shortcuts {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,0) 0px, rgba(255,255,255,.06) 1px,
+      rgba(0,0,0,.03) 2px, rgba(255,255,255,0) 3px
+    ),
+    linear-gradient(180deg, #dddde3, #ccccd4);
+  border-top:1px solid rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .shortcuts kbd {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#2a2a2a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75), 0 1px 2px rgba(0,0,0,.1);
+  border-radius:8px;
+}
+
+/* ── Aqua Config area — gel buttons ── */
+[data-theme="aqua"] .cfg-env-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#0c5ca0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+[data-theme="aqua"] .cfg-env-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #d0e4f8, #b0c8e8);
+  border-color:#6898c4;
+}
+[data-theme="aqua"] .cfg-env-btn.del { color:#ff3b30; }
+[data-theme="aqua"] .cfg-env.active {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #4cb0f8, #1878c8);
+  color:#fff; border-color:rgba(8,70,140,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 1px 3px rgba(0,50,130,.3);
+  text-shadow:0 -1px 0 rgba(0,0,0,.3);
+}
+[data-theme="aqua"] .browse-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#0c5ca0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+[data-theme="aqua"] .browse-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #d0e4f8, #b0c8e8);
+  border-color:#6898c4;
+}
+[data-theme="aqua"] .refresh-btn, [data-theme="aqua"] .refresh-mini {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  color:#0c5ca0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+[data-theme="aqua"] .pkg-chip {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #f0f0f6, #dddde5);
+  border:1px solid #98989f;
+  border-radius:20px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+}
+[data-theme="aqua"] .pkg-chip.selected {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.6) 0%, rgba(255,255,255,.15) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #4cb0f8, #1878c8);
+  color:#fff; border-color:rgba(8,70,140,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+  text-shadow:0 -1px 0 rgba(0,0,0,.25);
+}
+
+/* ── Aqua Workflow bar ── */
+[data-theme="aqua"] .workflow-bar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #c8dcf4, #a8c4e8);
+  border:1px solid #90a8c8;
+  border-radius:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .selected-info { background:rgba(220,238,255,.7); border:1px solid #90a8c8; color:#0c5ca0; border-radius:10px; }
+[data-theme="aqua"] .wf-badge { box-shadow:0 1px 4px rgba(0,0,0,.14); border-radius:12px; }
+[data-theme="aqua"] .wf-action-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08);
+  border-radius:10px;
+}
+
+/* ── Aqua Error bar ── */
+[data-theme="aqua"] .term-error-bar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.15)),
+    linear-gradient(180deg, #ffe0dd, #ffc8c4);
+  border:1px solid #ff3b30; border-radius:10px;
+}
+[data-theme="aqua"] .err-nav-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4);
+  border:1px solid #8a8a94;
+  border-radius:10px;
+}
+
+/* ── Aqua Watch button — gel capsule ── */
+[data-theme="aqua"] .watch-btn {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,.18) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.08) 100%),
+    linear-gradient(180deg, #e8e8ee, #ccccd4) !important;
+  border:1px solid #8a8a94 !important;
+  color:#0c5ca0 !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.08) !important;
+  border-radius:14px !important;
+  animation:none !important;
+}
+[data-theme="aqua"] .watch-btn:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.2) 48%, rgba(255,255,255,0) 52%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #d0e4f8, #b0c8e8) !important;
+  border-color:#6898c4 !important;
+}
+[data-theme="aqua"] .watch-btn.active {
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.7) 0%, rgba(255,255,255,.25) 45%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #50b4f8, #1878c8) !important;
+  color:#fff !important;
+  border-color:rgba(8,70,140,.45) !important;
+  text-shadow:0 -1px 0 rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 0 10px rgba(32,148,232,.35) !important;
+}
+
+/* ── Aqua Health widget ── */
+[data-theme="aqua"] .health-widget {
+  border:1px solid #90a8c8;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,.1) 100%),
+    linear-gradient(180deg, #c8dcf4, #b0c8e8);
+  border-radius:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+}
+[data-theme="aqua"] .prereq .dot { box-shadow:0 0 5px rgba(0,0,0,.25); }
+
+/* ── Aqua Indicator — pulsing blue glow ── */
+[data-theme="aqua"] .indicator.running { background:#2094e8; box-shadow:0 0 10px rgba(32,148,232,.6); }
+[data-theme="aqua"] .indicator.success { background:#28c840; box-shadow:0 0 6px rgba(40,200,64,.4); }

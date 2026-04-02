@@ -370,7 +370,7 @@ export async function doRun(): Promise<void> {
 
   if (s.danger) {
     const dangerMsgs: Record<string, string> = {
-      'reset': 'This will pull force from scratch with no history. All local changes will be lost.',
+      'reset': 'This will wipe the local site and rebuild from scratch. All local changes and commit history will be lost.',
       'rollback': 'This will undo commits by creating a revert. Previous history is preserved but changes will be reverted.',
     };
     const ok = await (window as any).showConfirm(s.name, dangerMsgs[s.id] || 'This is a destructive operation. Are you sure?');

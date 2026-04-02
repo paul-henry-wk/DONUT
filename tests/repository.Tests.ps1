@@ -102,4 +102,36 @@ Describe 'Push' {
             $args -contains 'push' -and $args -contains 'feature/test'
         }
     }
+
+    It 'should set upstream tracking with -u flag' {
+        Push -Repository 'C:\repo' -AzDoRepository 'Package.Risk' -Branch 'feature/upstream'
+
+        Should -Invoke git -Times 1 -ModuleName repository -ParameterFilter {
+            $args -contains 'push' -and $args -contains '-u' -and $args -contains 'origin'
+        }
+    }
+}
+
+Describe 'Commit with special characters' {
+    BeforeEach {
+        Mock git { $global:LASTEXITCODE = 0 } -ModuleName repository
+        Mock Write-Host { } -ModuleName repository
+        Mock Print_Text { } -ModuleName repository
+    }
+
+    It 'should handle message with special characters' {
+        Commit -Repository 'C:\repo' -Message 'fix: handle "quotes" & <angles> in path (issue #42)'
+
+        Should -Invoke git -Times 1 -ModuleName repository -ParameterFilter {
+            $args -contains 'commit' -and $args -contains 'fix: handle "quotes" & <angles> in path (issue #42)'
+        }
+    }
+
+    It 'should handle message with unicode characters' {
+        Commit -Repository 'C:\repo' -Message 'update: version bump v2.0'
+
+        Should -Invoke git -Times 1 -ModuleName repository -ParameterFilter {
+            $args -contains 'commit' -and $args -contains 'update: version bump v2.0'
+        }
+    }
 }

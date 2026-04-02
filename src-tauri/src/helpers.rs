@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use base64::Engine;
 
-use crate::error::AppError;
+use crate::error::{azdo_status_err, AppError};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -120,6 +120,47 @@ pub(crate) fn azdo_auth(token: &str) -> String {
 /// URL-encode a string for safe use in Azure DevOps API URL path segments.
 pub(crate) fn url_encode(s: &str) -> String {
     urlencoding::encode(s).into_owned()
+}
+
+/// Retry an async HTTP request with exponential backoff.
+/// Retries on network errors and 429/5xx status codes.
+/// Does NOT retry on 401/403/404 (these are permanent errors).
+pub(crate) async fn azdo_get_json(
+    client: &reqwest::Client,
+    url: &str,
+    auth: &str,
+) -> Result<serde_json::Value, AppError> {
+    let delays = [0, 500, 1500]; // ms: immediate, 500ms, 1.5s
+    let mut last_err = None;
+    for (attempt, delay_ms) in delays.iter().enumerate() {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(*delay_ms)).await;
+        }
+        match client.get(url).header("Authorization", auth).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_success() {
+                    return resp.json().await.map_err(AppError::from);
+                }
+                // Don't retry auth/not-found errors
+                if matches!(status.as_u16(), 401 | 403 | 404) {
+                    return Err(azdo_status_err(status));
+                }
+                // Retry on 429 (rate limit) and 5xx
+                if status.as_u16() == 429 || status.is_server_error() {
+                    last_err = Some(azdo_status_err(status));
+                    continue;
+                }
+                return Err(azdo_status_err(status));
+            }
+            Err(e) => {
+                // Network error — retry
+                last_err = Some(AppError::Http(e));
+                continue;
+            }
+        }
+    }
+    Err(last_err.unwrap())
 }
 
 #[cfg(test)]
@@ -279,5 +320,14 @@ mod tests {
     #[test]
     fn passthrough_safe_chars() {
         assert_eq!(url_encode("simple"), "simple");
+    }
+
+    // ── azdo_get_json ──
+
+    #[tokio::test]
+    async fn azdo_get_json_rejects_empty_url() {
+        let client = reqwest::Client::new();
+        let result = azdo_get_json(&client, "", "Basic xxx").await;
+        assert!(result.is_err());
     }
 }

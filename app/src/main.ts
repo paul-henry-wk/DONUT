@@ -6,7 +6,7 @@
 
 import './types';
 import './state';
-import '../public/style.css';
+// CSS is loaded from public/style.css via <link> in index.html (not imported here to avoid Vite duplicating font files)
 
 // ── Module imports ──
 import { toast } from './state';
@@ -42,7 +42,7 @@ import {
   togglePwd, onVersionChange, searchWI, showWIResults, showWIResultsCached,
   loadPackages, loadWorkItems, loadMyWorkItems,
   createBranch, deleteBranch, doBrowse, doBrowseFile, selectWI,
-  getToken, getRepo, loadBranches, loadRepos,
+  getToken, getRepo, loadBranches, loadRepos, validatePath,
 } from './config';
 
 import { renderDevops, resetGitCreds, reassignWI, viewPrDiff } from './devops';
@@ -126,6 +126,7 @@ window.createBranch = createBranch;
 window.deleteBranch = deleteBranch;
 window.doBrowse = doBrowse;
 window.doBrowseFile = doBrowseFile;
+window.validatePath = validatePath;
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;
 window.loadMyWorkItems = loadMyWorkItems;

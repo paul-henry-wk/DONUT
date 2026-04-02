@@ -261,15 +261,13 @@ pub(crate) struct UpdateInfo {
 pub(crate) async fn check_for_updates(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<UpdateInfo, AppError> {
-    // Read current version from version.json
+    // Read current version: try version.json first, fall back to embedded Cargo version
     let version_path = app_root().join("cli").join("config").join("version.json");
-    let current = if version_path.exists() {
-        let data: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&version_path)?)?;
-        data["version"].as_str().unwrap_or("0.0.0").to_string()
-    } else {
-        "0.0.0".to_string()
-    };
+    let current = std::fs::read_to_string(&version_path)
+        .ok()
+        .and_then(|data| serde_json::from_str::<serde_json::Value>(&data).ok())
+        .and_then(|json| json["version"].as_str().map(String::from))
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
 
     // Query GitHub Releases API
     let url = format!(
