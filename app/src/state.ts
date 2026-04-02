@@ -19,25 +19,29 @@ export const ICONS: Record<string, string> = {
   'merge':               ICO('<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>'),
   'rollback':            ICO('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>'),
   'health-check':        ICO('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>'),
+  'setup-local-auth':     ICO('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  'install-site':          ICO('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>'),
 };
 
 // ── Data ──
 export const SCRIPT_GROUPS: ScriptGroup[] = [
   { label: 'Workflow', scripts: [
-    { id: 'set-master-packages', num: '01', name: 'Set Master Packages', desc: 'close/open packages on local site', requires: ['site_path'] },
-    { id: 'pull-force',          num: '02', name: 'Pull Force',          desc: 'download & reset site from repo', requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'reset',               num: '03', name: 'Reset',               desc: 'pull force from scratch, no history', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'pull',                num: '04', name: 'Pull',                desc: 'incremental update, no reset', requires: ['site_path', 'feature_branch', 'repository'] },
-    { id: 'commit',              num: '05', name: 'Commit',              desc: 'publish changes & create PRs', needsMsg: true, requires: ['site_path', 'feature_branch', 'target_branch', 'repository', 'token'] },
+    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive via WizManager', requires: [] },
+    { id: 'setup-local-auth',    num: '01', name: 'Setup Local Auth',    desc: 'reset local DB auth & restart IIS', requires: ['site_path'] },
+    { id: 'set-master-packages', num: '02', name: 'Set Master Packages', desc: 'close/open packages on local site', requires: ['site_path'] },
+    { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'download & reset site from repo', requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'reset',               num: '04', name: 'Reset',               desc: 'pull force from scratch, no history', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'pull',                num: '05', name: 'Pull',                desc: 'incremental update, no reset', requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'commit',              num: '06', name: 'Commit',              desc: 'publish changes & create PRs', needsMsg: true, requires: ['site_path', 'feature_branch', 'target_branch', 'repository', 'token'] },
   ]},
   { label: 'Diagnostic', scripts: [
-    { id: 'status',              num: '06', name: 'Status',              desc: 'show site, branch & PR status', requires: ['repository', 'token'] },
-    { id: 'diff',                num: '07', name: 'Diff',                desc: 'preview local changes before commit', requires: ['site_path', 'feature_branch'] },
-    { id: 'health-check',        num: '08', name: 'Health Check',        desc: 'deep diagnostic of site, DB, git, APIs', requires: ['site_path'] },
+    { id: 'status',              num: '07', name: 'Status',              desc: 'show site, branch & PR status', requires: ['repository', 'token'] },
+    { id: 'diff',                num: '08', name: 'Diff',                desc: 'preview local changes before commit', requires: ['site_path', 'feature_branch'] },
+    { id: 'health-check',        num: '09', name: 'Health Check',        desc: 'deep diagnostic of site, DB, git, APIs', requires: ['site_path'] },
   ]},
   { label: 'Actions', scripts: [
-    { id: 'merge',               num: '09', name: 'Merge',               desc: 'merge feature branch into target', requires: ['site_path', 'feature_branch', 'target_branch'] },
-    { id: 'rollback',            num: '10', name: 'Rollback',            desc: 'undo commits (safe revert)', danger: true, requires: ['site_path', 'feature_branch'] },
+    { id: 'merge',               num: '10', name: 'Merge',               desc: 'merge feature branch into target', requires: ['site_path', 'feature_branch', 'target_branch'] },
+    { id: 'rollback',            num: '11', name: 'Rollback',            desc: 'undo commits (safe revert)', danger: true, requires: ['site_path', 'feature_branch'] },
   ]},
 ];
 
@@ -46,6 +50,8 @@ export const SCRIPTS: ScriptDef[] = SCRIPT_GROUPS.flatMap(g => g.scripts);
 // ── Workflow tracking (state machine) ──
 export const WF_ICO: Record<string, string> = {
   idle:             ICO('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'),
+  site_installed:   ICO('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>'),
+  auth_set:         ICO('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
   packages_set:     ICO('<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>'),
   site_ready:       ICO('<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>'),
   changes_reviewed: ICO('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
@@ -55,6 +61,8 @@ export const WF_ICO: Record<string, string> = {
 
 export const WF_STATES: Array<{ id: string; label: string }> = [
   { id: 'idle',             label: 'Start' },
+  { id: 'site_installed',   label: 'Install' },
+  { id: 'auth_set',         label: 'Auth' },
   { id: 'packages_set',     label: 'Packages' },
   { id: 'site_ready',       label: 'Site' },
   { id: 'changes_reviewed', label: 'Review' },
@@ -63,7 +71,9 @@ export const WF_STATES: Array<{ id: string; label: string }> = [
 ];
 
 export const WF_TRANSITIONS: Record<string, { to: string; minState?: string }> = {
-  'set-master-packages': { to: 'packages_set' },
+  'install-site':        { to: 'site_installed' },
+  'setup-local-auth':    { to: 'auth_set' },
+  'set-master-packages': { to: 'packages_set',     minState: 'idle' },
   'pull-force':          { to: 'site_ready',       minState: 'idle' },
   'reset':               { to: 'site_ready',       minState: 'idle' },
   'pull':                { to: 'site_ready',       minState: 'idle' },
@@ -74,7 +84,9 @@ export const WF_TRANSITIONS: Record<string, { to: string; minState?: string }> =
 };
 
 export const WF_RECOMMEND: Record<string, string[]> = {
-  idle:              ['set-master-packages'],
+  idle:              ['install-site'],
+  site_installed:    ['setup-local-auth'],
+  auth_set:          ['set-master-packages'],
   packages_set:      ['pull-force', 'pull', 'reset'],
   site_ready:        ['diff', 'commit'],
   changes_reviewed:  ['commit'],
@@ -105,6 +117,7 @@ export const S = {
   cachedBranches: [] as string[],
   cachedPackages: [] as string[],
   cachedWorkItems: [] as WorkItem[],
+  isWatching: false,
 };
 
 // ── Tauri bindings (lazy access to avoid crash if __TAURI__ not yet injected) ──

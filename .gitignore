@@ -8,6 +8,7 @@
 # Build artifacts
 DONUT.exe
 DONUT-*.zip
+/dist/
 src-tauri/target/
 src-tauri/binaries/
 app/dist/

@@ -13,7 +13,12 @@ base64 = "~0.22"
 thiserror = "~1.0"
 urlencoding = "~2.1"
 notify = { version = "~7.0" }
+sevenz-rust = "~0.6"
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
 notify-debouncer-full = "~0.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging"] }
 
 [build-dependencies]
 tauri-build = { version = "~2.5", features = [] }

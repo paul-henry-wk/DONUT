@@ -38,6 +38,7 @@ export function renderScripts(): void {
           let ok = false, label = r;
           switch(r) {
             case 'site_path': ok = !!S.envConfig.local?.site_path; label = 'Site path'; break;
+            case 'ena_path': ok = !!S.envConfig.local?.ena_path; label = 'ENA archive'; break;
             case 'feature_branch': ok = !!S.envConfig.feature_branch; label = 'Feature branch'; break;
             case 'target_branch': ok = !!S.envConfig.target_branch; label = 'Target branch'; break;
             case 'repository': ok = !!S.envConfig.azdo?.repository; label = 'Repository'; break;
@@ -122,7 +123,7 @@ export function renderRunBar(): void {
   }
 
   const watchBtn = s.id === 'diff' && !S.isRunning
-    ? `<button class="run-btn watch-btn ${(S as any).isWatching ? 'active' : ''}" onclick="toggleWatch()">${(S as any).isWatching ? '&#9632; STOP WATCH' : '&#9673; WATCH'}</button>`
+    ? `<button class="run-btn watch-btn ${S.isWatching ? 'active' : ''}" onclick="toggleWatch()">${S.isWatching ? '&#9632; STOP WATCH' : '&#9673; WATCH'}</button>`
     : '';
 
   // Last run result badge
@@ -158,6 +159,7 @@ export function validateEnvForScript(scriptId: string): string[] | null {
   for (const req of s.requires) {
     switch (req) {
       case 'site_path':      if (!S.envConfig.local?.site_path) missing.push('Site path'); break;
+      case 'ena_path':       if (!S.envConfig.local?.ena_path) missing.push('ENA archive path'); break;
       case 'feature_branch': if (!S.envConfig.feature_branch) missing.push('Feature branch'); break;
       case 'target_branch':  if (!S.envConfig.target_branch) missing.push('Target branch'); break;
       case 'repository':     if (!S.envConfig.azdo?.repository) missing.push('Repository'); break;
@@ -169,10 +171,10 @@ export function validateEnvForScript(scriptId: string): string[] | null {
 
 // ── Watch mode ──
 export async function toggleWatch(): Promise<void> {
-  if ((S as any).isWatching) {
+  if (S.isWatching) {
     try {
       await invoke('stop_watch');
-      (S as any).isWatching = false;
+      S.isWatching = false;
       toast('Watch stopped', 'info');
       appendLog('[STATUS] Watch mode stopped', 'status');
     } catch (e) { toast('Stop watch: ' + e, 'error'); }
@@ -180,11 +182,143 @@ export async function toggleWatch(): Promise<void> {
     if (!S.currentEnv) { toast('Select an environment first', 'error'); return; }
     try {
       await invoke('start_watch', { envFile: S.currentEnv });
-      (S as any).isWatching = true;
+      S.isWatching = true;
       toast('Watching for changes...', 'success');
     } catch (e) { toast('Start watch: ' + e, 'error'); }
   }
   renderRunBar();
+}
+
+// ── Install Site Wizard ─────────────────────────────────────────
+interface WizardResult { enaPath: string; sitePath: string; }
+
+function showInstallWizard(): Promise<WizardResult | null> {
+  return new Promise(async (resolve) => {
+    let enaPath = '';
+    let siteName = '';
+    let instancePath = '';
+    let step = 1;
+    const isAdmin = await invoke<boolean>('is_admin').catch(() => false);
+
+    // Scan Enablon instances (directories with Binary\WizManager.exe or Sites\)
+    let instances: Array<{path: string; name: string; has_wiz_manager: boolean}> = [];
+    try {
+      instances = await invoke<typeof instances>('scan_enablon_instances');
+    } catch { /* no instances found */ }
+
+    function render(): void {
+      const overlay = document.getElementById('installWizOverlay') || document.createElement('div');
+      overlay.id = 'installWizOverlay';
+      overlay.className = 'modal-overlay';
+      overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } };
+
+      const adminWarning = !isAdmin ? `<div class="wiz-warning">\u26A0 DONUT is not running as Administrator. Installation may fail. Please restart DONUT as Administrator.</div>` : '';
+
+      const closeWiz = `document.getElementById('installWizOverlay')?.remove()`;
+
+      if (step === 1) {
+        overlay.innerHTML = `<div class="modal-box wiz-box">
+          <div class="wiz-header">
+            <span class="wiz-title">Install Site</span>
+            <span class="wiz-steps-ind"><span class="wiz-dot active">1</span><span class="wiz-dot-line"></span><span class="wiz-dot">2</span></span>
+            <button class="wiz-close" onclick="${closeWiz}">\u2715</button>
+          </div>
+          ${adminWarning}
+          <div class="wiz-body">
+            <div class="wiz-label">Select the .ENA archive to install</div>
+            <div class="wiz-drop-zone" onclick="wizBrowseEna()">
+              ${enaPath
+                ? `<div class="wiz-file-ok"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <b>${esc(enaPath.split('\\').pop() || enaPath)}</b></div>
+                    <div class="wiz-file-path">${esc(enaPath)}</div>`
+                : `<div class="wiz-file-empty"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Click to browse for .ENA file</span></div>`
+              }
+            </div>
+          </div>
+          <div class="wiz-footer">
+            <button class="modal-btn" onclick="${closeWiz}">Cancel</button>
+            <button class="modal-btn primary" ${!enaPath ? 'disabled' : ''} onclick="wizGoStep2()">Next \u2192</button>
+          </div>
+        </div>`;
+      } else {
+        const computed = instancePath && siteName ? `${instancePath}\\Sites\\${siteName}` : '';
+        const canInstall = enaPath && instancePath && siteName;
+
+        // Instance selector: dropdown if instances found, else browse button
+        let instanceHtml = '';
+        if (instances.length > 0) {
+          const opts = instances.map(i =>
+            `<option value="${esc(i.path)}" ${i.path === instancePath ? 'selected' : ''}>${esc(i.name)}${i.has_wiz_manager ? '' : ' (no WizManager)'} \u2014 ${esc(i.path)}</option>`
+          ).join('');
+          instanceHtml = `<select onchange="wizUpdateInstance(this.value)">${opts}</select>
+            <button class="wiz-browse-btn" onclick="wizBrowseInstance()" title="Browse...">...</button>`;
+        } else {
+          instanceHtml = `<div class="wiz-input-row">
+            <input type="text" placeholder="C:\\Enablon\\Instance" value="${esc(instancePath)}" oninput="wizUpdateInstance(this.value)"/>
+            <button class="wiz-browse-btn" onclick="wizBrowseInstance()">Browse</button>
+          </div>`;
+        }
+
+        overlay.innerHTML = `<div class="modal-box wiz-box">
+          <div class="wiz-header">
+            <span class="wiz-title">Install Site</span>
+            <span class="wiz-steps-ind"><span class="wiz-dot done">\u2713</span><span class="wiz-dot-line"></span><span class="wiz-dot active">2</span></span>
+            <button class="wiz-close" onclick="${closeWiz}">\u2715</button>
+          </div>
+          ${adminWarning}
+          <div class="wiz-body">
+            <div class="wiz-field">
+              <label>Enablon Instance</label>
+              <div class="wiz-input-row">${instanceHtml}</div>
+            </div>
+            <div class="wiz-field">
+              <label>Site name</label>
+              <input type="text" value="${esc(siteName)}" oninput="wizUpdateSiteName(this.value)" placeholder="WizGRC.10.13"/>
+            </div>
+            <div class="wiz-computed">${computed
+              ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${esc(computed)}`
+              : '<span style="opacity:.5">Select instance and enter site name</span>'}</div>
+          </div>
+          <div class="wiz-footer">
+            <button class="modal-btn" onclick="wizGoStep1()">\u2190 Back</button>
+            <button class="modal-btn primary" ${!canInstall ? 'disabled' : ''} onclick="wizDoInstall()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Install
+            </button>
+          </div>
+        </div>`;
+        if (instances.length > 0 && !instancePath) { instancePath = instances[0].path; render(); }
+      }
+
+      if (!document.getElementById('installWizOverlay')) document.body.appendChild(overlay);
+    }
+
+    // Window globals for onclick
+    (window as any).wizBrowseEna = async () => {
+      const path = await invoke<string | null>('browse_file', { defaultPath: null, filter: 'ENA files (*.ena)|*.ena|All files (*.*)|*.*' });
+      if (path) {
+        enaPath = path;
+        // Pre-fill site name from ENA filename
+        const fname = path.split('\\').pop()?.replace(/\.ena$/i, '') || '';
+        if (!siteName) siteName = fname;
+        render();
+      }
+    };
+    (window as any).wizBrowseInstance = async () => {
+      const path = await invoke<string | null>('browse_folder', { defaultPath: instancePath || 'C:\\' });
+      if (path) { instancePath = path; render(); }
+    };
+    (window as any).wizGoStep2 = () => { step = 2; render(); };
+    (window as any).wizGoStep1 = () => { step = 1; render(); };
+    (window as any).wizUpdateInstance = (v: string) => { instancePath = v; render(); };
+    (window as any).wizUpdateSiteName = (v: string) => { siteName = v; render(); };
+    (window as any).wizDoInstall = () => {
+      const sitePath = `${instancePath}\\Sites\\${siteName}`;
+      document.getElementById('installWizOverlay')?.remove();
+      resolve({ enaPath, sitePath });
+    };
+
+    render();
+  });
 }
 
 export async function doRun(): Promise<void> {
@@ -192,6 +326,23 @@ export async function doRun(): Promise<void> {
   const s = SCRIPTS.find(x=>x.id===S.selectedScript)!;
 
   if (!S.currentEnv) { toast('No environment selected', 'error'); return; }
+
+  // Install Site → wizard instead of direct run
+  if (S.selectedScript === 'install-site') {
+    const result = await showInstallWizard();
+    if (!result) return;
+    appendLog(`> donut install-site ${S.currentEnv}`, 'prompt');
+    appendLog(`  ENA: ${result.enaPath}`, 'dim');
+    appendLog(`  Site: ${result.sitePath}`, 'dim');
+    appendLog(pickRandom(getThemeMsgs().run), 'dim');
+    try {
+      await invoke('run_script', {
+        script: 'install-site', envFile: S.currentEnv, message: null,
+        overrides: { ena_path: result.enaPath, site_path: result.sitePath }
+      });
+    } catch(e) { appendLog('Failed to start: ' + e, 'err'); }
+    return;
+  }
 
   // Validate required fields
   const missing = validateEnvForScript(S.selectedScript);

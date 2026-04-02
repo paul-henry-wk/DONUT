@@ -10,8 +10,8 @@
     "windows": [
       {
         "title": "DONUT",
-        "width": 1400,
-        "height": 900,
+        "width": 1100,
+        "height": 750,
         "minWidth": 900,
         "minHeight": 600,
         "resizable": true

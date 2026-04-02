@@ -1,0 +1,99 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Compute next minor version from latest tag ──
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          latest=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -z "$latest" ]; then
+            next="1.0.0"
+          else
+            # Strip 'v' prefix, bump minor, reset patch
+            IFS='.' read -r major minor patch <<< "${latest#v}"
+            next="${major}.$((minor + 1)).0"
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $next"
+
+      # ── Stamp version in config files ──
+      - name: Update version files
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # tauri.conf.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          # version.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" cli/config/version.json
+
+      # ── Setup toolchain ──
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ── Build ──
+      - name: Install frontend dependencies
+        run: npm install --prefix app
+
+      - name: Build frontend
+        run: npm run build --prefix app
+
+      - name: Build Tauri
+        run: npx --prefix app tauri build
+
+      # ── Package ──
+      - name: Create release zip
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          cp src-tauri/target/release/donut.exe dist/DONUT.exe
+          cp src-tauri/target/release/bundle/nsis/DONUT_${VERSION}_x64-setup.exe dist/ 2>/dev/null || true
+          cd dist
+          7z a "DONUT_${VERSION}_x64.zip" DONUT.exe DONUT_${VERSION}_x64-setup.exe 2>/dev/null || \
+            powershell -Command "Compress-Archive -Path 'DONUT.exe','DONUT_${VERSION}_x64-setup.exe' -DestinationPath 'DONUT_${VERSION}_x64.zip' -Force"
+
+      # ── Release ──
+      - name: Create tag and release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          NOTES=$(git log --oneline $(git tag --sort=-v:refname | head -1)..HEAD 2>/dev/null || git log --oneline -10)
+
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          gh release create "$TAG" \
+            "dist/DONUT_${VERSION}_x64.zip" \
+            --title "DONUT $TAG" \
+            --notes "$(echo -e "## Changes\n\n${NOTES}")" \
+            --latest

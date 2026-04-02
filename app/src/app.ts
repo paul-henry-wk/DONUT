@@ -2,8 +2,8 @@
 // app.ts -- Init, event listeners, theme, main glue, modals
 // =====================================================================
 
-import type { EnvConfig, ModalOptions, PrereqCheck, ScriptEvent, VersionInfo, WorkItem } from './types';
-import { esc, invoke, listen, S, SCRIPTS, getThemeMsgs, pickRandom } from './state';
+import type { EnvConfig, ModalOptions, PrereqCheck, ScriptEvent, UpdateInfo, VersionInfo, WorkItem } from './types';
+import { esc, invoke, listen, S, SCRIPTS, getThemeMsgs, pickRandom, toast } from './state';
 import {
   appendLog, closeDiffBlock, setIndicator, showStopBtn, hideRerunBtn,
   startSpinner, stopSpinner, startRunTimer, stopRunTimer,
@@ -444,6 +444,9 @@ export async function init(): Promise<void> {
     if (S.termFontSize !== 12) termOut.style.fontSize = S.termFontSize + 'px';
     if (!S.termWordWrap) termOut.classList.add('nowrap');
   }
+
+  // -- Check for updates in background --
+  checkForUpdates();
 }
 
 // ── Prerequisite installation ──
@@ -467,6 +470,51 @@ export async function installAllPrereqs(): Promise<void> {
     await installPrereq(p.name);
     // Wait a bit between installs to avoid winget conflicts
     await new Promise(r => setTimeout(r, 2000));
+  }
+}
+
+// ── Self-update ──
+export async function checkForUpdates(): Promise<void> {
+  try {
+    const info = await invoke<UpdateInfo>('check_for_updates');
+    const btn = document.getElementById('updateBtn');
+    if (!btn) return;
+    if (info.available) {
+      btn.classList.add('available');
+      btn.title = `Mise à jour disponible : v${info.latest_version}`;
+      btn.dataset.url = info.download_url;
+      btn.dataset.version = info.latest_version;
+      btn.dataset.notes = info.release_notes;
+    } else {
+      btn.classList.remove('available');
+      btn.title = 'Aucune mise à jour';
+    }
+  } catch {
+    // Silently ignore update check failures
+  }
+}
+
+export async function applyUpdate(): Promise<void> {
+  const btn = document.getElementById('updateBtn');
+  if (!btn?.classList.contains('available')) {
+    toast('Aucune mise à jour disponible.', 'info');
+    return;
+  }
+  const url = btn.dataset.url;
+  const version = btn.dataset.version || '?';
+  if (!url) return;
+
+  const ok = await showConfirm(
+    `Mettre à jour vers v${version} ?`,
+    'DONUT va se fermer, se mettre à jour, puis redémarrer automatiquement.'
+  );
+  if (!ok) return;
+
+  try {
+    toast('Téléchargement de la mise à jour...', 'info');
+    await invoke('apply_update', { downloadUrl: url });
+  } catch (e) {
+    toast(`Échec de la mise à jour : ${e}`, 'error');
   }
 }
 

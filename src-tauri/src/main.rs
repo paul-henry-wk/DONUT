@@ -69,13 +69,15 @@ fn main() {
                 .expect("Failed to create HTTP client"),
         })
         .invoke_handler(tauri::generate_handler![
-            get_version, list_envs, get_env, save_env, create_env, delete_env, rename_env, clone_env, list_templates, create_env_from_template,
+            get_version, get_package_mapping, list_envs, get_env, save_env, create_env, delete_env, rename_env, clone_env, list_templates, create_env_from_template,
             check_prereqs, install_prereq, quick_health, run_script, get_run_status,
-            browse_folder, validate_pat,
+            browse_folder, browse_file, validate_pat,
             list_azdo_projects, list_azdo_repos, list_azdo_branches, create_azdo_branch, delete_azdo_branch,
             list_azdo_prs, list_azdo_builds, compare_branches, check_merge_conflicts,
             search_work_items, list_branch_work_items, assign_work_item,
-            list_sql_packages, kill_running_script, reset_git_credentials, open_url, open_file, scan_local_sites,
+            get_pr_files, get_file_diff,
+            list_sql_packages, kill_running_script, reset_git_credentials, is_admin, open_url, open_file, scan_local_sites, scan_enablon_instances,
+            check_for_updates, apply_update,
             start_watch, stop_watch, is_watching,
         ])
         .build(tauri::generate_context!())

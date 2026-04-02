@@ -41,11 +41,13 @@ pub(crate) fn get_run_status(state: tauri::State<'_, AppState>) -> Result<serde_
 }
 
 #[tauri::command]
-pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>, script: String, env_file: String, message: Option<String>) -> Result<(), AppError> {
+pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>, script: String, env_file: String, message: Option<String>, overrides: Option<std::collections::HashMap<String, String>>) -> Result<(), AppError> {
     let ps_script = match script.as_str() {
         "set-master-packages" => "set-master-packages", "pull-force" => "pull-force",
         "reset" => "pull-force", "pull" => "pull", "commit" => "commit", "status" => "status",
         "diff" => "diff", "merge" => "merge", "rollback" => "rollback", "health-check" => "health-check",
+        "setup-local-auth" => "setup-local-auth",
+        "install-site" => "install-site",
         _ => return Err(AppError::Validation(format!("Unknown script: {}", script))),
     };
 
@@ -84,6 +86,12 @@ pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>
     tauri::async_runtime::spawn(async move {
         let mut cmd = AsyncCommand::new("pwsh");
         cmd.args(&args).current_dir(&root).env("NO_COLOR", "1").env("DONUT_GUI", "1").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+        if let Some(ref ovr) = overrides {
+            for (key, value) in ovr {
+                let env_key = format!("DONUT_OVERRIDE_{}", key.to_uppercase());
+                cmd.env(&env_key, value);
+            }
+        }
         #[cfg(windows)] cmd.creation_flags(CREATE_NO_WINDOW);
 
         let mut child = match cmd.spawn() {

@@ -5,9 +5,11 @@
 export interface EnvConfig {
   local?: {
     site_path?: string;
+    ena_path?: string;
     parent_site?: string;
     user?: string;
     password?: string;
+    developer_password?: string;
     db_user?: string;
     db_password?: string;
   };
@@ -118,6 +120,14 @@ export interface VersionInfo {
   fullname?: string;
   version?: string;
   dependencies?: Record<string, string>;
+}
+
+export interface UpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string;
+  download_url: string;
+  release_notes: string;
 }
 
 export interface ModalOptions {

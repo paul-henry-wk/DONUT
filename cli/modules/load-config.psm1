@@ -13,11 +13,13 @@ $ExpectedConfig = [ordered]@{
     "packages" = @();
 
     "local.site_path" = $null;
+    "local.ena_path" = "";
     "local.parent_site" = $null;
     "local.user" = "admin";
     "local.password" = $null;
     "local.db_user" = "sa";
     "local.db_password" = $null;
+    "local.developer_password" = "";
 
     "azdo.organization" = $null;
     "azdo.project" = $null;

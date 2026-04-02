@@ -41,11 +41,11 @@ import {
   onProjectChange, onRepoChange, wizValidatePat, refreshRepos, refreshBranches,
   togglePwd, onVersionChange, searchWI, showWIResults, showWIResultsCached,
   loadPackages, loadWorkItems, loadMyWorkItems,
-  createBranch, deleteBranch, doBrowse, selectWI,
+  createBranch, deleteBranch, doBrowse, doBrowseFile, selectWI,
   getToken, getRepo, loadBranches, loadRepos,
 } from './config';
 
-import { renderDevops, resetGitCreds, reassignWI } from './devops';
+import { renderDevops, resetGitCreds, reassignWI, viewPrDiff } from './devops';
 
 import { refreshHealth, toggleHealthPopup, autoFixHealth } from './health';
 
@@ -54,7 +54,11 @@ import {
   setTheme, toggleThemeList, closeThemeList,
   loadEnv, init, setupEventListeners,
   installPrereq, installAllPrereqs,
+  checkForUpdates, applyUpdate,
 } from './app';
+
+import { toggleDonutPet } from './donut-pet';
+import { initGravityEgg } from './gravity-egg';
 
 // ═══════════════════════════════════════════════════════════════════
 // Window aliases for HTML inline onclick handlers
@@ -121,6 +125,7 @@ window.renameCurrentEnv = renameCurrentEnv;
 window.createBranch = createBranch;
 window.deleteBranch = deleteBranch;
 window.doBrowse = doBrowse;
+window.doBrowseFile = doBrowseFile;
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;
 window.loadMyWorkItems = loadMyWorkItems;
@@ -136,6 +141,11 @@ window.setTheme = setTheme;
 window.closeThemeList = closeThemeList;
 window.installPrereq = installPrereq;
 window.installAllPrereqs = installAllPrereqs;
+window.checkForUpdates = checkForUpdates;
+window.applyUpdate = applyUpdate;
+
+// From donut-pet.ts
+window.toggleDonutPet = toggleDonutPet;
 
 // From workflow.ts
 window.resetWorkflow = resetWorkflow;
@@ -153,6 +163,7 @@ window.autoFixHealth = autoFixHealth;
 window.renderDevops = renderDevops;
 window.resetGitCreds = resetGitCreds;
 window.reassignWI = reassignWI;
+window.viewPrDiff = viewPrDiff;
 
 // Additional
 window.openFilePath = openFilePath;
@@ -170,6 +181,9 @@ document.body.classList.add('ready');
 
 // Set up all event listeners
 setupEventListeners();
+
+// Easter eggs
+initGravityEgg();
 
 // Initialize the app
 init().catch((e: unknown) => {

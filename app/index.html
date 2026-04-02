@@ -22,9 +22,12 @@
 
 <!-- Top bar -->
 <div class="topbar">
-  <div class="logo" onclick="dropDonut()">D<span class="logo-o">&#127849;</span>NUT</div>
+  <div class="logo" onclick="dropDonut()">D<span class="logo-o" onclick="event.stopPropagation();toggleDonutPet()">&#127849;</span>NUT</div>
   <span class="logo-sub">DevOps Nabsic Unified Tool</span>
   <span class="logo-ver" id="ver"></span>
+  <button class="update-btn" id="updateBtn" onclick="applyUpdate()" title="Vérification des mises à jour...">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
   <div class="tabs">
     <button class="tab active" onclick="showTab('scripts',this)" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/></svg>Scripts</button>
     <button class="tab" onclick="showTab('devops',this)" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>DevOps</button>

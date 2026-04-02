@@ -148,6 +148,7 @@ export function renderConfig(): void {
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
         ${field('c-spw','site password',c.local?.password||'','','password','Site admin password')}
+        ${field('c-devpw','developer password',c.local?.developer_password||'','','password','Builder developer password (used by Setup Local Auth)')}
         ${field('c-dbu','DB user',c.local?.db_user||'sa','','text','SQL Server login (default: sa)')}
         ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}
         <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="refresh-btn" onclick="loadPackages()" style="margin-left:8px">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="refresh-btn" onclick="selectAllPkgs()" style="font-size:9px">all</button><button class="refresh-btn" onclick="deselectAllPkgs()" style="font-size:9px">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
@@ -510,6 +511,11 @@ function fieldBrowse(id: string, label: string, value: string | undefined, cls?:
   const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
   return `<div class="cfg-field ${cls||''} drop-zone" style="position:relative" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'${id}')"><label>${esc(label)}${tip}<span class="drop-hint">drop folder here</span></label><div style="display:flex;gap:4px"><input id="${id}" type="text" value="${esc(value||'')}" style="flex:1" autocomplete="off" oninput="autoSave()"><button class="browse-btn" onclick="doBrowse('${id}')">...</button></div></div>`;
 }
+function fieldBrowseFile(id: string, label: string, value: string | undefined, cls?: string, tooltip?: string, filter?: string): string {
+  const tip = tooltip ? `<span class="cfg-tip" title="${esc(tooltip)}">?</span>` : '';
+  const f = filter ? esc(filter) : '';
+  return `<div class="cfg-field ${cls||''} drop-zone" style="position:relative" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'${id}')"><label>${esc(label)}${tip}<span class="drop-hint">drop file here</span></label><div style="display:flex;gap:4px"><input id="${id}" type="text" value="${esc(value||'')}" style="flex:1" autocomplete="off" oninput="autoSave()"><button class="browse-btn" onclick="doBrowseFile('${id}','${f}')">...</button></div></div>`;
+}
 export function handleDrop(e: DragEvent, id: string): void {
   e.preventDefault();
   (e.currentTarget as HTMLElement).classList.remove('drag-over');
@@ -536,7 +542,7 @@ export async function createBranch(): Promise<void> {
   const result = await (window as any).showModal({
     title: 'Create new branch',
     message: `New branch from "${sourceBranch}" on ${repository}`,
-    inputPlaceholder: 'feature/PHE/US-123-my-feature',
+    inputPlaceholder: 'feature/DNT/US-123-my-feature',
     inputValue: getFormValues().fb || '',
     confirmLabel: 'Create',
   });
@@ -560,6 +566,17 @@ export async function doBrowse(id: string): Promise<void> {
   try {
     const current = (document.getElementById(id) as HTMLInputElement)?.value || '';
     const path: string = await invoke('browse_folder', { defaultPath: current || 'C:\\' });
+    if (path) {
+      (document.getElementById(id) as HTMLInputElement).value = path;
+      toast('Selected: ' + path, 'success');
+    }
+  } catch(e) { toast('Browse failed: '+e, 'error'); }
+}
+export async function doBrowseFile(id: string, filter?: string): Promise<void> {
+  try {
+    const current = (document.getElementById(id) as HTMLInputElement)?.value || '';
+    const defaultDir = current ? current.replace(/\\[^\\]+$/, '') : 'C:\\';
+    const path: string = await invoke('browse_file', { defaultPath: defaultDir, filter: filter || null });
     if (path) {
       (document.getElementById(id) as HTMLInputElement).value = path;
       toast('Selected: ' + path, 'success');
@@ -633,7 +650,7 @@ function buildConfig(): EnvConfig {
     deactivate_metadata_conversion: mdCheckbox ? !mdCheckbox.checked : (S.envConfig.deactivate_metadata_conversion || false),
     packages: S.cachedPackages.length ? getSelectedPackages() : v('c-pkg').split(',').map(s=>s.trim()).filter(Boolean),
     local: { site_path: v('c-sp'), parent_site: v('c-ps') || buildParentSite(ver), user: v('c-usr') || 'admin', password: v('c-spw'),
-             db_user: v('c-dbu') || 'sa', db_password: v('c-dbpw') },
+             developer_password: v('c-devpw'), db_user: v('c-dbu') || 'sa', db_password: v('c-dbpw') },
     azdo: { organization: v('c-org') || getOrg(), project: v('c-proj') || getProject(), token: v('c-pat'), repository: v('c-repo'),
             repository_metadata: v('c-rdm') || 'Test.Package.Metadata.GitObjectDB' },
     git: S.envConfig.git,
