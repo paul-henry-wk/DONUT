@@ -10,7 +10,8 @@ BeforeAll {
 
 Describe 'UpdateMasterPackages' {
     BeforeEach {
-        Mock Write-Host { }
+        Mock Write-Host { } -ModuleName update-master-packages
+        Mock Invoke-Sqlcmd { } -ModuleName update-master-packages
         Mock Print_Text { } -ModuleName update-master-packages
         Mock Print_Title { } -ModuleName update-master-packages
         Mock Print_SubTitle { } -ModuleName update-master-packages
@@ -34,15 +35,11 @@ Describe 'UpdateMasterPackages' {
     }
 
     It 'should reject invalid package names' {
-        Mock Invoke-Sqlcmd { } -ModuleName update-master-packages
-
         { UpdateMasterPackages -ServerInstance '(local)' -SiteId 'TestDB' -Packages @("EMS'; DROP TABLE--") } |
             Should -Throw
     }
 
     It 'should accept valid package names' {
-        Mock Invoke-Sqlcmd { } -ModuleName update-master-packages
-
         { UpdateMasterPackages -ServerInstance '(local)' -SiteId 'TestDB' -Packages @('EMS', 'AP', 'RCM') } |
             Should -Not -Throw
     }
