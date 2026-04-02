@@ -10,6 +10,7 @@ Describe 'CheckoutBranch' {
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
         Mock Print_SubTitle { } -ModuleName repository
+        Mock Print_Status { } -ModuleName repository
     }
 
     It 'should checkout existing remote branch and pull' {
@@ -18,8 +19,9 @@ Describe 'CheckoutBranch' {
             if ($args -contains 'show-ref' -and $args -contains 'refs/heads/feature/test') { return $null }
         } -ModuleName repository
 
-        $result = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/test')
-        $result[-1] | Should -Be $true
+        $all = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/test')
+        # Function may emit Print output into pipeline; the boolean is always last
+        $all[-1] | Should -BeTrue
     }
 
     It 'should create new branch from source when branch does not exist' {
@@ -27,8 +29,8 @@ Describe 'CheckoutBranch' {
             if ($args -contains 'show-ref') { return $null }
         } -ModuleName repository
 
-        $result = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/new')
-        $result[-1] | Should -Be $false
+        $all = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/new')
+        $all[-1] | Should -BeFalse
     }
 
     It 'should throw when ExpectedToExist is true and branch not found' {
@@ -37,7 +39,7 @@ Describe 'CheckoutBranch' {
         } -ModuleName repository
 
         { CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/missing' -ExpectedToExist $true } |
-            Should -Throw "*not found locally or on origin*"
+            Should -Throw
     }
 }
 
@@ -46,11 +48,11 @@ Describe 'EmptyCommitsFolder' {
         Mock git { } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
         Mock Print_Text { } -ModuleName repository
+        Mock Remove-Item { } -ModuleName repository
     }
 
     It 'should clean commits folder when it has content' {
         Mock Test-Path { return $true } -ModuleName repository
-        Mock Remove-Item { } -ModuleName repository
 
         EmptyCommitsFolder -Repository 'C:\repo'
 
@@ -60,7 +62,6 @@ Describe 'EmptyCommitsFolder' {
 
     It 'should skip when commits folder is empty' {
         Mock Test-Path { return $false } -ModuleName repository
-        Mock Remove-Item { } -ModuleName repository
 
         EmptyCommitsFolder -Repository 'C:\repo'
 

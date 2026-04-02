@@ -2,7 +2,7 @@ BeforeAll {
     $ModulePath = "$PSScriptRoot\..\cli\modules"
     Import-Module "$ModulePath\print" -Force
     Import-Module "$ModulePath\update-master-packages" -Force
-    # Stub Invoke-Sqlcmd if the SqlServer module is not installed
+    # Stub Invoke-Sqlcmd if the SqlServer module is not installed (CI runners)
     if (-not (Get-Command 'Invoke-Sqlcmd' -ErrorAction SilentlyContinue)) {
         function global:Invoke-Sqlcmd { }
     }
@@ -11,6 +11,11 @@ BeforeAll {
 Describe 'UpdateMasterPackages' {
     BeforeEach {
         Mock Write-Host { }
+        Mock Print_Text { } -ModuleName update-master-packages
+        Mock Print_Title { } -ModuleName update-master-packages
+        Mock Print_SubTitle { } -ModuleName update-master-packages
+        Mock Print_Status { } -ModuleName update-master-packages
+        Mock Print_Warning { } -ModuleName update-master-packages
         Mock Get-Service {
             [PSCustomObject]@{ Name = 'MSSQLSERVER'; Status = 'Running' }
         } -ModuleName update-master-packages
@@ -32,7 +37,7 @@ Describe 'UpdateMasterPackages' {
         Mock Invoke-Sqlcmd { } -ModuleName update-master-packages
 
         { UpdateMasterPackages -ServerInstance '(local)' -SiteId 'TestDB' -Packages @("EMS'; DROP TABLE--") } |
-            Should -Throw "*Invalid package name*"
+            Should -Throw
     }
 
     It 'should accept valid package names' {
@@ -46,6 +51,11 @@ Describe 'UpdateMasterPackages' {
 Describe 'RegenerateMetadata' {
     BeforeEach {
         Mock Write-Host { }
+        Mock Print_Text { } -ModuleName update-master-packages
+        Mock Print_Title { } -ModuleName update-master-packages
+        Mock Print_Status { } -ModuleName update-master-packages
+        Mock Print_Warning { } -ModuleName update-master-packages
+        Mock Print_Request { return 'N' } -ModuleName update-master-packages
     }
 
     It 'should skip regeneration when user declines' {

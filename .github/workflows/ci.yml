@@ -50,12 +50,14 @@ jobs:
   # ── PowerShell Pester tests ──
   pester:
     runs-on: windows-latest
-    continue-on-error: true  # Some tests need fixes (missing function imports, interactive prompts)
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
       - name: Run Pester tests
         shell: pwsh
+        env:
+          DONUT_GUI: "1"  # Prevent interactive prompts
         run: |
           $result = Invoke-Pester -Path ./tests -PassThru -Output Detailed
           if ($result.FailedCount -gt 0) {
