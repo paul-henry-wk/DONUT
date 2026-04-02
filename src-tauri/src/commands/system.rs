@@ -68,7 +68,7 @@ pub(crate) async fn list_sql_packages(site_path: String, password: Option<String
     let db_name = PathBuf::from(&site_path).file_name()
         .map(|n| n.to_string_lossy().to_string())
         .ok_or_else(|| AppError::Validation("Cannot determine database name from site path.".into()))?;
-    let db_password = password.unwrap_or_else(|| String::new());
+    let db_password = password.unwrap_or_default();
 
     tokio::task::spawn_blocking(move || {
         let mut cmd = hidden_cmd("sqlcmd");
@@ -424,7 +424,7 @@ pub(crate) async fn apply_update(
     #[cfg(windows)]
     {
         let _ = std::process::Command::new("cmd")
-            .args(["/C", &bat_path.to_string_lossy().to_string()])
+            .args(["/C", bat_path.to_string_lossy().as_ref()])
             .current_dir(&root)
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn();

@@ -173,7 +173,7 @@ pub(crate) async fn check_prereqs() -> Vec<PrereqCheck> {
     let (pwsh, dotnet, git) = tokio::join!(
         tokio::task::spawn_blocking(|| {
             match hidden_cmd("pwsh").args(["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"]).output() {
-                Ok(out) => { let ver = String::from_utf8_lossy(&out.stdout).trim().to_string(); let ok = ver.chars().next().and_then(|c| c.to_digit(10)).map_or(false, |d| d >= 7); PrereqCheck { name: "PowerShell 7".into(), ok, version: Some(ver) } }
+                Ok(out) => { let ver = String::from_utf8_lossy(&out.stdout).trim().to_string(); let ok = ver.chars().next().and_then(|c| c.to_digit(10)).is_some_and(|d| d >= 7); PrereqCheck { name: "PowerShell 7".into(), ok, version: Some(ver) } }
                 Err(_) => PrereqCheck { name: "PowerShell 7".into(), ok: false, version: None },
             }
         }),

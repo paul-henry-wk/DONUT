@@ -38,7 +38,7 @@ pub(crate) fn list_envs() -> Vec<String> {
     if !dir.exists() { let _ = std::fs::create_dir_all(&dir); }
 
     // Seed a default config from the standard template on first launch
-    let has_env = std::fs::read_dir(&dir).ok().map_or(false, |mut entries| {
+    let has_env = std::fs::read_dir(&dir).ok().is_some_and(|mut entries| {
         entries.any(|e| {
             let n = e.ok().map(|e| e.file_name().to_string_lossy().to_string()).unwrap_or_default();
             n == ".env.json" || (n.starts_with(".env-") && n.ends_with(".json"))

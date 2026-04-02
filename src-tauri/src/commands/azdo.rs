@@ -227,7 +227,7 @@ pub(crate) async fn check_merge_conflicts(state: tauri::State<'_, AppState>, tok
             let resp = client.get(&url).header("Authorization", &auth).send().await?;
             let json: serde_json::Value = resp.json().await?;
             json["value"].as_array().and_then(|a| a.first()).and_then(|v| v["objectId"].as_str().map(String::from))
-                .ok_or_else(|| AppError::Validation(format!("Branch not found")))
+                .ok_or_else(|| AppError::Validation("Branch not found".to_string()))
         }
     };
     let (source_id, target_id) = tokio::try_join!(get_tip(&source_branch), get_tip(&target_branch))?;
@@ -347,7 +347,7 @@ pub(crate) async fn search_work_items(state: tauri::State<'_, AppState>, token: 
         format!("SELECT [System.Id] FROM WorkItems WHERE [System.Id] = {} AND [System.TeamProject] = '{}'", query, safe_project)
     } else {
         // Sanitize: escape single quotes, strip WIQL-dangerous characters and keywords
-        let safe_query = query.replace('\'', "''").replace('[', "").replace(']', "");
+        let safe_query = query.replace('\'', "''").replace(['[', ']'], "");
         // Reject input that looks like WIQL injection (keywords outside of value context)
         let lower = safe_query.to_lowercase();
         if lower.contains(" or ") || lower.contains(" and ") || lower.contains("--") || lower.contains("select ") || lower.contains(" from ") || lower.contains(" where ") {
@@ -719,7 +719,7 @@ fn extract_7z_text(bytes: &[u8]) -> Result<String, String> {
             let decoded = decode_bytes_to_text(&file_bytes);
             let total = decoded.len().max(1);
             let ascii_ok = decoded.bytes()
-                .filter(|&b| (b >= 0x20 && b < 0x7F) || b == b'\n' || b == b'\r' || b == b'\t')
+                .filter(|&b| (0x20..0x7F).contains(&b) || b == b'\n' || b == b'\r' || b == b'\t')
                 .count();
             if ascii_ok > total / 2 {
                 content.push_str(&decoded);
@@ -736,6 +736,7 @@ fn extract_7z_text(bytes: &[u8]) -> Result<String, String> {
 /// Format Enablon content for readable diffs:
 /// - Strip the MMD schema block (§MMDStart§ to §MMDEnd§) — identical on both sides
 /// - Strip noise (empty ©Þ, consecutive §####§)
+///
 /// Parse Enablon content into a clean, structured diff-friendly format.
 /// Parses records, pairs MOD before/after, shows only real changes.
 fn format_enablon_text(text: &str) -> String {
@@ -816,7 +817,7 @@ fn format_enablon_text(text: &str) -> String {
             let mut new_build = String::new();
 
             let source = if rec.contains(fsep) { rec.to_string() } else { rec.replace("*M*", "").replace("*A*", "") };
-            for part in source.split(|c| c == '\u{00A4}' || c == '\u{00A3}') {
+            for part in source.split(['\u{00A4}', '\u{00A3}']) {
                 if !part.contains("Pvc") || !part.contains('|') { continue; }
                 let halves: Vec<&str> = part.split('|').collect();
                 if halves.len() < 2 { continue; }
@@ -868,8 +869,7 @@ fn format_enablon_text(text: &str) -> String {
 
             if is_mod && i < records.len() {
                 let next = records[i].trim();
-                if next.ends_with("*M*") {
-                    let ndata = &next[..next.len()-3];
+                if let Some(ndata) = next.strip_suffix("*M*") {
                     let nfields: Vec<&str> = ndata.split(fsep).collect();
                     let ntable = nfields.first().map(|f| f.trim()).unwrap_or("");
                     let nfname = nfields.get(1).map(|f| f.trim()).unwrap_or("");

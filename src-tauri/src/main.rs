@@ -88,7 +88,7 @@ fn main() {
                     if let Ok(guard) = state.script.lock() {
                         if let Some(pid) = guard.child_pid {
                             #[cfg(windows)]
-                            { let _ = helpers::hidden_cmd("taskkill").args(&["/F", "/T", "/PID", &pid.to_string()]).output(); }
+                            { let _ = helpers::hidden_cmd("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).output(); }
                         }
                     }
                 }

@@ -82,10 +82,10 @@ pub(crate) async fn start_watch(app: AppHandle, state: tauri::State<'_, AppState
                 });
             }
         },
-    ).map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    ).map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
 
     debouncer.watch(&watch_path, RecursiveMode::Recursive)
-        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
 
     let _ = app.emit("script-event", ScriptEvent {
         event_type: "log".into(),

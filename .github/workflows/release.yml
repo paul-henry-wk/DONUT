@@ -1,7 +1,9 @@
 name: Build & Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -10,13 +12,14 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ── Compute next minor version from latest tag ──
+      # ── Compute next patch version from latest tag ──
       - name: Compute version
         id: version
         shell: bash
@@ -38,9 +41,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # tauri.conf.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # version.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" cli/config/version.json
 
       # ── Setup toolchain ──
@@ -59,13 +60,16 @@ jobs:
 
       # ── Build ──
       - name: Install frontend dependencies
-        run: npm install --prefix app
+        working-directory: app
+        run: npm install
 
       - name: Build frontend
-        run: npm run build --prefix app
+        working-directory: app
+        run: npm run build
 
       - name: Build Tauri
-        run: npx --prefix app tauri build
+        working-directory: app
+        run: npx tauri build
 
       # ── Package ──
       - name: Create release zip
