@@ -309,8 +309,25 @@ function showInstallWizard(): Promise<WizardResult | null> {
     };
     (window as any).wizGoStep2 = () => { step = 2; render(); };
     (window as any).wizGoStep1 = () => { step = 1; render(); };
-    (window as any).wizUpdateInstance = (v: string) => { instancePath = v; render(); };
-    (window as any).wizUpdateSiteName = (v: string) => { siteName = v; render(); };
+    (window as any).wizUpdateInstance = (v: string) => { instancePath = v; updateWizComputed(); };
+    (window as any).wizUpdateSiteName = (v: string) => { siteName = v; updateWizComputed(); };
+
+    // Update only the computed path and install button without re-rendering the whole modal
+    function updateWizComputed(): void {
+      const computed = instancePath && siteName ? `${instancePath}\\Sites\\${siteName}` : '';
+      const canInstall = enaPath && instancePath && siteName;
+      const computedEl = document.querySelector('.wiz-computed');
+      if (computedEl) {
+        computedEl.innerHTML = computed
+          ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${esc(computed)}`
+          : '<span style="opacity:.5">Select instance and enter site name</span>';
+      }
+      const installBtn = document.querySelector('.wiz-footer .modal-btn.primary') as HTMLButtonElement | null;
+      if (installBtn) {
+        installBtn.disabled = !canInstall;
+      }
+    }
+
     (window as any).wizDoInstall = () => {
       const sitePath = `${instancePath}\\Sites\\${siteName}`;
       document.getElementById('installWizOverlay')?.remove();

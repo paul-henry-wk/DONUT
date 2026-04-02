@@ -332,7 +332,7 @@ try {
 # Generate site config (auth service)
 Print_Title "Generating site config (auth service)"
 try {
-    & $WizManager /generateSiteConfig $SiteId
+    & $WizManager /generateSiteConfig $SiteId 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Print_Status "Site config generated"
     } else {
@@ -343,10 +343,30 @@ try {
     Print_Text "  -> This is optional and can be done later."
 }
 
+# Disable Force SSL (Require SSL) in IIS — required for local development
+Print_Title "Disabling Force SSL in IIS"
+try {
+    $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
+    if (Test-Path $appcmd) {
+        & $appcmd set config "Default Web Site/$SiteId" -section:system.webServer/security/access -sslFlags:"None" -commit:apphost 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Print_Status "Force SSL disabled for '$SiteId'"
+        } else {
+            Print_Warning "Could not disable Force SSL (exit code $LASTEXITCODE)"
+        }
+    } else {
+        Print_Warning "appcmd.exe not found, cannot disable Force SSL automatically"
+        Print_Text "  -> Uncheck 'Force SSL' manually in WizManager or IIS Manager"
+    }
+} catch {
+    Print_Warning "Failed to disable Force SSL: $($_.Exception.Message)"
+    Print_Text "  -> Uncheck 'Force SSL' manually in WizManager or IIS Manager"
+}
+
 # Recycle app pool to apply changes
 Print_Title "Recycling IIS Application Pool"
 try {
-    & $WizManager /recycleapppool $SiteId
+    & $WizManager /recycleapppool $SiteId 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Print_Status "AppPool recycled for '$SiteId'"
     } else {

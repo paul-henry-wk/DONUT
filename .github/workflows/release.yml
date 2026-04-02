@@ -68,8 +68,7 @@ jobs:
         run: npm run build
 
       - name: Build Tauri
-        working-directory: app
-        run: npx tauri build
+        run: node app/node_modules/@tauri-apps/cli/tauri.js build
 
       # ── Package ──
       - name: Create release zip

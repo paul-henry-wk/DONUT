@@ -351,3 +351,5 @@ Export-ModuleMember -Function CloneRepository
 Export-ModuleMember -Function SetLocalGitUser
 Export-ModuleMember -Function GetWorkItem
 Export-ModuleMember -Function CreatePullRequest
+Export-ModuleMember -Function IsValidRepository
+Export-ModuleMember -Function PR_BuildNewDescription

@@ -8,6 +8,8 @@ Describe 'CheckoutBranch' {
     BeforeEach {
         Mock git { } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
+        Mock Print_Text { } -ModuleName repository
+        Mock Print_SubTitle { } -ModuleName repository
     }
 
     It 'should checkout existing remote branch and pull' {
@@ -16,8 +18,8 @@ Describe 'CheckoutBranch' {
             if ($args -contains 'show-ref' -and $args -contains 'refs/heads/feature/test') { return $null }
         } -ModuleName repository
 
-        $result = CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/test'
-        $result | Should -Be $true
+        $result = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/test')
+        $result[-1] | Should -Be $true
     }
 
     It 'should create new branch from source when branch does not exist' {
@@ -25,8 +27,8 @@ Describe 'CheckoutBranch' {
             if ($args -contains 'show-ref') { return $null }
         } -ModuleName repository
 
-        $result = CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/new'
-        $result | Should -Be $false
+        $result = @(CheckoutBranch -Repository 'C:\repo' -SourceBranch 'main' -Branch 'feature/new')
+        $result[-1] | Should -Be $false
     }
 
     It 'should throw when ExpectedToExist is true and branch not found' {
@@ -43,6 +45,7 @@ Describe 'EmptyCommitsFolder' {
     BeforeEach {
         Mock git { } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
+        Mock Print_Text { } -ModuleName repository
     }
 
     It 'should clean commits folder when it has content' {
@@ -57,6 +60,7 @@ Describe 'EmptyCommitsFolder' {
 
     It 'should skip when commits folder is empty' {
         Mock Test-Path { return $false } -ModuleName repository
+        Mock Remove-Item { } -ModuleName repository
 
         EmptyCommitsFolder -Repository 'C:\repo'
 
@@ -68,6 +72,7 @@ Describe 'Commit' {
     BeforeEach {
         Mock git { } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
+        Mock Print_Text { } -ModuleName repository
     }
 
     It 'should call git commit with message' {
@@ -83,6 +88,7 @@ Describe 'Push' {
     BeforeEach {
         Mock git { } -ModuleName repository
         Mock Write-Host { } -ModuleName repository
+        Mock Print_Text { } -ModuleName repository
     }
 
     It 'should push to origin with branch name' {

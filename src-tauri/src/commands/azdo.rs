@@ -1101,3 +1101,225 @@ pub(crate) async fn get_file_diff(
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── is_readable ──
+
+    #[test]
+    fn readable_plain_text() {
+        assert!(is_readable("Hello, world!\nThis is a test.\n"));
+    }
+
+    #[test]
+    fn empty_is_not_readable() {
+        // Empty string: 0 ok chars vs max(1) total → not readable
+        assert!(!is_readable(""));
+    }
+
+    #[test]
+    fn not_readable_control_chars() {
+        let s: String = (0..100).map(|i| char::from(i % 16)).collect();
+        assert!(!is_readable(&s));
+    }
+
+    #[test]
+    fn readable_mixed_with_newlines() {
+        assert!(is_readable("line1\nline2\r\nline3\ttab"));
+    }
+
+    // ── decode_bytes_to_text ──
+
+    #[test]
+    fn decode_utf8() {
+        let text = "Hello world";
+        assert_eq!(decode_bytes_to_text(text.as_bytes()), "Hello world");
+    }
+
+    #[test]
+    fn decode_utf8_with_accents() {
+        let text = "café résumé";
+        assert_eq!(decode_bytes_to_text(text.as_bytes()), text);
+    }
+
+    #[test]
+    fn decode_utf16le_with_bom() {
+        let text = "AB";
+        let mut bytes = vec![0xFF, 0xFE]; // BOM
+        for c in text.encode_utf16() {
+            bytes.extend_from_slice(&c.to_le_bytes());
+        }
+        let result = decode_bytes_to_text(&bytes);
+        assert!(result.contains('A') && result.contains('B'));
+    }
+
+    #[test]
+    fn decode_empty() {
+        assert_eq!(decode_bytes_to_text(&[]), "");
+    }
+
+    // ── try_fix_enablon_zip ──
+
+    #[test]
+    fn fix_enablon_zip_too_short() {
+        assert!(try_fix_enablon_zip(&[0x00, 0x01]).is_none());
+    }
+
+    #[test]
+    fn fix_enablon_zip_not_matching() {
+        let bytes = vec![0x00; 40];
+        assert!(try_fix_enablon_zip(&bytes).is_none());
+    }
+
+    #[test]
+    fn fix_enablon_zip_valid_signature() {
+        // Simulate an Enablon-obfuscated local file header: ?? ?? 03 04 0A 00 ...
+        let mut bytes = vec![0x00; 40];
+        bytes[2] = 0x03;
+        bytes[3] = 0x04;
+        bytes[4] = 0x0A; // version 1.0
+        bytes[5] = 0x00;
+        let result = try_fix_enablon_zip(&bytes).unwrap();
+        assert_eq!(result[0], 0x50); // P
+        assert_eq!(result[1], 0x4B); // K
+    }
+
+    // ── format_enablon_text ──
+
+    #[test]
+    fn format_passthrough_no_separator() {
+        let text = "plain text without Enablon separators";
+        assert_eq!(format_enablon_text(text), text);
+    }
+
+    #[test]
+    fn format_strips_mmd_block() {
+        let s = "\u{00A7}"; // §
+        let sep = "\u{00A9}\u{00DE}"; // ©Þ
+        let text = format!("before{sep}{s}MMDStart{s}{sep}schema data{sep}{s}MMDEnd{s}{sep}after");
+        let result = format_enablon_text(&text);
+        assert!(!result.contains("schema data"));
+        assert!(!result.contains("MMDStart"));
+    }
+
+    #[test]
+    fn format_strips_section_tags() {
+        let s = "\u{00A7}";
+        let sep = "\u{00A9}\u{00DE}";
+        let text = format!("data{sep}{s}####{s}{sep}more data");
+        let result = format_enablon_text(&text);
+        assert!(!result.contains("####"));
+    }
+
+    #[test]
+    fn format_add_record() {
+        let sep = "\u{00A9}\u{00DE}";
+        let fsep = "\u{00A4}\u{00A3}\u{00A4}";
+        let text = format!("prefix{sep}TableName{fsep}FieldName{fsep}value1{fsep}value2*A*{sep}end");
+        let result = format_enablon_text(&text);
+        assert!(result.contains("[ADD] TableName.FieldName"));
+    }
+
+    #[test]
+    fn format_mod_record_with_diff() {
+        let sep = "\u{00A9}\u{00DE}";
+        let fsep = "\u{00A4}\u{00A3}\u{00A4}";
+        // Two consecutive MOD records with same table.field = before/after pair
+        let text = format!(
+            "prefix{sep}MyTable{fsep}MyField{fsep}old_value*M*{sep}MyTable{fsep}MyField{fsep}new_value*M*{sep}end"
+        );
+        let result = format_enablon_text(&text);
+        assert!(result.contains("[MOD] MyTable.MyField"));
+        assert!(result.contains("old_value") || result.contains("new_value"));
+    }
+
+    #[test]
+    fn format_mod_record_no_change() {
+        let sep = "\u{00A9}\u{00DE}";
+        let fsep = "\u{00A4}\u{00A3}\u{00A4}";
+        // MOD pair where values are identical → should produce no output
+        let text = format!(
+            "prefix{sep}T{fsep}F{fsep}same*M*{sep}T{fsep}F{fsep}same*M*{sep}end"
+        );
+        let result = format_enablon_text(&text);
+        assert!(!result.contains("[MOD]"));
+    }
+
+    // ── Work item ID extraction (logic from list_branch_work_items) ──
+
+    fn extract_work_item_ids(msg: &str) -> Vec<u64> {
+        let mut wi_ids: Vec<u64> = vec![];
+        for cap in msg.split(|c: char| !c.is_ascii_digit() && c != '#').filter(|s| s.contains('#')) {
+            if let Some(id_str) = cap.strip_prefix('#').or_else(|| cap.strip_prefix("AB#")) {
+                if let Ok(id) = id_str.parse::<u64>() { if !wi_ids.contains(&id) { wi_ids.push(id); } }
+            }
+        }
+        for part in msg.split_whitespace() {
+            if let Some(id_str) = part.strip_prefix("AB#").or_else(|| part.strip_prefix("#")) {
+                let id_str = id_str.trim_end_matches(|c: char| !c.is_ascii_digit());
+                if let Ok(id) = id_str.parse::<u64>() { if !wi_ids.contains(&id) { wi_ids.push(id); } }
+            }
+        }
+        wi_ids
+    }
+
+    #[test]
+    fn extract_hash_ids() {
+        assert_eq!(extract_work_item_ids("Fix #123 and #456"), vec![123, 456]);
+    }
+
+    #[test]
+    fn extract_ab_hash_ids() {
+        assert_eq!(extract_work_item_ids("Linked AB#789"), vec![789]);
+    }
+
+    #[test]
+    fn extract_mixed_ids() {
+        let ids = extract_work_item_ids("Fix #100 related to AB#200");
+        assert!(ids.contains(&100));
+        assert!(ids.contains(&200));
+    }
+
+    #[test]
+    fn extract_no_ids() {
+        assert!(extract_work_item_ids("No work items here").is_empty());
+    }
+
+    #[test]
+    fn extract_no_duplicates() {
+        let ids = extract_work_item_ids("#42 same #42 again");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0], 42);
+    }
+
+    // ── WIQL injection check (from search_work_items) ──
+
+    fn is_wiql_injection(query: &str) -> bool {
+        let safe_query = query.replace('\'', "''").replace(['[', ']'], "");
+        let lower = safe_query.to_lowercase();
+        lower.contains(" or ") || lower.contains(" and ") || lower.contains("--") || lower.contains("select ") || lower.contains(" from ") || lower.contains(" where ")
+    }
+
+    #[test]
+    fn wiql_safe_query() {
+        assert!(!is_wiql_injection("fix login button"));
+    }
+
+    #[test]
+    fn wiql_rejects_or_injection() {
+        assert!(is_wiql_injection("' OR 1=1 --"));
+    }
+
+    #[test]
+    fn wiql_rejects_select() {
+        assert!(is_wiql_injection("SELECT * FROM WorkItems"));
+    }
+
+    #[test]
+    fn wiql_allows_android() {
+        // "and" inside a word should not trigger
+        assert!(!is_wiql_injection("android bug"));
+    }
+}
+

@@ -433,3 +433,87 @@ pub(crate) async fn apply_update(
     app.exit(0);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── escape_ps_single_quote ──
+
+    #[test]
+    fn escape_plain_string() {
+        assert_eq!(escape_ps_single_quote("hello"), "hello");
+    }
+
+    #[test]
+    fn escape_single_quotes() {
+        assert_eq!(escape_ps_single_quote("it's"), "it''s");
+    }
+
+    #[test]
+    fn escape_multiple_quotes() {
+        assert_eq!(escape_ps_single_quote("a'b'c"), "a''b''c");
+    }
+
+    #[test]
+    fn escape_strips_null() {
+        assert_eq!(escape_ps_single_quote("ab\0cd"), "abcd");
+    }
+
+    #[test]
+    fn escape_strips_newlines() {
+        assert_eq!(escape_ps_single_quote("line1\nline2\rline3"), "line1line2line3");
+    }
+
+    #[test]
+    fn escape_preserves_spaces_and_special() {
+        assert_eq!(escape_ps_single_quote("C:\\Program Files\\App"), "C:\\Program Files\\App");
+    }
+
+    // ── open_url validation ──
+
+    #[test]
+    fn open_url_rejects_non_http() {
+        let result = open_url("ftp://example.com".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn open_url_accepts_https() {
+        // On CI/test, this will try to spawn a process but won't fail validation
+        let result = open_url("https://example.com".into());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn open_url_accepts_http() {
+        let result = open_url("http://localhost/site".into());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn open_url_rejects_javascript() {
+        let result = open_url("javascript:alert(1)".into());
+        assert!(result.is_err());
+    }
+
+    // ── open_file validation ──
+
+    #[test]
+    fn open_file_rejects_empty() {
+        let result = open_file(String::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn open_file_rejects_null_byte() {
+        let result = open_file("C:\\path\0evil".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn open_file_rejects_nonexistent() {
+        let result = open_file("C:\\definitely_nonexistent_path_12345".into());
+        assert!(result.is_err());
+    }
+}

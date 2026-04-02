@@ -2,6 +2,10 @@ BeforeAll {
     $ModulePath = "$PSScriptRoot\..\cli\modules"
     Import-Module "$ModulePath\print" -Force
     Import-Module "$ModulePath\update-master-packages" -Force
+    # Stub Invoke-Sqlcmd if the SqlServer module is not installed
+    if (-not (Get-Command 'Invoke-Sqlcmd' -ErrorAction SilentlyContinue)) {
+        function global:Invoke-Sqlcmd { }
+    }
 }
 
 Describe 'UpdateMasterPackages' {
