@@ -12,6 +12,10 @@ Describe 'UpdateMasterPackages' {
     BeforeEach {
         Mock Write-Host { } -ModuleName update-master-packages
         Mock Invoke-Sqlcmd { } -ModuleName update-master-packages
+        # Ensure Get-Command finds Invoke-Sqlcmd even when SqlServer module is absent (CI)
+        Mock Get-Command {
+            [PSCustomObject]@{ Name = 'Invoke-Sqlcmd' }
+        } -ModuleName update-master-packages -ParameterFilter { $Name -eq 'Invoke-Sqlcmd' }
         Mock Print_Text { } -ModuleName update-master-packages
         Mock Print_Title { } -ModuleName update-master-packages
         Mock Print_SubTitle { } -ModuleName update-master-packages
