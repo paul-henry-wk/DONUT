@@ -57,8 +57,22 @@ import {
   checkForUpdates, applyUpdate, reportBug,
 } from './app';
 
-import { toggleDonutPet } from './donut-pet';
-import { initGravityEgg } from './gravity-egg';
+// Easter eggs: lazy-loaded to keep initial bundle small
+let _donutPetLoaded = false;
+let _toggleDonutPetFn: (() => void) | null = null;
+async function toggleDonutPet(): Promise<void> {
+  if (!_donutPetLoaded) {
+    const mod = await import('./donut-pet');
+    _toggleDonutPetFn = mod.toggleDonutPet;
+    _donutPetLoaded = true;
+  }
+  _toggleDonutPetFn?.();
+}
+
+async function initGravityEgg(): Promise<void> {
+  const mod = await import('./gravity-egg');
+  mod.initGravityEgg();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Window aliases for HTML inline onclick handlers

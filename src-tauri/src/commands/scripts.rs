@@ -71,6 +71,7 @@ pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>
         if guard.running.is_some() { return Err(AppError::Validation("A script is already running.".into())); }
         guard.running = Some(crate::RunInfo { script: script_name.clone(), started_at: now_ts() });
     }
+    tracing::info!(script = %script_name, "Starting script");
 
     let _ = app.emit("script-event", ScriptEvent { event_type: "run-start".into(), script: Some(script_name.clone()), text: None, code: None });
 
@@ -161,6 +162,7 @@ pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>
             if let Some(f) = guard.as_mut() { let _ = writeln!(f, "\n--- exit code: {} ---", code); }
         }
 
+        tracing::info!(script = %script_name, code, "Script finished");
         { let mut g = lock_script(app_handle.state::<AppState>().inner()); g.running = None; g.child_pid = None; }
         let _ = app_handle.emit("script-event", ScriptEvent { event_type: "run-end".into(), script: Some(script_name), text: None, code: Some(code) });
     });
@@ -243,13 +245,152 @@ pub(crate) fn kill_running_script(state: tauri::State<'_, AppState>) -> Result<(
     let mut guard = lock_script(&state);
     match guard.child_pid {
         Some(pid) => {
+            tracing::warn!(pid, "Killing running script process tree");
             #[cfg(windows)]
-            { let _ = hidden_cmd("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).output(); }
+            {
+                let output = hidden_cmd("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .output();
+                match output {
+                    Ok(o) if o.status.success() => {
+                        tracing::info!(pid, "Process tree killed successfully");
+                    }
+                    Ok(o) => {
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        tracing::warn!(pid, stderr = %stderr.trim(), "taskkill returned non-zero (process may have already exited)");
+                    }
+                    Err(e) => {
+                        tracing::error!(pid, error = %e, "Failed to run taskkill");
+                    }
+                }
+            }
             // Clear state immediately after kill so UI reflects the change
             guard.running = None;
             guard.child_pid = None;
             Ok(())
         }
         None => Err(AppError::Validation("No script is running.".into())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Script name validation ──
+
+    fn validate_script_name(script: &str) -> Result<&str, AppError> {
+        match script {
+            "set-master-packages" | "pull-force" | "reset" | "pull" | "commit" | "status"
+            | "diff" | "merge" | "rollback" | "health-check" | "setup-local-auth" | "install-site" => Ok(script),
+            _ => Err(AppError::Validation(format!("Unknown script: {}", script))),
+        }
+    }
+
+    #[test]
+    fn valid_script_names() {
+        assert!(validate_script_name("pull").is_ok());
+        assert!(validate_script_name("commit").is_ok());
+        assert!(validate_script_name("diff").is_ok());
+        assert!(validate_script_name("merge").is_ok());
+        assert!(validate_script_name("rollback").is_ok());
+        assert!(validate_script_name("status").is_ok());
+        assert!(validate_script_name("health-check").is_ok());
+        assert!(validate_script_name("install-site").is_ok());
+        assert!(validate_script_name("setup-local-auth").is_ok());
+        assert!(validate_script_name("set-master-packages").is_ok());
+        assert!(validate_script_name("pull-force").is_ok());
+        assert!(validate_script_name("reset").is_ok());
+    }
+
+    #[test]
+    fn unknown_script_rejected() {
+        assert!(validate_script_name("unknown").is_err());
+        assert!(validate_script_name("").is_err());
+        assert!(validate_script_name("rm -rf /").is_err());
+        assert!(validate_script_name("../../etc/passwd").is_err());
+    }
+
+    // ── Prerequisite name validation ──
+
+    fn validate_prereq_name(name: &str) -> Result<&str, AppError> {
+        match name {
+            "PowerShell 7" => Ok("Microsoft.Powershell"),
+            ".NET 8" => Ok("Microsoft.DotNet.SDK.8"),
+            "Git" => Ok("Git.Git"),
+            _ => Err(AppError::Validation(format!("Unknown prerequisite: {}", name))),
+        }
+    }
+
+    #[test]
+    fn valid_prereq_names() {
+        assert!(validate_prereq_name("PowerShell 7").is_ok());
+        assert!(validate_prereq_name(".NET 8").is_ok());
+        assert!(validate_prereq_name("Git").is_ok());
+    }
+
+    #[test]
+    fn unknown_prereq_rejected() {
+        assert!(validate_prereq_name("Python").is_err());
+        assert!(validate_prereq_name("").is_err());
+        assert!(validate_prereq_name("malicious; rm -rf").is_err());
+    }
+
+    // ── Script state (lock_script) ──
+
+    #[test]
+    fn script_state_default_not_running() {
+        let state = crate::AppState {
+            script: std::sync::Mutex::new(crate::ScriptState { running: None, child_pid: None }),
+            watcher: std::sync::Mutex::new(None),
+            http: reqwest::Client::new(),
+            pr_cache: crate::cache::TtlCache::new(60),
+            build_cache: crate::cache::TtlCache::new(60),
+        };
+        let guard = lock_script(&state);
+        assert!(guard.running.is_none());
+        assert!(guard.child_pid.is_none());
+    }
+
+    #[test]
+    fn script_state_set_running() {
+        let state = crate::AppState {
+            script: std::sync::Mutex::new(crate::ScriptState { running: None, child_pid: None }),
+            watcher: std::sync::Mutex::new(None),
+            http: reqwest::Client::new(),
+            pr_cache: crate::cache::TtlCache::new(60),
+            build_cache: crate::cache::TtlCache::new(60),
+        };
+        {
+            let mut guard = lock_script(&state);
+            guard.running = Some(crate::RunInfo { script: "pull".into(), started_at: 12345 });
+            guard.child_pid = Some(999);
+        }
+        let guard = lock_script(&state);
+        assert!(guard.running.is_some());
+        assert_eq!(guard.running.as_ref().unwrap().script, "pull");
+        assert_eq!(guard.child_pid, Some(999));
+    }
+
+    #[test]
+    fn script_state_clear_after_kill() {
+        let state = crate::AppState {
+            script: std::sync::Mutex::new(crate::ScriptState {
+                running: Some(crate::RunInfo { script: "diff".into(), started_at: 12345 }),
+                child_pid: Some(42),
+            }),
+            watcher: std::sync::Mutex::new(None),
+            http: reqwest::Client::new(),
+            pr_cache: crate::cache::TtlCache::new(60),
+            build_cache: crate::cache::TtlCache::new(60),
+        };
+        {
+            let mut guard = lock_script(&state);
+            guard.running = None;
+            guard.child_pid = None;
+        }
+        let guard = lock_script(&state);
+        assert!(guard.running.is_none());
+        assert!(guard.child_pid.is_none());
     }
 }

@@ -86,20 +86,41 @@ function Metadata_SaveToGit {
     )
 
     $ErrorFile = "$RootPath\$SaveToGitErrorFile"
+    $OutputFile = "$RootPath\$($SaveToGitErrorFile.Replace('error', 'output'))"
     New-Item -Path $ErrorFile -ItemType "file" -Force | Out-Null
+    New-Item -Path $OutputFile -ItemType "file" -Force | Out-Null
+
+    # Ensure dotnet global tools are in PATH (git4inno is a dotnet global tool)
+    $dotnetToolsPath = [System.IO.Path]::Combine($env:USERPROFILE, ".dotnet", "tools")
+    if ($dotnetToolsPath -and (Test-Path $dotnetToolsPath) -and -not ($env:PATH -split ';' | Where-Object { $_ -eq $dotnetToolsPath })) {
+        $env:PATH = "$dotnetToolsPath;$env:PATH"
+    }
 
     $Command = $ArgumentList  -join " "
     Print_Text $Command
-    $proc = Start-Process -FilePath pwsh.exe -ArgumentList "-NoProfile -Command $Command" -RedirectStandardError $ErrorFile -PassThru -WindowStyle Hidden
+    $proc = Start-Process -FilePath pwsh.exe -ArgumentList "-NoProfile -Command $Command" -RedirectStandardError $ErrorFile -RedirectStandardOutput $OutputFile -PassThru -WindowStyle Hidden
     $finished = $proc.WaitForExit(300000) # 5 minute timeout
     if (-not $finished) {
         $proc.Kill()
         throw "Metadata SaveToGit timed out after 5 minutes."
     }
 
-    $ErrorMsg = Get-Content -Path $ErrorFile
-    if ($ErrorMsg.Length -gt 0) {
-        throw $ErrorMsg
+    # Show stdout in terminal for visibility
+    $OutputMsg = Get-Content -Path $OutputFile -ErrorAction SilentlyContinue
+    if ($OutputMsg) {
+        $OutputMsg | ForEach-Object { Print_Text $_ }
+    }
+
+    # Check exit code (critical: git4inno may fail without writing to stderr)
+    if ($proc.ExitCode -ne 0) {
+        $ErrorMsg = Get-Content -Path $ErrorFile -ErrorAction SilentlyContinue
+        $errText = if ($ErrorMsg) { $ErrorMsg -join "`n" } else { "Process exited with code $($proc.ExitCode)" }
+        throw "Metadata SaveToGit failed (exit code $($proc.ExitCode)): $errText"
+    }
+
+    $ErrorMsg = Get-Content -Path $ErrorFile -ErrorAction SilentlyContinue
+    if ($ErrorMsg -and ($ErrorMsg | Where-Object { $_.Trim() }).Count -gt 0) {
+        throw ($ErrorMsg -join "`n")
     }
 
     $Stopwatch.Stop()

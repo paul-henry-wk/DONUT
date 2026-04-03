@@ -131,6 +131,11 @@ export function listen(event: string, handler: (event: { payload: any }) => void
   return window.__TAURI__.event.listen(event, handler);
 }
 
+// ── DOM helper ──
+export function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
 // ── Utilities ──
 export const esc = (s: string): string => {
   const d = document.createElement('div');
@@ -232,4 +237,9 @@ export function getOrg(): string {
 
 export function getProject(): string {
   return S.envConfig.azdo?.project || '';
+}
+
+/// Invoke an Azure DevOps Tauri command with common fields (organization) pre-filled.
+export function azdoInvoke<T = unknown>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+  return invoke<T>(cmd, { organization: getOrg(), ...args });
 }

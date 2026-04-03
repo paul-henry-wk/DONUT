@@ -25,6 +25,10 @@ jobs:
         working-directory: app
         run: npx tsc --noEmit
 
+      - name: Run frontend tests
+        working-directory: app
+        run: npm test
+
   # ── Rust lint & test ──
   rust:
     runs-on: windows-latest
@@ -50,6 +54,33 @@ jobs:
       - name: Tests
         working-directory: src-tauri
         run: cargo test
+
+  # ── Dependency audit ──
+  audit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Cargo audit
+        working-directory: src-tauri
+        run: cargo audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install npm dependencies
+        working-directory: app
+        run: npm install
+
+      - name: npm audit
+        working-directory: app
+        run: npm audit --audit-level=high
 
   # ── PowerShell Pester tests ──
   pester:

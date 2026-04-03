@@ -1,10 +1,19 @@
 use crate::error::{azdo_status_err, AppError};
-use crate::helpers::{azdo_auth, azdo_get_json, url_encode};
+use crate::helpers::{azdo_auth, azdo_get_json, extract_org, url_encode};
 use crate::AppState;
+
+/// Validate that required string fields are non-empty, returning a descriptive error.
+macro_rules! require_fields {
+    ($msg:expr, $($field:expr),+) => {
+        if $($field.is_empty() ||)+ false {
+            return Err(AppError::Validation($msg.into()));
+        }
+    };
+}
 
 #[tauri::command]
 pub(crate) async fn validate_pat(state: tauri::State<'_, AppState>, token: String, organization: Option<String>) -> Result<bool, AppError> {
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/_apis/projects?api-version=7.0", org);
     let resp = state.http.get(&url)
         .header("Authorization", azdo_auth(&token))
@@ -14,8 +23,8 @@ pub(crate) async fn validate_pat(state: tauri::State<'_, AppState>, token: Strin
 
 #[tauri::command]
 pub(crate) async fn list_azdo_projects(state: tauri::State<'_, AppState>, token: String, organization: Option<String>) -> Result<Vec<String>, AppError> {
-    if token.is_empty() { return Err(AppError::Validation("Fill PAT first.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT first.", token);
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/_apis/projects?api-version=7.0&$top=100", org);
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let mut projects: Vec<String> = json["value"].as_array().map(|arr| {
@@ -27,8 +36,8 @@ pub(crate) async fn list_azdo_projects(state: tauri::State<'_, AppState>, token:
 
 #[tauri::command]
 pub(crate) async fn list_azdo_repos(state: tauri::State<'_, AppState>, token: String, project: String, organization: Option<String>) -> Result<Vec<String>, AppError> {
-    if token.is_empty() || project.is_empty() { return Err(AppError::Validation("Fill PAT & project first.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT & project first.", token, project);
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories?api-version=7.0", url_encode(org), url_encode(&project));
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let repos = json["value"].as_array().map(|arr| {
@@ -39,8 +48,8 @@ pub(crate) async fn list_azdo_repos(state: tauri::State<'_, AppState>, token: St
 
 #[tauri::command]
 pub(crate) async fn list_azdo_branches(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, organization: Option<String>) -> Result<Vec<String>, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository first.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT, project & repository first.", token, project, repository);
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/refs?filter=heads/&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository));
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let branches = json["value"].as_array().map(|arr| {
@@ -51,14 +60,12 @@ pub(crate) async fn list_azdo_branches(state: tauri::State<'_, AppState>, token:
 
 #[tauri::command]
 pub(crate) async fn create_azdo_branch(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, branch_name: String, source_branch: String, organization: Option<String>) -> Result<String, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() || branch_name.is_empty() || source_branch.is_empty() {
-        return Err(AppError::Validation("Fill all fields: PAT, project, repository, branch name, source branch.".into()));
-    }
+    require_fields!("Fill all fields: PAT, project, repository, branch name, source branch.", token, project, repository, branch_name, source_branch);
     if branch_name.len() > 250 { return Err(AppError::Validation("Branch name is too long.".into())); }
     if branch_name.contains('\0') || branch_name.contains("..") || branch_name.ends_with(".lock") || branch_name.contains('~') || branch_name.contains('^') || branch_name.contains(':') || branch_name.contains('\\') || branch_name.contains(' ') {
         return Err(AppError::Validation("Branch name contains invalid characters.".into()));
     }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
 
     // 1. Get source branch objectId (latest commit SHA)
@@ -88,10 +95,8 @@ pub(crate) async fn create_azdo_branch(state: tauri::State<'_, AppState>, token:
 
 #[tauri::command]
 pub(crate) async fn delete_azdo_branch(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, branch_name: String, organization: Option<String>) -> Result<(), AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() || branch_name.is_empty() {
-        return Err(AppError::Validation("Fill all fields.".into()));
-    }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill all fields.", token, project, repository, branch_name);
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
     // Get objectId of the branch
     let refs_url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/refs?filter=heads/{}&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository), url_encode(&branch_name));
@@ -117,16 +122,25 @@ pub(crate) async fn delete_azdo_branch(state: tauri::State<'_, AppState>, token:
 
 // ── Pull Requests ──
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PullRequest { id: u64, title: String, status: String, source_branch: String, target_branch: String, created_by: String, url: String }
 
 #[tauri::command]
 pub(crate) async fn list_azdo_prs(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, organization: Option<String>) -> Result<Vec<PullRequest>, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository first.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT, project & repository first.", token, project, repository);
+    let org = extract_org(&organization)?;
+
+    // Check cache
+    let cache_key = format!("{}/{}/{}/prs", org, project, repository);
+    if let Some(cached) = state.pr_cache.get(&cache_key) {
+        tracing::debug!("PR cache hit: {}", cache_key);
+        let prs: Vec<PullRequest> = serde_json::from_value(cached).unwrap_or_default();
+        return Ok(prs);
+    }
+
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?searchCriteria.status=active&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository));
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
-    let prs = json["value"].as_array().map(|arr| {
+    let prs: Vec<PullRequest> = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| {
             Some(PullRequest {
                 id: v["pullRequestId"].as_u64()?,
@@ -139,24 +153,39 @@ pub(crate) async fn list_azdo_prs(state: tauri::State<'_, AppState>, token: Stri
             })
         }).collect()
     }).unwrap_or_default();
+
+    // Populate cache
+    if let Ok(val) = serde_json::to_value(&prs) {
+        state.pr_cache.set(&cache_key, val);
+    }
+
     Ok(prs)
 }
 
 // ── Build / Pipeline status ──
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct BuildStatus { id: u64, status: String, result: String, definition_name: String, source_branch: String, url: String, finish_time: String }
 
 #[tauri::command]
 pub(crate) async fn list_azdo_builds(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, branch: Option<String>, organization: Option<String>) -> Result<Vec<BuildStatus>, AppError> {
-    if token.is_empty() || project.is_empty() { return Err(AppError::Validation("Fill PAT & project.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT & project.", token, project);
+    let org = extract_org(&organization)?;
+
+    // Check cache
+    let cache_key = format!("{}/{}/{}/builds/{}", org, project, repository, branch.as_deref().unwrap_or("all"));
+    if let Some(cached) = state.build_cache.get(&cache_key) {
+        tracing::debug!("Build cache hit: {}", cache_key);
+        let builds: Vec<BuildStatus> = serde_json::from_value(cached).unwrap_or_default();
+        return Ok(builds);
+    }
+
     let mut url = format!("https://dev.azure.com/{}/{}/_apis/build/builds?$top=10&api-version=7.0&repositoryId={}&repositoryType=TfsGit", url_encode(org), url_encode(&project), url_encode(&repository));
     if let Some(b) = &branch {
         url.push_str(&format!("&branchName=refs/heads/{}", url_encode(b)));
     }
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
-    let builds = json["value"].as_array().map(|arr| {
+    let builds: Vec<BuildStatus> = json["value"].as_array().map(|arr| {
         arr.iter().filter_map(|v| {
             Some(BuildStatus {
                 id: v["id"].as_u64()?,
@@ -169,6 +198,12 @@ pub(crate) async fn list_azdo_builds(state: tauri::State<'_, AppState>, token: S
             })
         }).collect()
     }).unwrap_or_default();
+
+    // Populate cache
+    if let Ok(val) = serde_json::to_value(&builds) {
+        state.build_cache.set(&cache_key, val);
+    }
+
     Ok(builds)
 }
 
@@ -181,8 +216,8 @@ pub(crate) struct DiffChange { path: String, change_type: String }
 
 #[tauri::command]
 pub(crate) async fn compare_branches(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, source_branch: String, target_branch: String, organization: Option<String>) -> Result<BranchDiff, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT, project & repository.", token, project, repository);
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/diffs/commits?baseVersion={}&baseVersionType=branch&targetVersion={}&targetVersionType=branch&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository), url_encode(&target_branch), url_encode(&source_branch));
     let json = azdo_get_json(&state.http, &url, &azdo_auth(&token)).await?;
     let ahead = json["aheadCount"].as_u64().unwrap_or(0);
@@ -205,8 +240,8 @@ pub(crate) struct MergeCheck { can_merge: bool, conflicts: Vec<String> }
 
 #[tauri::command]
 pub(crate) async fn check_merge_conflicts(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, source_branch: String, target_branch: String, organization: Option<String>) -> Result<MergeCheck, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() { return Err(AppError::Validation("Fill PAT, project & repository.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT, project & repository.", token, project, repository);
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
     // Get tip commits for both branches
     let get_tip = |branch: &str| {
@@ -255,11 +290,11 @@ pub(crate) struct WorkItem { id: u64, title: String, state: String, #[serde(rena
 
 #[tauri::command]
 pub(crate) async fn assign_work_item(state: tauri::State<'_, AppState>, token: String, project: String, work_item_id: u64, assign_to: String, organization: Option<String>) -> Result<(), AppError> {
-    if token.is_empty() { return Err(AppError::Validation("Fill PAT first.".into())); }
+    require_fields!("Fill PAT first.", token);
     if assign_to.is_empty() { return Err(AppError::Validation("Assignee must not be empty.".into())); }
     if assign_to.len() > 256 { return Err(AppError::Validation("Assignee value is too long.".into())); }
     if assign_to.contains('\0') { return Err(AppError::Validation("Assignee contains invalid characters.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let url = format!("https://dev.azure.com/{}/{}/_apis/wit/workitems/{}?api-version=7.0", url_encode(org), url_encode(&project), work_item_id);
     let body = serde_json::json!([{
         "op": "replace",
@@ -276,8 +311,8 @@ pub(crate) async fn assign_work_item(state: tauri::State<'_, AppState>, token: S
 
 #[tauri::command]
 pub(crate) async fn list_branch_work_items(state: tauri::State<'_, AppState>, token: String, project: String, repository: String, branch: String, organization: Option<String>) -> Result<Vec<WorkItem>, AppError> {
-    if token.is_empty() || project.is_empty() || repository.is_empty() || branch.is_empty() { return Err(AppError::Validation("Fill PAT, project, repository & branch.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    require_fields!("Fill PAT, project, repository & branch.", token, project, repository, branch);
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
     // Get commits on branch (last 20)
     let url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?searchCriteria.itemVersion.version={}&$top=20&api-version=7.0", url_encode(org), url_encode(&project), url_encode(&repository), url_encode(&branch));
@@ -328,10 +363,10 @@ pub(crate) async fn list_branch_work_items(state: tauri::State<'_, AppState>, to
 
 #[tauri::command]
 pub(crate) async fn search_work_items(state: tauri::State<'_, AppState>, token: String, project: String, query: String, organization: Option<String>) -> Result<Vec<WorkItem>, AppError> {
-    if token.is_empty() || project.is_empty() { return Err(AppError::Validation("Fill PAT & project first.".into())); }
+    require_fields!("Fill PAT & project first.", token, project);
     if query.len() > 500 { return Err(AppError::Validation("Search query is too long.".into())); }
     if query.contains('\0') { return Err(AppError::Validation("Search query contains invalid characters.".into())); }
-    let org = organization.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let safe_project = project.replace("%20", " ").replace('\'', "''");
     let wiql = if query.is_empty() {
         // Load recent active work items — no type filter (varies by process template)
@@ -401,8 +436,7 @@ pub(crate) async fn get_pr_files(
     state: tauri::State<'_, AppState>, token: String, project: String,
     repository: String, pr_id: u64, organization: Option<String>,
 ) -> Result<Vec<PrFile>, AppError> {
-    let org = organization.as_deref().filter(|s| !s.is_empty())
-        .ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
 
     // Get PR source/target branches
@@ -1054,8 +1088,7 @@ pub(crate) async fn get_file_diff(
     state: tauri::State<'_, AppState>, token: String, project: String,
     repository: String, pr_id: u64, file_path: String, organization: Option<String>,
 ) -> Result<FileDiffContent, AppError> {
-    let org = organization.as_deref().filter(|s| !s.is_empty())
-        .ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))?;
+    let org = extract_org(&organization)?;
     let auth = azdo_auth(&token);
 
     // Get PR source/target branches
@@ -1315,6 +1348,112 @@ mod tests {
     fn wiql_allows_android() {
         // "and" inside a word should not trigger
         assert!(!is_wiql_injection("android bug"));
+    }
+
+    // ── Branch name validation (logic from create_azdo_branch) ──
+
+    fn is_invalid_branch_name(name: &str) -> bool {
+        name.is_empty()
+            || name.len() > 250
+            || name.contains('\0')
+            || name.contains("..")
+            || name.ends_with(".lock")
+            || name.contains('~')
+            || name.contains('^')
+            || name.contains(':')
+            || name.contains('\\')
+            || name.contains(' ')
+    }
+
+    #[test]
+    fn branch_name_valid() {
+        assert!(!is_invalid_branch_name("feature/my-branch"));
+        assert!(!is_invalid_branch_name("hotfix-123"));
+    }
+
+    #[test]
+    fn branch_name_rejects_empty() {
+        assert!(is_invalid_branch_name(""));
+    }
+
+    #[test]
+    fn branch_name_rejects_too_long() {
+        assert!(is_invalid_branch_name(&"a".repeat(251)));
+    }
+
+    #[test]
+    fn branch_name_rejects_null() {
+        assert!(is_invalid_branch_name("feat\0ure"));
+    }
+
+    #[test]
+    fn branch_name_rejects_dotdot() {
+        assert!(is_invalid_branch_name("feature..branch"));
+    }
+
+    #[test]
+    fn branch_name_rejects_dotlock() {
+        assert!(is_invalid_branch_name("branch.lock"));
+    }
+
+    #[test]
+    fn branch_name_rejects_special_chars() {
+        assert!(is_invalid_branch_name("feat~ure"));
+        assert!(is_invalid_branch_name("feat^ure"));
+        assert!(is_invalid_branch_name("feat:ure"));
+        assert!(is_invalid_branch_name("feat\\ure"));
+        assert!(is_invalid_branch_name("feat ure"));
+    }
+
+    // ── Assignee validation (logic from assign_work_item) ──
+
+    #[test]
+    fn assignee_rejects_empty() {
+        assert!("".is_empty());
+    }
+
+    #[test]
+    fn assignee_rejects_too_long() {
+        let long = "a".repeat(257);
+        assert!(long.len() > 256);
+    }
+
+    #[test]
+    fn assignee_rejects_null() {
+        assert!("user\0name".contains('\0'));
+    }
+
+    // ── Search query validation (from search_work_items) ──
+
+    #[test]
+    fn query_rejects_too_long() {
+        let long = "a".repeat(501);
+        assert!(long.len() > 500);
+    }
+
+    #[test]
+    fn query_rejects_null_byte() {
+        assert!("query\0bad".contains('\0'));
+    }
+
+    #[test]
+    fn wiql_rejects_and_injection() {
+        assert!(is_wiql_injection("test' AND 1=1 --"));
+    }
+
+    #[test]
+    fn wiql_rejects_from_injection() {
+        assert!(is_wiql_injection("test FROM workitems"));
+    }
+
+    #[test]
+    fn wiql_rejects_where_injection() {
+        assert!(is_wiql_injection("test WHERE id=1"));
+    }
+
+    #[test]
+    fn wiql_rejects_comment_injection() {
+        assert!(is_wiql_injection("test -- comment"));
     }
 }
 

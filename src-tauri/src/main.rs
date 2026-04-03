@@ -5,6 +5,7 @@ use tauri::Manager;
 
 mod error;
 mod helpers;
+mod cache;
 mod commands;
 
 use commands::*;
@@ -20,6 +21,8 @@ pub(crate) struct AppState {
     script: Mutex<ScriptState>,
     http: reqwest::Client,
     watcher: Mutex<Option<notify_debouncer_full::Debouncer<notify::RecommendedWatcher, notify_debouncer_full::RecommendedCache>>>,
+    pr_cache: cache::TtlCache<serde_json::Value>,
+    build_cache: cache::TtlCache<serde_json::Value>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -57,6 +60,10 @@ fn prewarm_pwsh() {
 }
 
 fn main() {
+    // ── Initialize structured logging (simple file-based) ──
+    helpers::init_logging();
+    tracing::info!("DONUT starting");
+
     cleanup_old_logs();
     prewarm_pwsh();
     tauri::Builder::default()
@@ -67,6 +74,8 @@ fn main() {
                 .timeout(std::time::Duration::from_secs(60))
                 .build()
                 .expect("Failed to create HTTP client"),
+            pr_cache: cache::TtlCache::new(60),
+            build_cache: cache::TtlCache::new(60),
         })
         .invoke_handler(tauri::generate_handler![
             get_version, get_package_mapping, list_envs, get_env, save_env, create_env, delete_env, rename_env, clone_env, list_templates, create_env_from_template,
@@ -79,14 +88,17 @@ fn main() {
             list_sql_packages, kill_running_script, reset_git_credentials, is_admin, open_url, open_file, scan_local_sites, scan_enablon_instances,
             check_for_updates, apply_update, build_bug_report_url,
             start_watch, stop_watch, is_watching,
+            store_pat, get_pat, delete_pat,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                tracing::info!("DONUT shutting down");
                 if let Some(state) = app.try_state::<AppState>() {
                     if let Ok(guard) = state.script.lock() {
                         if let Some(pid) = guard.child_pid {
+                            tracing::warn!(pid, "Killing running script on exit");
                             #[cfg(windows)]
                             { let _ = helpers::hidden_cmd("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).output(); }
                         }

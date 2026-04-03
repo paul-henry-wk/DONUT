@@ -86,6 +86,7 @@ pub(crate) async fn start_watch(app: AppHandle, state: tauri::State<'_, AppState
 
     debouncer.watch(&watch_path, RecursiveMode::Recursive)
         .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?;
+    tracing::info!(path = %repo_path, "File watcher started");
 
     let _ = app.emit("script-event", ScriptEvent {
         event_type: "log".into(),
@@ -103,6 +104,7 @@ pub(crate) async fn start_watch(app: AppHandle, state: tauri::State<'_, AppState
 pub(crate) fn stop_watch(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
     let mut g = state.watcher.lock().unwrap_or_else(|e| e.into_inner());
     *g = None;
+    tracing::info!("File watcher stopped");
     Ok(())
 }
 

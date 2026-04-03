@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import type { EnvConfig, WorkItem } from './types';
-import { S, esc, toast, invoke, getOrg, getProject } from './state';
+import { S, esc, toast, invoke, azdoInvoke, getOrg, getProject } from './state';
 import { renderSelectedInfo } from './scripts';
 import {
   field, fieldVersion, fieldBrowse, fieldWorkItem,
@@ -208,17 +208,17 @@ export function renderConfig(): void {
   `;
   // Auto-load cascade
   if (token && !S.cachedProjects.length) {
-    invoke<string[]>('list_azdo_projects', { token, organization: getOrg() }).then(p => {
+    azdoInvoke<string[]>('list_azdo_projects', { token }).then(p => {
       if (p.length) { S.cachedProjects = p; renderConfig(); }
     }).catch(() => {});
   }
   if (okProj && !S.cachedRepos.length) {
-    invoke<string[]>('list_azdo_repos', { token, project: proj, organization: getOrg() }).then(r => {
+    azdoInvoke<string[]>('list_azdo_repos', { token, project: proj }).then(r => {
       if (r.length) { S.cachedRepos = r; renderConfig(); }
     }).catch(() => {});
   }
   if (okRepo && !S.cachedBranches.length) {
-    invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo, organization: getOrg() }).then(b => {
+    azdoInvoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo }).then(b => {
       if (b.length) { S.cachedBranches = b; renderConfig(); }
     }).catch(() => {});
   }
@@ -297,7 +297,7 @@ export async function onProjectChange(proj: string): Promise<void> {
   toast('Loading repos for ' + proj + '...', 'info');
   const token = getToken();
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj, organization: getOrg() });
+    S.cachedRepos = await azdoInvoke('list_azdo_repos', { token, project: proj });
     S.cachedBranches = [];
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     const snap = getFormValues(); snap.proj = proj; renderConfig(); setFormValues(snap);
@@ -309,7 +309,7 @@ export async function refreshRepos(): Promise<void> {
   if (!token || !proj) { toast('Need PAT & project first', 'warn'); return; }
   toast('Refreshing repos...', 'info');
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: proj, organization: getOrg() });
+    S.cachedRepos = await azdoInvoke('list_azdo_repos', { token, project: proj });
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     const snap = getFormValues(); renderConfig(); setFormValues(snap);
   } catch(e) { toast('Repos: ' + e, 'error'); }
@@ -320,7 +320,7 @@ export async function refreshBranches(): Promise<void> {
   if (!token || !repo) { toast('Need PAT & repository first', 'warn'); return; }
   toast('Refreshing branches...', 'info');
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo, organization: getOrg() });
+    S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository: repo });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     const snap = getFormValues(); renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: ' + e, 'error'); }
@@ -332,7 +332,7 @@ export async function onRepoChange(repo: string): Promise<void> {
   toast('Loading branches...', 'info');
   const token = getToken();
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository: repo, organization: getOrg() });
+    S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository: repo });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     const snap = getFormValues(); snap.repo = repo; renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: ' + e, 'error'); }
@@ -403,7 +403,7 @@ export async function loadWorkItems(): Promise<void> {
   if (!token) { toast('Fill PAT & save config first', 'warn'); return; }
   toast('Loading recent work items...', 'info');
   try {
-    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '', organization: getOrg() });
+    S.cachedWorkItems = await azdoInvoke('search_work_items', { token, project: getProject(), query: '' });
     if (S.cachedWorkItems.length) {
       toast(S.cachedWorkItems.length + ' work items loaded', 'success');
       renderWIResults(S.cachedWorkItems);
@@ -417,7 +417,7 @@ export async function loadMyWorkItems(): Promise<void> {
   if (!token) { toast('Fill PAT & save config first', 'warn'); return; }
   toast('Loading my work items...', 'info');
   try {
-    S.cachedWorkItems = await invoke('search_work_items', { token, project: getProject(), query: '@me', organization: getOrg() });
+    S.cachedWorkItems = await azdoInvoke('search_work_items', { token, project: getProject(), query: '@me' });
     if (S.cachedWorkItems.length) {
       toast(S.cachedWorkItems.length + ' items assigned to you', 'success');
       renderWIResults(S.cachedWorkItems);
@@ -437,7 +437,7 @@ export function searchWI(query: string): void {
     const token = getToken();
     if (!token) return;
     try {
-      const items: WorkItem[] = await invoke('search_work_items', { token, project: getProject(), query, organization: getOrg() });
+      const items: WorkItem[] = await azdoInvoke('search_work_items', { token, project: getProject(), query });
       renderWIResults(items);
     } catch(e) { toast('Search: '+e, 'error'); }
   }, 400);
@@ -503,10 +503,10 @@ export async function createBranch(): Promise<void> {
 
   toast('Creating branch...', 'info');
   try {
-    await invoke('create_azdo_branch', { token, project: getProject(), repository, branchName, sourceBranch, organization: getOrg() });
+    await azdoInvoke('create_azdo_branch', { token, project: getProject(), repository, branchName, sourceBranch });
     toast('Branch "' + branchName + '" created!', 'success');
     // Refresh branches and select the new one
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository, organization: getOrg() });
+    S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository });
     const snap = getFormValues();
     snap.fb = branchName;
     renderConfig();
@@ -588,7 +588,7 @@ export async function loadBranches(): Promise<void> {
   if (!token || !repository) { toast('Fill PAT & select a repository first', 'warn'); return; }
   toast('Loading branches...', 'info');
   try {
-    S.cachedBranches = await invoke('list_azdo_branches', { token, project: getProject(), repository, organization: getOrg() });
+    S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
     renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: '+e, 'error'); }
@@ -599,7 +599,7 @@ export async function loadRepos(): Promise<void> {
   if (!token) { toast('Fill PAT first', 'warn'); return; }
   toast('Loading repos...', 'info');
   try {
-    S.cachedRepos = await invoke('list_azdo_repos', { token, project: getProject(), organization: getOrg() });
+    S.cachedRepos = await azdoInvoke('list_azdo_repos', { token, project: getProject() });
     toast(S.cachedRepos.length + ' repos loaded', 'success');
     renderConfig(); setFormValues(snap);
   } catch(e) { toast('Repos: '+e, 'error'); }
@@ -672,7 +672,7 @@ export async function deleteBranch(): Promise<void> {
   const repo = getRepo();
   if (!token || !repo) { toast('Configure PAT & repository first', 'warn'); return; }
   if (!S.cachedBranches.length) {
-    try { S.cachedBranches = await invoke('list_azdo_branches', { token, project:getProject(), repository:repo, organization: getOrg() }); } catch {}
+    try { S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project:getProject(), repository:repo }); } catch {}
   }
   const fb = S.envConfig.feature_branch || '';
   const result = await (window as any).showModal({
@@ -687,7 +687,7 @@ export async function deleteBranch(): Promise<void> {
   if (!branchName) return;
   toast('Deleting branch...', 'info');
   try {
-    await invoke('delete_azdo_branch', { token, project:getProject(), repository:repo, branchName, organization: getOrg() });
+    await azdoInvoke('delete_azdo_branch', { token, project:getProject(), repository:repo, branchName });
     toast('Branch "' + branchName + '" deleted', 'success');
     S.cachedBranches = S.cachedBranches.filter(b => b !== branchName);
     renderConfig();

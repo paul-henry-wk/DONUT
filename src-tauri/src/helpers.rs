@@ -13,6 +13,97 @@ pub(crate) fn log_dir() -> PathBuf {
     app_root().join(".bin").join("logs")
 }
 
+/// Simple file-based tracing: writes to daily log file without heavy dependencies.
+/// Uses tracing macros throughout the app but routes output to a plain file writer.
+pub(crate) fn init_logging() {
+    let log_dir = log_dir();
+    let _ = std::fs::create_dir_all(&log_dir);
+    let date = {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        let days = now / 86400;
+        // Simple date: YYYY-MM-DD from epoch days
+        let (y, m, d) = epoch_days_to_ymd(days);
+        format!("{:04}-{:02}-{:02}", y, m, d)
+    };
+    let log_path = log_dir.join(format!("donut.{}.log", date));
+
+    // Open log file in append mode
+    if let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        let file = std::sync::Mutex::new(std::io::BufWriter::new(file));
+        // Set a simple tracing subscriber that writes to the file
+        let _ = tracing::subscriber::set_global_default(FileSubscriber { file });
+    }
+}
+
+fn epoch_days_to_ymd(days: u64) -> (u64, u64, u64) {
+    // Civil days from epoch algorithm (simplified)
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+struct FileSubscriber {
+    file: std::sync::Mutex<std::io::BufWriter<std::fs::File>>,
+}
+
+impl tracing::Subscriber for FileSubscriber {
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        metadata.level() <= &tracing::Level::INFO
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        use std::fmt::Write as FmtWrite;
+        use std::io::Write;
+        let mut msg = String::new();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        let _ = write!(msg, "{} [{}] ", now, event.metadata().level());
+        // Extract message from event fields
+        struct Visitor<'a>(&'a mut String);
+        impl tracing::field::Visit for Visitor<'_> {
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                if field.name() == "message" {
+                    let _ = write!(self.0, "{:?}", value);
+                } else {
+                    let _ = write!(self.0, " {}={:?}", field.name(), value);
+                }
+            }
+            fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                if field.name() == "message" {
+                    let _ = write!(self.0, "{}", value);
+                } else {
+                    let _ = write!(self.0, " {}={}", field.name(), value);
+                }
+            }
+        }
+        event.record(&mut Visitor(&mut msg));
+        if let Ok(mut f) = self.file.lock() {
+            let _ = writeln!(f, "{}", msg);
+            let _ = f.flush();
+        }
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+/// Extract and validate the Azure DevOps organization from an Option<String>.
+pub(crate) fn extract_org(organization: &Option<String>) -> Result<&str, AppError> {
+    organization.as_deref()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::Validation("Azure DevOps organization is required.".into()))
+}
+
 pub(crate) fn app_root() -> PathBuf {
     std::env::var("DONUT_ROOT")
         .map(PathBuf::from)
@@ -134,6 +225,7 @@ pub(crate) async fn azdo_get_json(
     let mut last_err = None;
     for (attempt, delay_ms) in delays.iter().enumerate() {
         if attempt > 0 {
+            tracing::debug!(url, attempt, delay_ms, "AzDO API retry");
             tokio::time::sleep(std::time::Duration::from_millis(*delay_ms)).await;
         }
         match client.get(url).header("Authorization", auth).send().await {
@@ -144,10 +236,12 @@ pub(crate) async fn azdo_get_json(
                 }
                 // Don't retry auth/not-found errors
                 if matches!(status.as_u16(), 401 | 403 | 404) {
+                    tracing::warn!(url, status = status.as_u16(), "AzDO API permanent error");
                     return Err(azdo_status_err(status));
                 }
                 // Retry on 429 (rate limit) and 5xx
                 if status.as_u16() == 429 || status.is_server_error() {
+                    tracing::warn!(url, status = status.as_u16(), attempt, "AzDO API retryable error");
                     last_err = Some(azdo_status_err(status));
                     continue;
                 }
@@ -155,11 +249,13 @@ pub(crate) async fn azdo_get_json(
             }
             Err(e) => {
                 // Network error — retry
+                tracing::warn!(url, attempt, error = %e, "AzDO API network error");
                 last_err = Some(AppError::Http(e));
                 continue;
             }
         }
     }
+    tracing::error!(url, "AzDO API all retries exhausted");
     Err(last_err.unwrap())
 }
 
@@ -329,5 +425,39 @@ mod tests {
         let client = reqwest::Client::new();
         let result = azdo_get_json(&client, "", "Basic xxx").await;
         assert!(result.is_err());
+    }
+
+    // ── extract_org ──
+
+    #[test]
+    fn extract_org_valid() {
+        let org = Some("myorg".to_string());
+        assert_eq!(extract_org(&org).unwrap(), "myorg");
+    }
+
+    #[test]
+    fn extract_org_none() {
+        assert!(extract_org(&None).is_err());
+    }
+
+    #[test]
+    fn extract_org_empty() {
+        let org = Some("".to_string());
+        assert!(extract_org(&org).is_err());
+    }
+
+    // ── epoch_days_to_ymd ──
+
+    #[test]
+    fn epoch_2024_01_01() {
+        // 2024-01-01 = day 19723 since epoch
+        let (y, m, d) = epoch_days_to_ymd(19723);
+        assert_eq!((y, m, d), (2024, 1, 1));
+    }
+
+    #[test]
+    fn epoch_1970_01_01() {
+        let (y, m, d) = epoch_days_to_ymd(0);
+        assert_eq!((y, m, d), (1970, 1, 1));
     }
 }

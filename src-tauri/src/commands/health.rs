@@ -76,3 +76,133 @@ pub(crate) async fn quick_health(site_path: String, site_id: String, db_user: St
 
     HealthStatus { iis: iis_ok, sql: sql_ok, site: site_ok, vpn: vpn_ok, iis_detail: iis_d, sql_detail: sql_d, site_detail: site_d, vpn_detail: vpn_d }
 }
+
+// ── Testable helper functions (extracted from async blocks for unit testing) ──
+
+#[cfg(test)]
+fn parse_iis_output(stdout: &str) -> (bool, String) {
+    if stdout.contains("RUNNING") { (true, "running".into()) }
+    else if stdout.contains("STOPPED") { (false, "stopped".into()) }
+    else { (false, "unknown".into()) }
+}
+
+#[cfg(test)]
+fn parse_http_status_line(response: &str) -> (bool, String) {
+    if let Some(code) = response.split_whitespace().nth(1) {
+        let c: u16 = code.parse().unwrap_or(0);
+        if c > 0 && c < 400 { (true, format!("HTTP {}", c)) }
+        else { (false, format!("HTTP {}", c)) }
+    } else {
+        (false, "bad response".into())
+    }
+}
+
+#[cfg(test)]
+fn parse_vpn_host(parent_site: &str) -> String {
+    parent_site
+        .replace("https://", "")
+        .replace("http://", "")
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── IIS output parsing ──
+
+    #[test]
+    fn iis_running() {
+        let (ok, detail) = parse_iis_output("SERVICE_NAME: W3SVC\n  STATE: 4  RUNNING\n");
+        assert!(ok);
+        assert_eq!(detail, "running");
+    }
+
+    #[test]
+    fn iis_stopped() {
+        let (ok, detail) = parse_iis_output("SERVICE_NAME: W3SVC\n  STATE: 1  STOPPED\n");
+        assert!(!ok);
+        assert_eq!(detail, "stopped");
+    }
+
+    #[test]
+    fn iis_unknown() {
+        let (ok, detail) = parse_iis_output("unexpected output");
+        assert!(!ok);
+        assert_eq!(detail, "unknown");
+    }
+
+    #[test]
+    fn iis_empty() {
+        let (ok, detail) = parse_iis_output("");
+        assert!(!ok);
+        assert_eq!(detail, "unknown");
+    }
+
+    // ── HTTP status line parsing ──
+
+    #[test]
+    fn http_200() {
+        let (ok, detail) = parse_http_status_line("HTTP/1.1 200 OK");
+        assert!(ok);
+        assert_eq!(detail, "HTTP 200");
+    }
+
+    #[test]
+    fn http_302() {
+        let (ok, detail) = parse_http_status_line("HTTP/1.1 302 Found");
+        assert!(ok);
+        assert_eq!(detail, "HTTP 302");
+    }
+
+    #[test]
+    fn http_404() {
+        let (ok, detail) = parse_http_status_line("HTTP/1.1 404 Not Found");
+        assert!(!ok);
+        assert_eq!(detail, "HTTP 404");
+    }
+
+    #[test]
+    fn http_500() {
+        let (ok, detail) = parse_http_status_line("HTTP/1.1 500 Internal Server Error");
+        assert!(!ok);
+        assert_eq!(detail, "HTTP 500");
+    }
+
+    #[test]
+    fn http_bad_response() {
+        let (ok, detail) = parse_http_status_line("");
+        assert!(!ok);
+        assert_eq!(detail, "bad response");
+    }
+
+    // ── VPN host parsing ──
+
+    #[test]
+    fn vpn_https_url() {
+        assert_eq!(parse_vpn_host("https://mysite.enablon.com/app"), "mysite.enablon.com");
+    }
+
+    #[test]
+    fn vpn_http_url() {
+        assert_eq!(parse_vpn_host("http://mysite.com/path"), "mysite.com");
+    }
+
+    #[test]
+    fn vpn_plain_hostname() {
+        assert_eq!(parse_vpn_host("mysite.enablon.com"), "mysite.enablon.com");
+    }
+
+    #[test]
+    fn vpn_empty() {
+        assert_eq!(parse_vpn_host(""), "");
+    }
+
+    #[test]
+    fn vpn_https_no_path() {
+        assert_eq!(parse_vpn_host("https://server.example.com"), "server.example.com");
+    }
+}

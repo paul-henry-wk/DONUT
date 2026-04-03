@@ -2,7 +2,7 @@
 // diff-viewer.ts -- PR Diff overlay (types, state, rendering)
 // =====================================================================
 
-import { esc, toast, invoke, ICO, S, getOrg, getProject } from '../state';
+import { esc, toast, invoke, azdoInvoke, ICO, S, getOrg, getProject } from '../state';
 import { getToken, getRepo } from '../config';
 
 // ── Diff types ──
@@ -20,7 +20,7 @@ async function ensurePkgMap(): Promise<Record<string, string>> {
   } catch {
     pkgMap = {};
   }
-  return pkgMap;
+  return pkgMap!;
 }
 
 /** Parse an .enzp filename into package prefix, GUID, and resolved name */
@@ -68,8 +68,8 @@ export async function viewPrDiff(prId: number, title: string, source: string, ta
   try {
     // Load PR files and package mapping in parallel
     const [files] = await Promise.all([
-      invoke<PrFile[]>('get_pr_files', {
-        token, project: getProject(), repository: repo, prId, organization: getOrg(),
+      azdoInvoke<PrFile[]>('get_pr_files', {
+        token, project: getProject(), repository: repo, prId,
       }),
       ensurePkgMap(),
     ]);
@@ -97,8 +97,8 @@ async function selectDiffFile(path: string): Promise<void> {
   const token = getToken();
   const repo = getRepo();
   try {
-    const content = await invoke<FileDiffContent>('get_file_diff', {
-      token, project: getProject(), repository: repo, prId: diffState.prId, filePath: path, organization: getOrg(),
+    const content = await azdoInvoke<FileDiffContent>('get_file_diff', {
+      token, project: getProject(), repository: repo, prId: diffState.prId, filePath: path,
     });
     diffState.isBinary = content.is_binary;
     diffState.binarySizeKb = content.size_kb;

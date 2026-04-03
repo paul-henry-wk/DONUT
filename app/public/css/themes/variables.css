@@ -1,5 +1,12 @@
 /* ── Theme variables ── */
 
+/* ── Spacing scale (shared across all themes) ── */
+:root {
+  --sp-xs: 2px;  --sp-sm: 4px;  --sp-md: 8px;
+  --sp-lg: 12px; --sp-xl: 16px; --sp-2xl: 24px;
+  --sp-3xl: 32px;
+}
+
 /* Dark (default) — clean dark, inspired by VS Code / GitHub Dark */
 :root, [data-theme="dark"] {
   --bg:          #1a1b1e; --bg-raised:   #222327; --bg-input:    #16171a;

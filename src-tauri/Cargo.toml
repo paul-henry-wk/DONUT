@@ -16,6 +16,8 @@ notify = { version = "~7.0" }
 sevenz-rust = "~0.6"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 notify-debouncer-full = "~0.4"
+tracing = "~0.1"
+keyring = { version = "3", features = ["windows-native"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging"] }
@@ -23,7 +25,7 @@ windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging"] }
 [profile.release]
 strip = true
 lto = "thin"
-opt-level = "s"
+opt-level = "z"
 codegen-units = 1
 panic = "abort"
 
