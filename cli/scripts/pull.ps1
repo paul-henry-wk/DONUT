@@ -60,8 +60,19 @@ try {
     EnablonPull -SiteParams $_c.local.site_api_params
     Print_Status "Pull completed"
 } catch {
-    Print_Error "Pull failed: $($_.Exception.Message)"
-    Print_Text "Check that the local site is running and accessible."
+    $errMsg = $_.Exception.Message
+    Print_Error "Pull failed: $errMsg"
+    if ($errMsg -match "Parent site configuration is invalid|WsdlLocation") {
+        Print_Text "  -> The parent site path '$($_c.local.parent_site)' seems incorrect or unreachable."
+        Print_Text "  -> Go to Config tab > 'local.parent_site' and update it."
+        Print_Text "  -> The parent site must be accessible at: http://localhost$($_c.local.parent_site)/"
+    } elseif ($errMsg -match "not allowed|unauthorized|access|401") {
+        Print_Text "  -> Check your credentials in Config tab > 'local.user' and 'local.password'."
+        Print_Text "  -> Verify the site is running: http://localhost/$($_c.local.site_id)"
+    } else {
+        Print_Text "  -> Check that the local site is running and accessible."
+        Print_Text "  -> Verify: http://localhost/$($_c.local.site_id)"
+    }
     throw
 }
 

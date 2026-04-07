@@ -94,8 +94,16 @@ try {
     EnablonPullForce -SiteParams $_c.local.site_api_params
     Print_Status "Pull Force completed"
 } catch {
-    Print_Error "Pull Force failed: $($_.Exception.Message)"
-    Print_Text "Check that the local site is running and packages are correctly configured."
+    $errMsg = $_.Exception.Message
+    Print_Error "Pull Force failed: $errMsg"
+    if ($errMsg -match "Parent site configuration is invalid|WsdlLocation") {
+        Print_Text "  -> The parent site path '$($_c.local.parent_site)' seems incorrect or unreachable."
+        Print_Text "  -> Go to Config tab > 'local.parent_site' and update it."
+        Print_Text "  -> The parent site must be accessible at: http://localhost$($_c.local.parent_site)/"
+        Print_Text "  -> Try opening that URL in a browser to verify."
+    } else {
+        Print_Text "Check that the local site is running and packages are correctly configured."
+    }
     throw
 }
 
@@ -128,8 +136,23 @@ if ($_c.convert_md) {
 Print_Title "Finalize"
 if ((-not $ForceStartFromScratch) -and $alreadyPushed) {
     Print_Text "Pulling latest commits (adding frosting)..."
-    EnablonPull -SiteParams $_c.local.site_api_params
-    Print_Status "Commits pulled"
+    try {
+        EnablonPull -SiteParams $_c.local.site_api_params
+        Print_Status "Commits pulled"
+    } catch {
+        $errMsg = $_.Exception.Message
+        Print_Warning "Pull failed after Pull Force: $errMsg"
+        Print_Text "  -> Pull Force succeeded — your site has the latest master packages."
+        Print_Text "  -> The Pull step (applying feature branch commits) failed."
+        if ($errMsg -match "An error has occurred|contact the system administrator") {
+            Print_Text "  -> This is an internal Enablon error. Try:"
+            Print_Text "     1) Recycle the app pool: iisreset"
+            Print_Text "     2) Run Pull Force again"
+            Print_Text "     3) Check the Enablon logs at: $($_c.local.site_path)\Logs\"
+        }
+        Print_Text "  -> If the problem persists, try 'Pull Force (start from scratch)' to skip this step."
+        throw
+    }
 } else {
     Print_Text "Starting fresh (clean donut, no toppings)"
     EmptyCommitsFolder -Repository $_c.local.repository

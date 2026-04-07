@@ -1,6 +1,6 @@
 {
   "productName": "DONUT",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "identifier": "com.donut.app",
   "build": {
     "frontendDist": "../app/dist"

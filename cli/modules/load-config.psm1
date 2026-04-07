@@ -118,13 +118,41 @@ function LoadConfig {
         }
     }
     
+    # Validate mandatory fields are not empty strings (empty string passes the $null check above but causes cryptic errors later)
+    $MandatoryFields = @{
+        "local.site_path"    = "Go to Config tab > step 1 > 'Site path' and set the path to your local Enablon site (e.g. C:\Enablon\Instance1013\Sites\WizRisk.10.13)."
+        "local.parent_site"  = "Go to Config tab > 'local.parent_site' and set the parent site. Use a relative path for local (e.g. /WizRisk.10.13) or a full URL for remote (e.g. https://myserver/10.13/WizRisk.10.13/)."
+        "local.password"     = "Go to Config tab > 'local.password' and set the site admin password."
+        "azdo.organization"  = "Go to Config tab > 'azdo.organization' and set your Azure DevOps organization name (e.g. enablon)."
+        "azdo.project"       = "Go to Config tab > 'azdo.project' and set your Azure DevOps project name."
+        "azdo.token"         = "Go to Config tab > 'azdo.token' and set your Azure DevOps Personal Access Token (PAT). Generate one at: Azure DevOps > User Settings > Personal Access Tokens."
+        "azdo.repository"    = "Go to Config tab > 'azdo.repository' and set the repository name (e.g. Package.Risk)."
+        "feature_branch"     = "Go to Config tab > 'feature_branch' and set the name of your feature branch (e.g. feature/PHE/US-123456-my-feature)."
+        "target_branch"      = "Go to Config tab > 'target_branch' and set the target branch (e.g. master)."
+    }
+    # site_path is allowed to be empty when the GUI provides it via DONUT_OVERRIDE_SITE_PATH
+    if ($env:DONUT_OVERRIDE_SITE_PATH) { $MandatoryFields.Remove("local.site_path") }
+
+    foreach ($field in $MandatoryFields.GetEnumerator()) {
+        $val = GetValue -Config $Config -Key $field.Key
+        if ($null -ne $val -and [string]::IsNullOrWhiteSpace($val.ToString())) {
+            throw "$($field.Key) is empty. $($field.Value)"
+        }
+    }
+
     # Resolve PAT (credential store or config file)
     $Config.azdo.token = Resolve-PAT -ConfigToken $Config.azdo.token -Organization $Config.azdo.organization
 
-    # Extend Config
-    $Config.local.site_id = Split-Path $Config.local.site_path -Leaf
-    $Config.local.repository = "$($Config.local.site_path)\Git\$($Config.azdo.repository)"
-    $Config.local.repository_metadata = "$($Config.local.site_path)\Git\VersionManager_Metadata"
+    # Extend Config (site_path may be empty when the GUI provides it via DONUT_OVERRIDE_SITE_PATH)
+    if ($Config.local.site_path) {
+        $Config.local.site_id = Split-Path $Config.local.site_path -Leaf
+        $Config.local.repository = "$($Config.local.site_path)\Git\$($Config.azdo.repository)"
+        $Config.local.repository_metadata = "$($Config.local.site_path)\Git\VersionManager_Metadata"
+    } else {
+        $Config.local.site_id = ""
+        $Config.local.repository = ""
+        $Config.local.repository_metadata = ""
+    }
     $Config.azdo.base_uri = "https://dev.azure.com/$($Config.azdo.organization)/$([uri]::EscapeDataString($Config.azdo.project))"
     $Config.convert_md = -not ($Config.deactivate_metadata_conversion)
 

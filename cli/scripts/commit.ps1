@@ -124,8 +124,19 @@ try {
     EnablonPush -SiteParams $_c.local.site_api_params -Packages $_c.packages
     Print_Status "Packages pushed to local repository"
 } catch {
-    Print_Error "Commit operation failed: $($_.Exception.Message)"
-    Print_Text "Check that the local site is running and packages are accessible."
+    $errMsg = $_.Exception.Message
+    Print_Error "Commit operation failed: $errMsg"
+    if ($errMsg -match "Parent site configuration is invalid|WsdlLocation") {
+        Print_Text "  -> The parent site path '$($_c.local.parent_site)' seems incorrect or unreachable."
+        Print_Text "  -> Go to Config tab > 'local.parent_site' and update it."
+        Print_Text "  -> The parent site must be accessible at: http://localhost$($_c.local.parent_site)/"
+    } elseif ($errMsg -match "not allowed|unauthorized|access|401") {
+        Print_Text "  -> Check your credentials in Config tab > 'local.user' and 'local.password'."
+        Print_Text "  -> Verify the site is running: http://localhost/$($_c.local.site_id)"
+    } else {
+        Print_Text "  -> Check that the local site is running and packages are accessible."
+        Print_Text "  -> Verify: http://localhost/$($_c.local.site_id)"
+    }
     throw
 }
 
@@ -175,8 +186,14 @@ try {
     $PR_URI = "$($_c.azdo.base_uri)/_git/$($_c.azdo.repository)/pullrequest/$PR_Id"
     Print_Status "Pull Request #$PR_Id created"
 } catch {
-    Print_Error "Failed to create/update pull request: $($_.Exception.Message)"
-    Print_Text "Code was pushed successfully. You may need to create the PR manually in Azure DevOps."
+    $errMsg = $_.Exception.Message
+    Print_Error "Failed to create/update pull request: $errMsg"
+    Print_Text "  -> Code was pushed successfully. You may need to create the PR manually in Azure DevOps."
+    if ($errMsg -match "401|403|unauthorized|expired|access denied") {
+        Print_Text "  -> Your Azure DevOps PAT may be expired or missing permissions."
+        Print_Text "  -> Go to Config tab > 'azdo.token' and update your PAT."
+        Print_Text "  -> Generate a new one at: Azure DevOps > User Settings > Personal Access Tokens."
+    }
     throw
 }
 

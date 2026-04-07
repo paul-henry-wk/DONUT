@@ -7,7 +7,7 @@ import { S, esc, toast, invoke, azdoInvoke, getOrg, getProject } from './state';
 import { renderSelectedInfo } from './scripts';
 import {
   field, fieldVersion, fieldBrowse, fieldWorkItem,
-  nativeSelectInline, ssInputInline, ssField, ssFieldWithCreate,
+  nativeSelectInline, ssInputInline, ssFieldWithCreate,
   wizStep, wizClosed,
 } from './config/form-fields';
 
@@ -164,40 +164,38 @@ export function renderConfig(): void {
     ${wizStep(1, 'Local Site & Packages', true, !!sitePath, sitePath ? esc(sitePath) : '', `
       <div class="cfg-fields">
         ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)')}
-        ${field('c-ps','parent site URL',c.local?.parent_site||'','full','text','Full URL of the reference/parent site used to download packages (e.g. https://myserver/10.11/WizRisk.10.11/)')}
+        ${field('c-ps','parent site',c.local?.parent_site||'','full','text','Parent site used to download master packages. Local: relative path (e.g. /WizRisk.10.13). Remote: full URL (e.g. https://myserver/10.13/WizRisk.10.13/)')}
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
         ${field('c-spw','site password',c.local?.password||'','','password','Site admin password')}
         ${field('c-devpw','developer password',c.local?.developer_password||'','','password','Builder developer password (used by Setup Local Auth)')}
         ${field('c-dbu','DB user',c.local?.db_user||'sa','','text','SQL Server login (default: sa)')}
         ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}
-        <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="refresh-btn" onclick="loadPackages()" style="margin-left:8px">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="refresh-btn" onclick="selectAllPkgs()" style="font-size:9px">all</button><button class="refresh-btn" onclick="deselectAllPkgs()" style="font-size:9px">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
+        <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="cfg-action-btn pkg-load-btn" onclick="loadPackages()">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="cfg-action-btn" onclick="selectAllPkgs()">all</button><button class="cfg-action-btn" onclick="deselectAllPkgs()">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
       </div>
     `)}
     ${wizStep(2, 'Azure DevOps — Connection', true, okToken, okToken ? `${S.cachedProjects.length} projects` : '', `
       <div class="cfg-fields">
-        ${field('c-org','organization',c.azdo?.organization||'','','text','Azure DevOps organization name — appears in the URL: dev.azure.com/{organization}')}
+        ${field('c-org','organization',c.azdo?.organization||'','full','text','Azure DevOps organization name — appears in the URL: dev.azure.com/{organization}')}
         ${field('c-pat','personal access token (PAT)',token,'full','password','Personal Access Token — create one at Azure DevOps > User Settings > Personal Access Tokens. Required scopes: Code (Read & Write), Work Items (Read & Write)')}
       </div>
-      <div style="margin-top:8px">
-        <button class="refresh-btn" onclick="wizValidatePat()">test PAT & load projects</button>
-        <button class="refresh-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">create a PAT ↗</button>
+      <div class="cfg-btn-row">
+        <button class="cfg-action-btn" onclick="wizValidatePat()">test PAT & load projects</button>
+        <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">create a PAT ↗</button>
       </div>
     `)}
     ${wizStep(3, 'Project & Repository', okToken, okRepo, okRepo ? `${proj} / ${repo}` : (okProj ? proj : ''), `
-      <p class="wiz-desc">A <strong>project</strong> groups repos, work items & pipelines. A <strong>repository</strong> is a git repo inside the project.</p>
       <div class="cfg-fields">
-        <div class="cfg-field"><label>project <button class="refresh-mini" onclick="wizValidatePat()" title="Refresh projects">↻</button></label>${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}</div>
-        <div class="cfg-field ss-wrap"><label>repository <button class="refresh-mini" onclick="refreshRepos()" title="Refresh repos">↻</button></label>${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}</div>
-        ${field('c-rdm','metadata repository',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB','full','text','Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB')}
+        <div class="cfg-field"><label>project</label><div class="cfg-input-row">${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}<button class="cfg-action-btn" onclick="wizValidatePat()" title="Refresh projects">↻</button></div></div>
+        <div class="cfg-field ss-wrap"><label>repository</label><div class="cfg-input-row">${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">↻</button></div></div>
+        <div class="cfg-field full ss-wrap"><label>metadata repository<span class="cfg-tip" title="Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB">?</span></label><div class="cfg-input-row">${ssInputInline('c-rdm',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB',S.cachedRepos,'')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">↻</button></div></div>
       </div>
     `)}
     ${wizStep(4, 'Branches', okRepo, okFb && okTb, okFb ? `${c.feature_branch} → ${c.target_branch||'?'}` : '', `
-      <p class="wiz-desc"><strong>Feature branch</strong> = your changes. <strong>Target branch</strong> = where you merge. <button class="refresh-mini" onclick="refreshBranches()" title="Refresh branches">↻</button></p>
       <div class="cfg-fields">
         ${ssFieldWithCreate('c-fb','feature branch',c.feature_branch,S.cachedBranches,'Your working branch where changes are committed')}
-        ${ssField('c-tb','target branch',c.target_branch,S.cachedBranches,undefined,'The branch your feature will be merged into (e.g. main, develop)')}
-        <div class="cfg-field full"><label><input type="checkbox" id="c-md" ${c.deactivate_metadata_conversion ? '' : 'checked'}> Enable metadata conversion (view-diff)</label><p class="wiz-desc" style="margin:4px 0 0">Disable if the metadata repository is not set up for this project.</p></div>
+        <div class="cfg-field ss-wrap"><label>target branch<span class="cfg-tip" title="The branch your feature will be merged into (e.g. main, develop)">?</span></label><div class="cfg-input-row">${ssInputInline('c-tb',c.target_branch||'',S.cachedBranches,'')}<button class="cfg-action-btn" onclick="refreshBranches()" title="Refresh branches">↻</button></div></div>
+        <div class="cfg-field full"><label><input type="checkbox" id="c-md" ${c.deactivate_metadata_conversion ? '' : 'checked'}> Enable metadata conversion (view-diff)</label><p class="wiz-desc">Disable if the metadata repository is not set up for this project.</p></div>
       </div>
     `)}
     ${wizStep(5, 'Work Item', okToken, !!c.workitem_id, c.workitem_id || '', `
@@ -206,30 +204,36 @@ export function renderConfig(): void {
       </div>
     `)}
   `;
-  // Auto-load cascade
+  // Auto-load cascade (preserve form values across async re-renders)
   if (token && !S.cachedProjects.length) {
     azdoInvoke<string[]>('list_azdo_projects', { token }).then(p => {
-      if (p.length) { S.cachedProjects = p; renderConfig(); }
+      if (p.length) { S.cachedProjects = p; const s = getFormValues(); renderConfig(); setFormValues(s); captureFormSnapshot(); }
     }).catch(() => {});
   }
   if (okProj && !S.cachedRepos.length) {
     azdoInvoke<string[]>('list_azdo_repos', { token, project: proj }).then(r => {
-      if (r.length) { S.cachedRepos = r; renderConfig(); }
+      if (r.length) { S.cachedRepos = r; const s = getFormValues(); renderConfig(); setFormValues(s); captureFormSnapshot(); }
     }).catch(() => {});
   }
   if (okRepo && !S.cachedBranches.length) {
     azdoInvoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo }).then(b => {
-      if (b.length) { S.cachedBranches = b; renderConfig(); }
+      if (b.length) { S.cachedBranches = b; const s = getFormValues(); renderConfig(); setFormValues(s); captureFormSnapshot(); }
     }).catch(() => {});
   }
+  captureFormSnapshot();
 }
 
 // ── Wizard helpers ──
 export function toggleWizStep(num: number): void {
   wizClosed[num] = !wizClosed[num];
-  const snap = getFormValues();
-  renderConfig();
-  setFormValues(snap);
+  const step = document.querySelector(`.wiz-step[data-step="${num}"]`);
+  if (!step) return;
+  const isOpen = !wizClosed[num];
+  step.classList.toggle('active', isOpen);
+  const chevron = step.querySelector('.wiz-chevron');
+  if (chevron) chevron.textContent = isOpen ? '\u25BE' : '\u25B8';
+  const summary = step.querySelector('.wiz-summary') as HTMLElement | null;
+  if (summary) summary.style.display = isOpen ? 'none' : '';
 }
 
 export function ssOpen(id: string): void {
@@ -268,6 +272,10 @@ export function ssSelect(id: string, value: string, onChange?: string): void {
 document.addEventListener('click', (e: MouseEvent) => {
   if (!(e.target as HTMLElement).closest('.ss-wrap')) document.querySelectorAll('.ss-results.open').forEach(el => el.classList.remove('open'));
 });
+// Close dropdowns on scroll to prevent position desync
+document.querySelector('.panel')?.addEventListener('scroll', () => {
+  document.querySelectorAll('.ss-results.open').forEach(el => el.classList.remove('open'));
+}, { passive: true });
 
 // ── Wizard cascade triggers ──
 export async function wizValidatePat(): Promise<void> {
@@ -300,7 +308,7 @@ export async function onProjectChange(proj: string): Promise<void> {
     S.cachedRepos = await azdoInvoke('list_azdo_repos', { token, project: proj });
     S.cachedBranches = [];
     toast(S.cachedRepos.length + ' repos loaded', 'success');
-    const snap = getFormValues(); snap.proj = proj; renderConfig(); setFormValues(snap);
+    const snap = getFormValues(); snap['c-proj'] = proj; renderConfig(); setFormValues(snap);
   } catch(e) { toast('Repos: ' + e, 'error'); }
 }
 export async function refreshRepos(): Promise<void> {
@@ -334,7 +342,7 @@ export async function onRepoChange(repo: string): Promise<void> {
   try {
     S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository: repo });
     toast(S.cachedBranches.length + ' branches loaded', 'success');
-    const snap = getFormValues(); snap.repo = repo; renderConfig(); setFormValues(snap);
+    const snap = getFormValues(); snap['c-repo'] = repo; renderConfig(); setFormValues(snap);
   } catch(e) { toast('Branches: ' + e, 'error'); }
 }
 
@@ -361,11 +369,11 @@ export function onVersionChange(_ver: string): void {
 }
 export async function loadPackages(): Promise<void> {
   const snap = getFormValues();
-  const sitePath = snap.sp || '';
+  const sitePath = snap['c-sp'] || '';
   if (!sitePath) { toast('Set a site path first', 'warn'); return; }
   toast('Fetching packages...', 'info');
   try {
-    S.cachedPackages = await invoke('list_sql_packages', { sitePath, password: snap.spw || S.envConfig.local?.password || null });
+    S.cachedPackages = await invoke('list_sql_packages', { sitePath, password: snap['c-spw'] || S.envConfig.local?.password || null });
     toast('Found ' + S.cachedPackages.length + ' packages', S.cachedPackages.length ? 'success' : 'warn');
     renderConfig();
     setFormValues(snap);
@@ -508,7 +516,7 @@ export async function createBranch(): Promise<void> {
     // Refresh branches and select the new one
     S.cachedBranches = await azdoInvoke('list_azdo_branches', { token, project: getProject(), repository });
     const snap = getFormValues();
-    snap.fb = branchName;
+    snap['c-fb'] = branchName;
     renderConfig();
     setFormValues(snap);
   } catch(e) { toast('Create branch failed: ' + e, 'error'); }
@@ -548,35 +556,56 @@ export function validatePath(id: string): void {
     : '<span class="cfg-valid-err" title="Invalid path format">\u2718</span>';
 }
 
-interface FormSnapshot {
-  wi: string | null;
-  org: string | null;
-  repo: string | null;
-  rdm: string | null;
-  fb: string | null;
-  tb: string | null;
-  pkg: string | null;
-  sp: string | null;
-  ps: string | null;
-  usr: string | null;
-  spw: string | null;
-  dbu: string | null;
-  dbpw: string | null;
-  pat: string | null;
-  ver: string | null;
-  proj: string | null;
+// ── Config health check (LEDs) ──
+interface HealthStatus { iis: boolean; sql: boolean; site: boolean; vpn: boolean; iis_detail: string; sql_detail: string; site_detail: string; vpn_detail: string; }
+
+export async function runConfigHealthCheck(): Promise<void> {
+  const sp = (document.getElementById('c-sp') as HTMLInputElement)?.value || S.envConfig.local?.site_path || '';
+  const ps = (document.getElementById('c-ps') as HTMLInputElement)?.value || S.envConfig.local?.parent_site || '';
+  const dbu = (document.getElementById('c-dbu') as HTMLInputElement)?.value || 'sa';
+  const dbpw = (document.getElementById('c-dbpw') as HTMLInputElement)?.value || S.envConfig.local?.db_password || '';
+  const siteId = sp ? sp.replace(/\\/g, '/').split('/').pop() || '' : '';
+
+  const setLed = (id: string, state: string, detail: string) => {
+    const el = document.getElementById('led-' + id);
+    if (!el) return;
+    el.className = 'cfg-led ' + state;
+    el.title = detail;
+  };
+
+  if (!sp) return;
+
+  // Set all to checking
+  ['iis','sql','site','vpn'].forEach(id => setLed(id, 'checking', 'Checking...'));
+
+  try {
+    const h = await invoke<HealthStatus>('quick_health', { sitePath: sp, siteId, dbUser: dbu, dbPassword: dbpw, parentSite: ps });
+    setLed('iis', h.iis ? 'ok' : 'fail', 'IIS: ' + h.iis_detail);
+    setLed('sql', h.sql ? 'ok' : 'fail', 'SQL: ' + h.sql_detail);
+    setLed('site', h.site ? 'ok' : 'fail', 'Site: ' + h.site_detail);
+    setLed('vpn', h.vpn ? 'ok' : 'fail', 'Parent: ' + h.vpn_detail);
+  } catch {
+    ['iis','sql','site','vpn'].forEach(id => setLed(id, 'fail', 'check failed'));
+  }
 }
 
+// All config form field IDs
+const FORM_FIELDS = ['c-wi','c-org','c-repo','c-rdm','c-fb','c-tb','c-pkg','c-sp','c-ps','c-usr','c-spw','c-devpw','c-dbu','c-dbpw','c-pat','c-ver','c-proj'] as const;
+type FormSnapshot = Record<string, string | null>;
+
 function getFormValues(): FormSnapshot {
-  const v = (id: string): string | null => (document.getElementById(id) as HTMLInputElement)?.value ?? null;
-  return { wi:v('c-wi'), org:v('c-org'), repo:v('c-repo'), rdm:v('c-rdm'), fb:v('c-fb'), tb:v('c-tb'), pkg:v('c-pkg'),
-    sp:v('c-sp'), ps:v('c-ps'), usr:v('c-usr'), spw:v('c-spw'), dbu:v('c-dbu'), dbpw:v('c-dbpw'), pat:v('c-pat'), ver:v('c-ver'), proj:v('c-proj') };
+  const snap: FormSnapshot = {};
+  for (const id of FORM_FIELDS) {
+    snap[id] = (document.getElementById(id) as HTMLInputElement)?.value ?? null;
+  }
+  return snap;
 }
 function setFormValues(s: FormSnapshot): void {
   if (!s) return;
-  const set = (id: string, val: string | null): void => { const el = document.getElementById(id) as HTMLInputElement | null; if(el && val!==null) el.value=val; };
-  set('c-wi',s.wi); set('c-org',s.org); set('c-repo',s.repo); set('c-rdm',s.rdm); set('c-fb',s.fb); set('c-tb',s.tb); set('c-pkg',s.pkg);
-  set('c-sp',s.sp); set('c-ps',s.ps); set('c-usr',s.usr); set('c-spw',s.spw); set('c-dbu',s.dbu); set('c-dbpw',s.dbpw); set('c-pat',s.pat); set('c-ver',s.ver); set('c-proj',s.proj);
+  for (const id of FORM_FIELDS) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el && s[id] !== null && s[id] !== undefined) el.value = s[id]!;
+  }
 }
 export function getToken(): string { return (document.getElementById('c-pat') as HTMLInputElement)?.value || S.envConfig.azdo?.token || ''; }
 export function getRepo(): string { return (document.getElementById('c-repo') as HTMLInputElement)?.value || S.envConfig.azdo?.repository || ''; }
@@ -584,7 +613,7 @@ export function getRepo(): string { return (document.getElementById('c-repo') as
 export async function loadBranches(): Promise<void> {
   const snap = getFormValues();
   const token = getToken();
-  const repository = snap.repo || getRepo();
+  const repository = snap['c-repo'] || getRepo();
   if (!token || !repository) { toast('Fill PAT & select a repository first', 'warn'); return; }
   toast('Loading branches...', 'info');
   try {
@@ -621,21 +650,77 @@ function buildConfig(): EnvConfig {
   };
 }
 
+function validateConfig(config: EnvConfig): string[] {
+  const warnings: string[] = [];
+  // Site path
+  if (!config.local?.site_path) {
+    warnings.push('Site path is empty — set it in step 1 (e.g. C:\\Enablon\\Instance1013\\Sites\\WizRisk.10.13).');
+  } else if (!/^[a-zA-Z]:[\\\/]/.test(config.local.site_path)) {
+    warnings.push(`Site path "${config.local.site_path}" does not look like a valid Windows path.`);
+  }
+  // Parent site
+  if (!config.local?.parent_site) {
+    warnings.push('Parent site path is empty — set it in step 1. Use a relative path (e.g. /WizRisk.10.13) for local or a full URL for remote.');
+  }
+  // Password
+  if (!config.local?.password) {
+    warnings.push('Site password is empty — scripts will fail to authenticate. Set it in step 1.');
+  }
+  // DB password
+  if (!config.local?.db_password) {
+    warnings.push('DB password is empty — database operations will fail. Set it in step 1.');
+  }
+  // Azure DevOps
+  if (!config.azdo?.organization) {
+    warnings.push('Azure DevOps organization is empty — set it in step 2.');
+  }
+  if (!config.azdo?.token) {
+    warnings.push('Azure DevOps PAT is empty — set it in step 2. Generate one at Azure DevOps > User Settings > Personal Access Tokens.');
+  }
+  if (!config.azdo?.project) {
+    warnings.push('Azure DevOps project is empty — select one in step 3 (test PAT first).');
+  }
+  if (!config.azdo?.repository) {
+    warnings.push('Repository is empty — select one in step 3.');
+  }
+  // Branches
+  if (!config.feature_branch) {
+    warnings.push('Feature branch is empty — set it in step 4.');
+  }
+  if (!config.target_branch) {
+    warnings.push('Target branch is empty — set it in step 4 (e.g. master).');
+  }
+  return warnings;
+}
+
 export async function saveConfig(): Promise<void> {
   const config = buildConfig();
+  const warnings = validateConfig(config);
   try {
     await invoke('save_env', { name: S.currentEnv, config });
     S.envConfig = config; renderSelectedInfo();
     const btn = document.querySelector('.save-btn'); if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 600); }
     const el = document.getElementById('cfgMsg2'); if (el) { el.textContent = 'saved'; el.className = 'msg ok'; setTimeout(() => { el.textContent = ''; }, 2000); }
-    toast('Configuration saved', 'success');
+    if (warnings.length > 0) {
+      toast('Saved with ' + warnings.length + ' warning(s): ' + warnings[0] + (warnings.length > 1 ? ' (+' + (warnings.length - 1) + ' more)' : ''), 'warn');
+    } else {
+      toast('Configuration saved', 'success');
+    }
   } catch(e) {
     const el = document.getElementById('cfgMsg2'); if (el) { el.textContent = String(e); el.className = 'msg err'; }
   }
 }
 
+let _lastFormSnapshot: string = '';
+export function captureFormSnapshot(): void {
+  _lastFormSnapshot = JSON.stringify(getFormValues());
+}
 export function autoSave(): void {
-  if (S.currentEnv) saveConfig();
+  if (!S.currentEnv) return;
+  const current = JSON.stringify(getFormValues());
+  if (current === _lastFormSnapshot) return;
+  _lastFormSnapshot = current;
+  saveConfig();
 }
 
 let _pkgFilterDebounce: ReturnType<typeof setTimeout> | null = null;

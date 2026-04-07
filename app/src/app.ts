@@ -14,7 +14,7 @@ import {
 import { renderScripts, renderRunBar, doRun, selectScript } from './scripts';
 import { advanceWorkflow, renderWorkflowBar, recalcWorkflow } from './workflow';
 import { startHealthPolling } from './health';
-import { renderConfig } from './config';
+import { renderConfig, saveConfig } from './config';
 import { renderDevops } from './devops';
 import { setTheme, toggleThemeList, closeThemeList } from './app/themes';
 import { showModal, showConfirm, showPrompt } from './app/modals';
@@ -110,6 +110,8 @@ export async function init(): Promise<void> {
   if (verEl) verEl.textContent = verStr;
   const termVer = document.getElementById('termVer');
   if (termVer) termVer.textContent = 'DONUT ' + verStr;
+  const loadingVer = document.getElementById('loadingVer');
+  if (loadingVer) loadingVer.textContent = verStr;
 
   const sel = document.getElementById('envSel') as HTMLSelectElement;
   sel.innerHTML = envs.map((e: string) => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
@@ -245,8 +247,10 @@ export async function checkForUpdates(): Promise<void> {
       btn.classList.remove('available');
       btn.title = 'Aucune mise à jour';
     }
-  } catch {
-    // Silently ignore update check failures
+  } catch (e) {
+    console.warn('Update check failed:', e);
+    const btn = document.getElementById('updateBtn');
+    if (btn) btn.title = 'Update check failed: ' + e;
   }
 }
 
@@ -385,8 +389,16 @@ export function setupEventListeners(): void {
       }
       // Show PR link button after successful commit
       if (ok && msg.script === 'commit') { showPRLink(); }
+      // After successful install-site, save site_path into config
+      if (ok && msg.script === 'install-site' && S._pendingInstallSitePath) {
+        if (!S.envConfig.local) S.envConfig.local = {};
+        S.envConfig.local.site_path = S._pendingInstallSitePath;
+        saveConfig();
+        toast('Site path saved to config: ' + S._pendingInstallSitePath, 'success');
+        S._pendingInstallSitePath = null;
+      }
       // Show re-run button on failure
-      if (!ok) showRerunBtn();
+      if (!ok) { showRerunBtn(); S._pendingInstallSitePath = null; }
       renderRunBar();
       renderScripts();
       // Save to history & advance workflow

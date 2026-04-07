@@ -39,6 +39,9 @@ if ($env:DONUT_OVERRIDE_SITE_PATH) {
     $_c.local.site_path = $env:DONUT_OVERRIDE_SITE_PATH
     $SitePath = $env:DONUT_OVERRIDE_SITE_PATH
     $SiteId = Split-Path $SitePath -Leaf
+    $_c.local.site_id = $SiteId
+    $_c.local.repository = "$SitePath\Git\$($_c.azdo.repository)"
+    $_c.local.repository_metadata = "$SitePath\Git\VersionManager_Metadata"
     Print_Text "  (Site path from wizard: $SitePath)"
 }
 

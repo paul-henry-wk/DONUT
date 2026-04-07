@@ -120,6 +120,7 @@ export const S = {
   cachedPackages: [] as string[],
   cachedWorkItems: [] as WorkItem[],
   isWatching: false,
+  _pendingInstallSitePath: null as string | null,
 };
 
 // ── Tauri bindings (lazy access to avoid crash if __TAURI__ not yet injected) ──
@@ -147,20 +148,55 @@ export const time = (): string =>
   new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 // ── Toasts ──
-export const TOAST_ICONS: Record<string, string> = {
-  success: '\u2714',
-  error: '\u2718',
-  warn: '\u26A0',
-  info: '\uD83C\uDF69',
+const TOAST_ICONS: Record<string, string> = {
+  success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+  warn:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+};
+
+const TOAST_TITLES: Record<string, string> = {
+  success: 'Success', error: 'Error', warn: 'Warning', info: 'Info',
 };
 
 export function toast(msg: string, type: string = 'info'): void {
   const container = document.getElementById('toasts');
+  if (!container) return;
+
+  // Duration scales with message length and severity
+  const baseDuration = type === 'error' ? 8000 : type === 'warn' ? 6000 : 3500;
+  const duration = Math.min(baseDuration + msg.length * 20, 15000);
+
+  const dismiss = (el: HTMLElement) => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+
   const el = document.createElement('div');
   el.className = 'toast ' + type;
-  el.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span>${esc(msg)}`;
-  container?.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+  el.setAttribute('role', 'alert');
+  el.style.setProperty('--toast-duration', duration + 'ms');
+  el.innerHTML =
+    `<span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span>` +
+    `<div class="toast-body">` +
+      `<span class="toast-title">${TOAST_TITLES[type] || 'Info'}</span>` +
+      `<span class="toast-msg">${esc(msg)}</span>` +
+    `</div>` +
+    `<button class="toast-close" aria-label="Close">&times;</button>` +
+    `<span class="toast-progress"></span>`;
+
+  el.querySelector('.toast-close')!
+    .addEventListener('click', (e: Event) => { e.stopPropagation(); dismiss(el); });
+
+  // Pause timer on hover
+  let timer = setTimeout(() => dismiss(el), duration);
+  el.addEventListener('mouseenter', () => { clearTimeout(timer); el.classList.add('paused'); });
+  el.addEventListener('mouseleave', () => {
+    el.classList.remove('paused');
+    timer = setTimeout(() => dismiss(el), 2000);
+  });
+
+  // Limit to 5 toasts visible
+  while (container.children.length >= 5) container.removeChild(container.children[0]);
+
+  container.appendChild(el);
 }
 
 // ── Global error handlers ──

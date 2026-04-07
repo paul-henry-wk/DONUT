@@ -5,6 +5,7 @@
 @keyframes spinBounce { 0%{transform:rotate(0deg) scale(1)} 50%{transform:rotate(180deg) scale(1.1)} 100%{transform:rotate(360deg) scale(1)} }
 @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .loading-text { color:var(--accent); font-size:14px; font-weight:700; letter-spacing:2px; margin-top:24px; }
+.loading-ver { color:var(--text-dim); font-size:11px; margin-top:4px; opacity:0.6; letter-spacing:1px; }
 .loading-sub { color:var(--text-dim); font-size:11px; margin-top:8px; animation:loadPulse 2s ease-in-out infinite; }
 @keyframes loadPulse { 0%,100%{opacity:.5} 50%{opacity:1} }
 .loading-steps { margin-top:16px; display:flex; flex-direction:column; gap:4px; align-items:center; }

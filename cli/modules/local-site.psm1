@@ -47,6 +47,10 @@ function CallLocalAPI {
             throw "Site unreachable at http://localhost/$($SiteParams["SiteId"]). Check: 1) IIS is running (iisreset /start) 2) Site exists in IIS Manager 3) AppPool is started"
         } elseif ($errorDetail -match "401|unauthorized|not allowed|access denied") {
             throw "Site authentication failed (user: '$($SiteParams["User"])'). Check: 1) Password in Config > local.password 2) User exists on the site 3) 'Force SSL' is unchecked in WizManager"
+        } elseif ($errorDetail -match "WsdlLocation|invalid value for parameter") {
+            throw "Parent site configuration is invalid. The site cannot reach its parent site to perform this operation. Check: 1) Go to Config tab > 'local.parent_site' and verify the path is correct (e.g. /WizRisk.10.13) 2) Make sure the parent site exists and is accessible at http://localhost/<parent_site_path> 3) Try opening the parent site URL in a browser to confirm it works"
+        } elseif ($errorDetail -match "An error has occurred|contact the system administrator") {
+            throw "Site API call '$FunctionName' failed with an internal Enablon error. Try: 1) Recycle the app pool (iisreset) 2) Run the operation again 3) Check Enablon logs for the error reference. Details: $errorDetail"
         } else {
             throw "Site API call '$FunctionName' failed: $errorDetail"
         }

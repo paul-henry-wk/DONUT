@@ -141,6 +141,7 @@ window.deleteBranch = deleteBranch;
 window.doBrowse = doBrowse;
 window.doBrowseFile = doBrowseFile;
 window.validatePath = validatePath;
+
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;
 window.loadMyWorkItems = loadMyWorkItems;

@@ -352,6 +352,7 @@ export async function doRun(): Promise<void> {
     appendLog(`  ENA: ${result.enaPath}`, 'dim');
     appendLog(`  Site: ${result.sitePath}`, 'dim');
     appendLog(pickRandom(getThemeMsgs().run), 'dim');
+    S._pendingInstallSitePath = result.sitePath;
     try {
       await invoke('run_script', {
         script: 'install-site', envFile: S.currentEnv, message: null,
