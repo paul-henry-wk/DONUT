@@ -752,3 +752,18 @@
 /* ── Aqua Indicator — pulsing blue glow ── */
 [data-theme="aqua"] .indicator.running { background:#2094e8; box-shadow:0 0 10px rgba(32,148,232,.6); }
 [data-theme="aqua"] .indicator.success { background:#28c840; box-shadow:0 0 6px rgba(40,200,64,.4); }
+/* ── Aqua New components ── */
+[data-theme="aqua"] .pr-link-banner { background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(220,230,250,.9)); border:1px solid rgba(100,140,200,.4); box-shadow:0 2px 8px rgba(0,0,0,.1); }
+[data-theme="aqua"] .pr-link-banner button { background:linear-gradient(180deg, #6cb4f5, #2a7de1); border:1px solid rgba(0,0,0,.2); color:#fff; text-shadow:0 -1px 0 rgba(0,0,0,.2); box-shadow:0 1px 3px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.3); border-radius:12px; }
+[data-theme="aqua"] .pr-link-banner button:hover { filter:brightness(1.1); }
+[data-theme="aqua"] .pr-link-banner button.secondary { background:linear-gradient(180deg, #fff, #e8e8e8); color:#333; text-shadow:none; border:1px solid rgba(0,0,0,.15); }
+[data-theme="aqua"] .pipeline-bar { background:linear-gradient(180deg, rgba(255,255,255,.9), rgba(220,230,245,.85)); border:1px solid rgba(100,140,200,.3); box-shadow:0 1px 4px rgba(0,0,0,.08); }
+[data-theme="aqua"] .pip-item { background:linear-gradient(180deg, #fff, #e8ecf0); border:1px solid rgba(0,0,0,.12); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+[data-theme="aqua"] .pip-btn { border-radius:12px; }
+[data-theme="aqua"] .pip-btn.primary { background:linear-gradient(180deg, #6cb4f5, #2a7de1); color:#fff; border-color:rgba(0,0,0,.2); text-shadow:0 -1px 0 rgba(0,0,0,.2); }
+[data-theme="aqua"] .cc-panel { background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(230,240,250,.95)); box-shadow:-8px 0 32px rgba(0,0,0,.15); border-left:1px solid rgba(100,140,200,.3); }
+[data-theme="aqua"] .cc-msg { border-radius:8px; box-shadow:inset 0 1px 3px rgba(0,0,0,.08); }
+[data-theme="aqua"] .cc-btn-go { background:linear-gradient(180deg, #6cb4f5, #2a7de1); color:#fff; border-radius:12px; text-shadow:0 -1px 0 rgba(0,0,0,.2); box-shadow:0 1px 3px rgba(0,0,0,.2); }
+[data-theme="aqua"] .cc-btn-cancel { border-radius:12px; }
+[data-theme="aqua"] .term-error-badge { border-radius:12px; box-shadow:0 2px 8px rgba(239,68,68,.3); }
+[data-theme="aqua"] .section-copy-btn { border-radius:6px; }

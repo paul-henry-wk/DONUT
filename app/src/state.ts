@@ -26,8 +26,8 @@ export const ICONS: Record<string, string> = {
 // ── Data ──
 export const SCRIPT_GROUPS: ScriptGroup[] = [
   { label: 'Setup', scripts: [
-    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive to local IIS', requires: [] },
-    { id: 'setup-local-auth',    num: '01', name: 'Setup Auth',          desc: 'configure admin credentials & restart IIS', requires: ['site_path'] },
+    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive to local IIS', requires: [], admin: true },
+    { id: 'setup-local-auth',    num: '01', name: 'Setup Auth',          desc: 'configure admin credentials & restart IIS', requires: ['site_path'], admin: true },
     { id: 'set-master-packages', num: '02', name: 'Set Packages',        desc: 'select which packages are open for dev', requires: ['site_path'] },
   ]},
   { label: 'Synchronize', scripts: [

@@ -39,6 +39,7 @@ export interface ScriptDef {
   danger?: boolean;
   needsMsg?: boolean;
   requires?: string[];
+  admin?: boolean;
 }
 
 export interface ScriptGroup {

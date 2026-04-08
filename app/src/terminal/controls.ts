@@ -128,18 +128,36 @@ export function stopProgress(): void {
 export function showPRLink(termScrollToBottom: () => void): void {
   const out = document.getElementById('termOutput');
   if (!out) return;
-  // Find PR URL in terminal output
+  // Find PR URL in terminal output (first = main repo PR)
   const lines = out.querySelectorAll('.line');
   let prUrl: string | null = null;
+  let viewDiffUrl: string | null = null;
   for (const line of lines) {
     const match = (line.textContent || '').match(/(https:\/\/dev\.azure\.com\/[^\s]+\/pullrequest\/\d+)/);
-    if (match) prUrl = match[1];
+    if (match) {
+      if (!prUrl) prUrl = match[1];
+      else if (!viewDiffUrl) viewDiffUrl = match[1];
+    }
   }
   if (prUrl) {
-    const btn = document.createElement('div');
-    btn.className = 'pr-link-banner';
-    btn.innerHTML = `<span>Pull Request created!</span><button onclick="openUrl('${esc(prUrl)}')">Open PR in Azure DevOps \u2192</button>`;
-    out.appendChild(btn);
+    // Detect if PR was updated or created
+    const allText = Array.from(lines).map(l => l.textContent || '').join('\n');
+    const isUpdate = allText.includes('Pull Request #') && allText.includes('updated');
+    // Count packages from output
+    const pkgMatch = allText.match(/Packages:\s*(.+)/);
+    const pkgs = pkgMatch ? pkgMatch[1].split(',').length : 0;
+
+    const banner = document.createElement('div');
+    banner.className = 'pr-link-banner';
+    let html = `<div class="pr-banner-header"><span class="pr-banner-status ${isUpdate ? 'update' : 'create'}">${isUpdate ? '\u21BB PR updated' : '\u2714 PR created'}</span></div>`;
+    html += `<div class="pr-banner-actions">`;
+    html += `<button onclick="openUrl('${esc(prUrl)}')">Open PR \u2192</button>`;
+    if (viewDiffUrl) html += `<button class="secondary" onclick="openUrl('${esc(viewDiffUrl)}')">View Diff \u2192</button>`;
+    html += `<button class="secondary" onclick="navigator.clipboard.writeText('${esc(prUrl)}')">\u2398 Copy URL</button>`;
+    html += `</div>`;
+    if (pkgs > 0) html += `<div class="pr-banner-meta">${pkgs} package${pkgs > 1 ? 's' : ''} committed</div>`;
+    banner.innerHTML = html;
+    out.appendChild(banner);
     termScrollToBottom();
   }
 }

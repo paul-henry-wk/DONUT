@@ -34,6 +34,7 @@ import {
   doRun, showTab, validateEnvForScript, toggleWatch,
   addToPipeline, removeFromPipeline, clearPipeline, movePipelineItem,
   runPipeline, cancelPipeline, renderPipeline,
+  toggleCommitHistory, pickCommitMsg, validateCommitMsg,
 } from './scripts';
 
 import {
@@ -94,6 +95,9 @@ window.clearPipeline = clearPipeline;
 window.movePipelineItem = movePipelineItem;
 window.runPipeline = runPipeline;
 window.cancelPipeline = cancelPipeline;
+window.toggleCommitHistory = toggleCommitHistory;
+window.pickCommitMsg = pickCommitMsg;
+window.validateCommitMsg = validateCommitMsg;
 
 // From terminal.ts
 window.togglePanel = togglePanel;

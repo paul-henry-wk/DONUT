@@ -51,9 +51,20 @@ try {
 Metadata_CheckBranchExistsLocaly -Repository $_c.local.repository -Branch $_c.feature_branch -Message "You must pull-force at least once before being able to commit."
 Print_Status "Branch '$($_c.feature_branch)' exists locally"
 if ($_c.convert_md) {
+    $mdOk = $true
     foreach ($package in $_c.packages) {
         $repository = "$($_c.local.repository_metadata)\$package"
-        Metadata_CheckBranchExistsLocaly -Repository $repository -Branch $_c.md_branches.start.local -Message "Did you deactivate metadata conversion during pull-force ? You must pull-force with the conversion active at least once before being able to commit."
+        try {
+            Metadata_CheckBranchExistsLocaly -Repository $repository -Branch $_c.md_branches.start.local -Message "metadata branch missing"
+        } catch {
+            $mdOk = $false
+            break
+        }
+    }
+    if (-not $mdOk) {
+        Print_Warning "Metadata branches not found — skipping metadata conversion for this commit."
+        Print_Text "  -> To enable view-diff, run pull-force with metadata conversion enabled first."
+        $_c.convert_md = $false
     }
 }
 
@@ -179,12 +190,24 @@ if ($_c.convert_md) {
 } else {
     $Description = $Title
 }
-Print_Title "Creating Pull Request"
+Print_Title "Pull Request"
 Print_Text "Adding the cherry on top..."
 try {
+    # Check if PR already exists to show the right message
+    $existingPR = $null
+    try {
+        $apiHeaders = GetApiHeaders -AzDoToken $_c.azdo.token
+        $checkUri = "$($_c.azdo.base_uri)/_apis/git/repositories/$($_c.azdo.repository)/pullrequests?api-version=7.0&searchCriteria.sourceRefName=$([uri]::EscapeDataString("refs/heads/$($_c.feature_branch)"))&searchCriteria.targetRefName=$([uri]::EscapeDataString("refs/heads/$($_c.target_branch)"))"
+        $checkResp = SendRestRequest -Parameters @{ Headers = $apiHeaders; Method = "GET"; Uri = $checkUri }
+        if ($checkResp.count -eq 1) { $existingPR = $checkResp.value[0].pullRequestId }
+    } catch { }
     $PR_Id = CreatePullRequest -AzDoRepository $_c.azdo.repository -sourceBranch $_c.feature_branch -targetBranch $_c.target_branch -AzDoBaseURI $_c.azdo.base_uri -AzDoToken $_c.azdo.token -Title $Title -Description $Description -Identifier $_c.hash -Workitem $Workitem
     $PR_URI = "$($_c.azdo.base_uri)/_git/$($_c.azdo.repository)/pullrequest/$PR_Id"
-    Print_Status "Pull Request #$PR_Id created"
+    if ($existingPR) {
+        Print_Status "Pull Request #$PR_Id updated"
+    } else {
+        Print_Status "Pull Request #$PR_Id created"
+    }
 } catch {
     $errMsg = $_.Exception.Message
     Print_Error "Failed to create/update pull request: $errMsg"

@@ -178,3 +178,19 @@
 [data-theme="winxp"] .indicator.running { background:#3399ff; box-shadow:0 0 6px rgba(51,153,255,.5); }
 [data-theme="winxp"] .indicator.success { background:#2b7e00; }
 @keyframes xpBtnGlow { 0%,100%{box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 4px rgba(0,0,0,.2), 0 0 8px rgba(100,210,60,.25)} 50%{box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 4px rgba(0,0,0,.2), 0 0 16px rgba(100,210,60,.5)} }
+/* ── XP New components ── */
+[data-theme="winxp"] .pr-link-banner { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
+[data-theme="winxp"] .pr-link-banner button { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .pr-link-banner button:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8); filter:none; }
+[data-theme="winxp"] .pr-link-banner button.secondary { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .pipeline-bar { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
+[data-theme="winxp"] .pip-item { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
+[data-theme="winxp"] .pip-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; color:#003399; }
+[data-theme="winxp"] .pip-btn.primary { background:linear-gradient(180deg, #316ac5, #21559e); color:#fff; border-color:#003399; }
+[data-theme="winxp"] .cc-panel { background:linear-gradient(180deg, #ece9d8, #d6ceb5); border-left:1px solid #7f9db9; }
+[data-theme="winxp"] .cc-header { background:linear-gradient(180deg, #0054e3, #2372e8); border:none; }
+[data-theme="winxp"] .cc-title { color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.3); }
+[data-theme="winxp"] .cc-close { color:rgba(255,255,255,.7); }
+[data-theme="winxp"] .cc-msg { background:#fff; color:#000; border:1px solid #7f9db9; }
+[data-theme="winxp"] .cc-btn-go { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #003399; color:#003399; border-radius:3px; }
+[data-theme="winxp"] .cc-btn-cancel { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; border-radius:3px; color:#000; }

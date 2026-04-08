@@ -61,7 +61,7 @@ export function renderScripts(): void {
       return `<div class="s-card${sel}${dis}${dng}${s.id===fav?' fav':''}${isNext?' wf-next':''}${dimmed}${highlighted}" role="button" aria-pressed="${S.selectedScript===s.id}" aria-label="${esc(s.name)}: ${esc(s.desc)}" onclick="selectScript('${s.id}')" ondblclick="toggleFav('${s.id}')">
         <div class="s-card-icon">${icon}</div>
         <div class="s-card-body">
-          <div class="s-name">${esc(s.name)}${star}</div>
+          <div class="s-name">${esc(s.name)}${star}${s.admin ? '<span class="s-admin" title="Requires administrator">&#9881;</span>' : ''}</div>
           <div class="s-desc">${esc(s.desc)}</div>
         </div>
         ${badge}${pipBtn}${tooltip}
@@ -345,6 +345,17 @@ export async function doRun(): Promise<void> {
 
   if (!S.currentEnv) { toast('No environment selected', 'error'); return; }
 
+  // Admin check for scripts that require elevation
+  if (s.admin) {
+    try {
+      const isAdmin = await invoke<boolean>('is_admin');
+      if (!isAdmin) {
+        toast(`${s.name} requires administrator privileges. Right-click DONUT → "Run as Administrator"`, 'error');
+        return;
+      }
+    } catch { /* check failed, let the script handle it */ }
+  }
+
   // Install Site → wizard instead of direct run
   if (S.selectedScript === 'install-site') {
     const result = await showInstallWizard();
@@ -402,13 +413,236 @@ export async function doRun(): Promise<void> {
   if (s.needsMsg) {
     const input = document.getElementById('commitMsg') as HTMLInputElement | null;
     if (!input?.value?.trim()) { toast('Commit message is required', 'error'); return; }
-    body.message = input.value.trim();
+    let msg = input.value.trim();
+
+    // Auto-prefix with work item ID (extract numeric ID from "#123 — title" format)
+    const wiRaw = S.envConfig.workitem_id || '';
+    const wiNumMatch = wiRaw.match(/(\d+)/);
+    const wiNum = wiNumMatch ? wiNumMatch[1] : '';
+    if (wiNum && !msg.includes(`AB#${wiNum}`) && !msg.includes(`#${wiNum}`)) {
+      msg = `AB#${wiNum} - ${msg}`;
+    }
+
+    // Show donut spinner while loading data
+    const spinnerOverlay = document.createElement('div');
+    spinnerOverlay.className = 'modal-overlay';
+    spinnerOverlay.innerHTML = `<div class="cc-spinner"><div class="cc-donut-spin"></div><div class="cc-spin-text">Loading commit preview...</div></div>`;
+    document.body.appendChild(spinnerOverlay);
+
+    // Gather data in parallel
+    const fbLabel = S.envConfig.feature_branch || '?';
+    const tbLabel = S.envConfig.target_branch || '?';
+    const repoLabel = S.envConfig.azdo?.repository || '?';
+    const pkgList = (S.envConfig.packages || []);
+    const wiTitle = wiRaw.replace(/^#?\d+\s*[\u2014\-]\s*/, '').trim();
+    const sitePath = S.envConfig.local?.site_path || '';
+    const token = S.envConfig.azdo?.token;
+    const repo = S.envConfig.azdo?.repository;
+    const fb = S.envConfig.feature_branch;
+    const tb = S.envConfig.target_branch;
+    const org = S.envConfig.azdo?.organization;
+    const proj = S.envConfig.azdo?.project;
+    const convertMd = S.envConfig.deactivate_metadata_conversion !== true;
+
+    // Parallel fetches
+    const [gitResult, diffResult, branchResult] = await Promise.allSettled([
+      sitePath ? invoke<{ uncommitted: string[]; recent_commits: string[]; branch: string }>('git_preview', { sitePath }) : Promise.resolve(null),
+      (token && repo && fb && tb) ? invoke<{ ahead: number; behind: number; changes: Array<{ path: string; change_type: string }> }>('compare_branches', { token, project: proj, repository: repo, sourceBranch: fb, targetBranch: tb, organization: org }) : Promise.resolve(null),
+      (token && repo && fb) ? invoke<string[]>('list_azdo_branches', { token, project: proj, repository: repo, organization: org }) : Promise.resolve([]),
+    ]);
+
+    const gitPreview = gitResult.status === 'fulfilled' ? gitResult.value : null;
+    const remoteDiff = diffResult.status === 'fulfilled' ? diffResult.value : null;
+    const remoteBranches = branchResult.status === 'fulfilled' ? (branchResult.value as string[]) : [];
+    const branchExistsOnRemote = !fb || remoteBranches.length === 0 || remoteBranches.includes(fb);
+
+    // Remove spinner
+    spinnerOverlay.remove();
+
+    // Build commit panel (slide-in from right)
+    const confirmed = await new Promise<boolean>((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'cc-overlay';
+      const panel = document.createElement('div');
+      panel.className = 'cc-panel';
+
+      // Warnings
+      let warns = '';
+      if (!branchExistsOnRemote) warns += `<div class="cc-warn err">Branch <b>${esc(fb)}</b> not found on remote — commit will fail.</div>`;
+      if (remoteDiff && remoteDiff.behind > 0) warns += `<div class="cc-warn">${remoteDiff.behind} commit${remoteDiff.behind !== 1 ? 's' : ''} behind <b>${esc(tbLabel)}</b> — consider pulling first.</div>`;
+
+      // Changes section
+      let changesHtml = '';
+      if (remoteDiff && remoteDiff.changes.length > 0) {
+        const adds = remoteDiff.changes.filter(c => c.change_type === 'add').length;
+        const edits = remoteDiff.changes.filter(c => c.change_type !== 'add' && c.change_type !== 'delete').length;
+        const dels = remoteDiff.changes.filter(c => c.change_type === 'delete').length;
+        const total = adds + edits + dels;
+        const addPct = Math.round((adds / total) * 100);
+        const editPct = Math.round((edits / total) * 100);
+
+        changesHtml += `<div class="cc-section">`;
+        changesHtml += `<div class="cc-section-title">Changes</div>`;
+        changesHtml += `<div class="cc-diffbar"><div class="cc-diffbar-add" style="width:${addPct}%"></div><div class="cc-diffbar-edit" style="width:${editPct}%"></div><div class="cc-diffbar-del" style="width:${100 - addPct - editPct}%"></div></div>`;
+        changesHtml += `<div class="cc-change-stats">`;
+        changesHtml += `<span>${remoteDiff.ahead} commit${remoteDiff.ahead !== 1 ? 's' : ''}</span>`;
+        changesHtml += `<span>\u00B7</span>`;
+        changesHtml += `<span>${remoteDiff.changes.length} file${remoteDiff.changes.length !== 1 ? 's' : ''}</span>`;
+        if (adds) changesHtml += `<span class="cc-c-add">+${adds}</span>`;
+        if (edits) changesHtml += `<span class="cc-c-edit">~${edits}</span>`;
+        if (dels) changesHtml += `<span class="cc-c-del">\u2212${dels}</span>`;
+        changesHtml += `</div>`;
+
+        // File list (we have the space now)
+        changesHtml += `<div class="cc-filelist">`;
+        remoteDiff.changes.slice(0, 30).forEach(c => {
+          const name = c.path.split('/').pop() || c.path;
+          const dir = c.path.substring(0, c.path.length - name.length).replace(/^\//, '');
+          const cls = c.change_type === 'add' ? 'add' : c.change_type === 'delete' ? 'del' : 'edit';
+          const icon = c.change_type === 'add' ? '+' : c.change_type === 'delete' ? '\u2212' : '~';
+          changesHtml += `<div class="cc-fl ${cls}"><span class="cc-fl-icon">${icon}</span><span class="cc-fl-dir">${esc(dir)}</span><span class="cc-fl-name">${esc(name)}</span></div>`;
+        });
+        if (remoteDiff.changes.length > 30) changesHtml += `<div class="cc-fl-more">+${remoteDiff.changes.length - 30} more files</div>`;
+        changesHtml += `</div>`;
+        changesHtml += `</div>`;
+      }
+
+      // Message history
+      const history = getCommitHistory();
+      let historyHtml = '';
+      if (history.length) {
+        historyHtml = `<div class="cc-section"><div class="cc-section-title">Recent messages</div><div class="cc-history">`;
+        history.slice(0, 5).forEach(m => {
+          historyHtml += `<div class="cc-hist-item" data-msg="${esc(m)}">${esc(m.length > 80 ? m.slice(0, 77) + '...' : m)}</div>`;
+        });
+        historyHtml += `</div></div>`;
+      }
+
+      panel.innerHTML = `
+        <div class="cc-header">
+          <span class="cc-title">Commit & Push</span>
+          <button class="cc-close" id="ccClose">\u2715</button>
+        </div>
+        <div class="cc-body">
+          ${warns}
+          <div class="cc-section">
+            <div class="cc-section-title">Message</div>
+            <textarea class="cc-msg" id="ccMsgEdit" placeholder="Describe your changes...">${esc(msg)}</textarea>
+          </div>
+          ${historyHtml}
+          <div class="cc-section">
+            <div class="cc-section-title">Target</div>
+            <div class="cc-route">
+              <span class="cc-from">${esc(fbLabel)}</span>
+              <span class="cc-arrow">\u2192</span>
+              <span class="cc-to">${esc(tbLabel)}</span>
+            </div>
+            <div class="cc-props">
+              <div class="cc-prop"><span class="cc-prop-k">Repo</span><span class="cc-prop-v">${esc(repoLabel)}</span></div>
+              <div class="cc-prop"><span class="cc-prop-k">Packages</span><span class="cc-prop-v">${esc(pkgList.join(', ') || 'none')}</span></div>
+              ${wiNum ? `<div class="cc-prop"><span class="cc-prop-k">Work Item</span><span class="cc-prop-v">AB#${esc(wiNum)}${wiTitle ? ` \u2014 ${esc(wiTitle)}` : ''}</span></div>` : ''}
+            </div>
+          </div>
+          <div class="cc-section">
+            <div class="cc-opt"><label><input type="checkbox" id="ccMetadata" ${convertMd ? 'checked' : ''}> Generate metadata view-diff</label></div>
+          </div>
+          ${changesHtml}
+        </div>
+        <div class="cc-footer">
+          <button class="cc-btn-cancel" id="ccCancel">Cancel</button>
+          <button class="cc-btn-go" id="ccGo">Commit & Push \u2192</button>
+        </div>`;
+
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => { overlay.classList.add('open'); panel.querySelector<HTMLTextAreaElement>('#ccMsgEdit')?.focus(); });
+
+      // History item click → fill message
+      panel.querySelectorAll('.cc-hist-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const ta = panel.querySelector<HTMLTextAreaElement>('#ccMsgEdit');
+          if (ta) { ta.value = (el as HTMLElement).dataset.msg || ''; ta.focus(); }
+        });
+      });
+
+      const close = (val: boolean) => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); resolve(val); };
+      panel.querySelector('#ccClose')!.addEventListener('click', () => close(false));
+      panel.querySelector('#ccCancel')!.addEventListener('click', () => close(false));
+      panel.querySelector('#ccGo')!.addEventListener('click', () => close(true));
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+      overlay.addEventListener('keydown', (e: Event) => { if ((e as KeyboardEvent).key === 'Escape') close(false); });
+    });
+    if (!confirmed) return;
+
+    // Read back edited message from popup
+    const editedMsg = (document.getElementById('ccMsgEdit') as HTMLTextAreaElement)?.value?.trim();
+    if (editedMsg) msg = editedMsg;
+    if (!msg) { toast('Commit message is required', 'error'); return; }
+
+    // Apply metadata toggle
+    const mdCheckbox = document.getElementById('ccMetadata') as HTMLInputElement | null;
+    if (mdCheckbox) {
+      S.envConfig.deactivate_metadata_conversion = !mdCheckbox.checked;
+    }
+
+    body.message = msg;
+
+    // Save to commit history
+    saveCommitHistory(msg);
   }
 
   appendLog(`> donut ${S.selectedScript} ${S.currentEnv}`, 'prompt');
   appendLog(pickRandom(getThemeMsgs().run), 'dim');
   try { await invoke('run_script', { script: S.selectedScript, envFile: S.currentEnv, message: body.message || null }); }
   catch(e) { appendLog('Failed to start: '+e, 'err'); }
+}
+
+// ── Commit message history ──
+
+function getCommitHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem('donut-commit-history') || '[]'); }
+  catch { return []; }
+}
+
+function saveCommitHistory(msg: string): void {
+  // Strip AB# prefix for storage (will be re-added)
+  const clean = msg.replace(/^AB#\d+\s*-\s*/, '').trim();
+  if (!clean) return;
+  const history = getCommitHistory().filter(m => m !== clean);
+  history.unshift(clean);
+  if (history.length > 10) history.length = 10;
+  localStorage.setItem('donut-commit-history', JSON.stringify(history));
+}
+
+export function toggleCommitHistory(): void {
+  const dd = document.getElementById('commitHistDropdown');
+  if (dd) dd.classList.toggle('visible');
+}
+
+export function pickCommitMsg(el: HTMLElement): void {
+  const input = document.getElementById('commitMsg') as HTMLInputElement | null;
+  if (input) {
+    input.value = el.title || el.textContent || '';
+    input.focus();
+    validateCommitMsg(input);
+  }
+  const dd = document.getElementById('commitHistDropdown');
+  if (dd) dd.classList.remove('visible');
+}
+
+// ── Commit message validation (#4) ──
+
+export function validateCommitMsg(input: HTMLInputElement): void {
+  const el = document.getElementById('commitValidation');
+  if (!el) return;
+  const val = input.value.trim();
+  const len = val.length;
+  if (len === 0) { el.textContent = ''; el.className = 'commit-validation'; return; }
+  if (len < 5) { el.textContent = 'too short'; el.className = 'commit-validation warn'; return; }
+  if (len > 200) { el.textContent = `${len}/200`; el.className = 'commit-validation warn'; return; }
+  const wiId = S.envConfig.workitem_id;
+  if (!wiId) { el.textContent = 'no work item linked'; el.className = 'commit-validation dim'; return; }
+  el.textContent = `${len} chars`; el.className = 'commit-validation ok';
 }
 
 // ── Pipeline (script queue) ──
