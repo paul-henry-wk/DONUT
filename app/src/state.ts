@@ -121,6 +121,9 @@ export const S = {
   cachedWorkItems: [] as WorkItem[],
   isWatching: false,
   _pendingInstallSitePath: null as string | null,
+  pipeline: [] as string[],
+  pipelineRunning: false,
+  pipelineIdx: 0,
 };
 
 // ── Tauri bindings (lazy access to avoid crash if __TAURI__ not yet injected) ──

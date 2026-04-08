@@ -217,12 +217,29 @@ function renderDevopsContent(): void {
       } else {
         html += `<div class="dv-merge-fail">${DV_ICO.x} ${conflicts.conflicts.length} conflict(s) detected</div>`;
         if (conflicts.conflicts.length > 0) {
-          html += '<div class="dv-conflict-files">';
-          conflicts.conflicts.slice(0, 15).forEach((c: any) => {
-            const path = c?.path || c?.filePath || JSON.stringify(c);
-            html += `<div class="dv-conflict-file">\u26A0 ${esc(String(path))}</div>`;
+          // Group conflicts by directory for clearer display
+          const conflictPaths: string[] = conflicts.conflicts.map((c: any) => String(c?.path || c?.filePath || c));
+          const groups: Record<string, string[]> = {};
+          conflictPaths.forEach(p => {
+            const parts = p.replace(/\\/g, '/').split('/');
+            const file = parts.pop() || p;
+            const dir = parts.length > 0 ? parts.join('/') : '/';
+            if (!groups[dir]) groups[dir] = [];
+            groups[dir].push(file);
           });
-          if (conflicts.conflicts.length > 15) html += `<div class="dv-empty-small">... and ${conflicts.conflicts.length - 15} more</div>`;
+          html += '<div class="dv-conflict-files">';
+          const EXT_ICONS: Record<string, string> = { cs: '\u{1F7E6}', xml: '\u{1F7E8}', json: '\u{1F7E8}', config: '\u2699', sql: '\u{1F4BE}', ps1: '\u{1F7E9}', ts: '\u{1F535}', js: '\u{1F7E1}' };
+          for (const [dir, files] of Object.entries(groups)) {
+            html += `<div class="dv-conflict-group"><div class="dv-conflict-dir">${esc(dir)}/</div>`;
+            files.slice(0, 10).forEach(f => {
+              const ext = f.split('.').pop()?.toLowerCase() || '';
+              const icon = EXT_ICONS[ext] || '\u26A0';
+              html += `<div class="dv-conflict-file"><span class="dv-conflict-icon">${icon}</span><span class="dv-conflict-name">${esc(f)}</span><span class="dv-conflict-ext">${esc(ext)}</span></div>`;
+            });
+            if (files.length > 10) html += `<div class="dv-empty-small">+${files.length - 10} more in this folder</div>`;
+            html += '</div>';
+          }
+          if (conflictPaths.length > 30) html += `<div class="dv-empty-small">... and ${conflictPaths.length - 30} more conflicts</div>`;
           html += '</div>';
         }
       }

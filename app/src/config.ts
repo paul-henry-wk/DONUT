@@ -32,6 +32,8 @@ interface TemplateInfo { name: string; description: string; filename: string; }
       case 'new': createNewEnv(); break;
       case 'clone': cloneCurrentEnv(); break;
       case 'rename': renameCurrentEnv(); break;
+      case 'export': exportEnv(); break;
+      case 'import': importEnv(); break;
       case 'delete': deleteCurrentEnv(); break;
       case 'save': saveConfig(); break;
     }
@@ -109,6 +111,58 @@ export async function renameCurrentEnv(): Promise<void> {
   } catch(e) { toast('Rename: '+e, 'error'); }
 }
 
+// ── Export / Import environments ──
+
+function exportEnv(): void {
+  if (!S.currentEnv) return;
+  // Clone config and strip sensitive fields
+  const config = JSON.parse(JSON.stringify(S.envConfig)) as EnvConfig;
+  if (config.azdo) delete (config.azdo as any).token;
+  if (config.local) {
+    delete (config.local as any).password;
+    delete (config.local as any).developer_password;
+    delete (config.local as any).db_password;
+  }
+  const json = JSON.stringify(config, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const label = S.currentEnv.replace(/\.json$/, '');
+  a.download = `${label}.env.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Environment exported (without secrets)', 'success');
+}
+
+async function importEnv(): Promise<void> {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const config = JSON.parse(text) as EnvConfig;
+      // Derive env name from filename
+      let name = file.name.replace(/\.env\.json$/, '').replace(/\.json$/, '');
+      if (!name) name = 'imported';
+      // Create the env
+      await invoke('create_env', { name });
+      // Save the config into it
+      const envs: string[] = await invoke('list_envs');
+      const match = envs.find(e => e.includes(name));
+      if (match) {
+        await invoke('save_env', { name: match, config });
+        toast(`Imported: ${match} — fill in secrets (PAT, passwords)`, 'success');
+        await refreshEnvList(name);
+      }
+    } catch (e) { toast('Import failed: ' + e, 'error'); }
+  };
+  input.click();
+}
+
 async function refreshEnvList(selectName: string): Promise<void> {
   const envs: string[] = await invoke('list_envs');
   const sel = document.getElementById('envSel') as HTMLSelectElement;
@@ -127,7 +181,7 @@ export function renderConfig(): void {
     if (!el) return;
     el.innerHTML = envs.map(e =>
       `<div class="cfg-env${e===S.currentEnv?' active':''}" data-env="${esc(e)}">${esc(e)}</div>`
-    ).join('') + `<div class="cfg-env-actions"><button class="cfg-env-btn" data-action="new" title="New environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button><button class="cfg-env-btn" data-action="clone" title="Clone environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button><button class="cfg-env-btn" data-action="rename" title="Rename environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="cfg-env-btn del" data-action="delete" title="Delete environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></div>`
+    ).join('') + `<div class="cfg-env-actions"><button class="cfg-env-btn" data-action="new" title="New environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button><button class="cfg-env-btn" data-action="clone" title="Clone environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button><button class="cfg-env-btn" data-action="rename" title="Rename environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="cfg-env-btn" data-action="export" title="Export environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button><button class="cfg-env-btn" data-action="import" title="Import environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button><button class="cfg-env-btn del" data-action="delete" title="Delete environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></div>`
     + `<div class="cfg-save-sidebar"><button class="save-btn" data-action="save">SAVE</button><span class="msg" id="cfgMsg2"></span></div>`;
   });
 
@@ -170,7 +224,7 @@ export function renderConfig(): void {
         ${field('c-spw','site password',c.local?.password||'','','password','Site admin password')}
         ${field('c-devpw','developer password',c.local?.developer_password||'','','password','Builder developer password (used by Setup Local Auth)')}
         ${field('c-dbu','DB user',c.local?.db_user||'sa','','text','SQL Server login (default: sa)')}
-        ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}
+        ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}<span id="credBadgeSql" class="cred-badge" style="display:none"></span>
         <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="cfg-action-btn pkg-load-btn" onclick="loadPackages()">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="cfg-action-btn" onclick="selectAllPkgs()">all</button><button class="cfg-action-btn" onclick="deselectAllPkgs()">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
       </div>
     `)}
@@ -182,6 +236,7 @@ export function renderConfig(): void {
       <div class="cfg-btn-row">
         <button class="cfg-action-btn" onclick="wizValidatePat()">test PAT & load projects</button>
         <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">create a PAT ↗</button>
+        <span id="credBadgePat" class="cred-badge" style="display:none"></span>
       </div>
     `)}
     ${wizStep(3, 'Project & Repository', okToken, okRepo, okRepo ? `${proj} / ${repo}` : (okProj ? proj : ''), `
@@ -706,9 +761,61 @@ export async function saveConfig(): Promise<void> {
     } else {
       toast('Configuration saved', 'success');
     }
+    // Async credential validation (non-blocking, runs after save)
+    validateCredentials(config);
   } catch(e) {
     const el = document.getElementById('cfgMsg2'); if (el) { el.textContent = String(e); el.className = 'msg err'; }
   }
+}
+
+// ── Async credential validation after save ──
+async function validateCredentials(config: EnvConfig): Promise<void> {
+  const results: string[] = [];
+  // Test PAT
+  if (config.azdo?.token && config.azdo?.organization) {
+    try {
+      const valid = await invoke<boolean>('validate_pat', { token: config.azdo.token, organization: config.azdo.organization });
+      if (!valid) results.push('\u274C PAT Azure DevOps invalide');
+    } catch { results.push('\u274C PAT Azure DevOps : connexion \u00e9chou\u00e9e'); }
+  }
+  // Test SQL (via quick_health, only the SQL part)
+  const sitePath = config.local?.site_path || '';
+  const dbPass = config.local?.db_password || '';
+  const dbUser = config.local?.db_user || 'sa';
+  if (sitePath && dbPass) {
+    try {
+      const siteId = sitePath.split(/[\\\/]/).pop() || '';
+      const health = await invoke<{ sql: boolean; sql_detail: string }>('quick_health', {
+        sitePath, siteId, dbUser, dbPassword: dbPass, parentSite: config.local?.parent_site || ''
+      });
+      if (!health.sql) results.push(`\u274C SQL Server : ${health.sql_detail}`);
+    } catch { /* SQL check not critical */ }
+  }
+  // Show validation results
+  if (results.length) {
+    toast(results.join(' \u00B7 '), 'warn');
+  }
+  // Update credential status indicators in the form
+  updateCredentialBadges(config, results);
+}
+
+function updateCredentialBadges(config: EnvConfig, errors: string[]): void {
+  const patBadge = document.getElementById('credBadgePat');
+  const sqlBadge = document.getElementById('credBadgeSql');
+  const hasPat = config.azdo?.token && config.azdo?.organization;
+  const hasSql = config.local?.site_path && config.local?.db_password;
+  const patFailed = errors.some(e => e.includes('PAT'));
+  const sqlFailed = errors.some(e => e.includes('SQL'));
+  if (patBadge && hasPat) {
+    patBadge.textContent = patFailed ? '\u274C' : '\u2705';
+    patBadge.title = patFailed ? 'PAT invalid' : 'PAT valid';
+    patBadge.style.display = 'inline';
+  } else if (patBadge) { patBadge.style.display = 'none'; }
+  if (sqlBadge && hasSql) {
+    sqlBadge.textContent = sqlFailed ? '\u274C' : '\u2705';
+    sqlBadge.title = sqlFailed ? 'SQL connection failed' : 'SQL connected';
+    sqlBadge.style.display = 'inline';
+  } else if (sqlBadge) { sqlBadge.style.display = 'none'; }
 }
 
 let _lastFormSnapshot: string = '';

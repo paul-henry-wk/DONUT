@@ -57,13 +57,14 @@ export function renderScripts(): void {
         }
         tooltip = `<div class="s-tooltip">${tips}</div>`;
       }
+      const pipBtn = !S.isRunning && !s.danger ? `<button class="pip-add-btn" onclick="event.stopPropagation();addToPipeline('${s.id}')" title="Add to pipeline">+</button>` : '';
       return `<div class="s-card${sel}${dis}${dng}${s.id===fav?' fav':''}${isNext?' wf-next':''}${dimmed}${highlighted}" role="button" aria-pressed="${S.selectedScript===s.id}" aria-label="${esc(s.name)}: ${esc(s.desc)}" onclick="selectScript('${s.id}')" ondblclick="toggleFav('${s.id}')">
         <div class="s-card-icon">${icon}</div>
         <div class="s-card-body">
           <div class="s-name">${esc(s.name)}${star}</div>
           <div class="s-desc">${esc(s.desc)}</div>
         </div>
-        ${badge}${tooltip}
+        ${badge}${pipBtn}${tooltip}
       </div>`;
     }).join('');
     return `<div class="s-group-label">${esc(g.label)}</div>${cards}`;
@@ -370,11 +371,29 @@ export async function doRun(): Promise<void> {
   }
 
   if (s.danger) {
+    // Fetch git preview for context-aware confirmation
+    let previewHtml = '';
+    const sitePath = S.envConfig.local?.site_path || '';
+    if (sitePath) {
+      try {
+        const preview = await invoke<{ uncommitted: string[]; recent_commits: string[]; branch: string }>('git_preview', { sitePath });
+        const parts: string[] = [];
+        if (preview.branch) parts.push(`<div class="drp-section"><strong>Branch :</strong> ${esc(preview.branch)}</div>`);
+        if (preview.uncommitted.length) {
+          parts.push(`<div class="drp-section"><strong>${preview.uncommitted.length} fichier(s) non commit\u00e9(s) :</strong><div class="drp-list">${preview.uncommitted.slice(0, 10).map(f => `<div class="drp-file">${esc(f)}</div>`).join('')}${preview.uncommitted.length > 10 ? `<div class="drp-more">... et ${preview.uncommitted.length - 10} de plus</div>` : ''}</div></div>`);
+        }
+        if (s.id === 'rollback' && preview.recent_commits.length) {
+          parts.push(`<div class="drp-section"><strong>Commits r\u00e9cents (seront revert\u00e9s) :</strong><div class="drp-list">${preview.recent_commits.map(c => `<div class="drp-commit">${esc(c)}</div>`).join('')}</div></div>`);
+        }
+        if (parts.length) previewHtml = `<div class="drp-preview">${parts.join('')}</div>`;
+      } catch { /* git not available, show basic message */ }
+    }
     const dangerMsgs: Record<string, string> = {
       'reset': 'This will wipe the local site and rebuild from scratch. All local changes and commit history will be lost.',
       'rollback': 'This will undo commits by creating a revert. Previous history is preserved but changes will be reverted.',
     };
-    const ok = await (window as any).showConfirm(s.name, dangerMsgs[s.id] || 'This is a destructive operation. Are you sure?');
+    const message = (dangerMsgs[s.id] || 'This is a destructive operation. Are you sure?') + previewHtml;
+    const ok = await (window as any).showModal({ title: s.name, message, danger: true, html: !!previewHtml, confirmLabel: 'Confirm', cancelLabel: 'Cancel' });
     if (!ok) return;
   }
 
@@ -390,6 +409,140 @@ export async function doRun(): Promise<void> {
   appendLog(pickRandom(getThemeMsgs().run), 'dim');
   try { await invoke('run_script', { script: S.selectedScript, envFile: S.currentEnv, message: body.message || null }); }
   catch(e) { appendLog('Failed to start: '+e, 'err'); }
+}
+
+// ── Pipeline (script queue) ──
+
+export function addToPipeline(id: string): void {
+  if (S.pipelineRunning) return;
+  S.pipeline.push(id);
+  renderPipeline();
+}
+
+export function removeFromPipeline(idx: number): void {
+  if (S.pipelineRunning) return;
+  S.pipeline.splice(idx, 1);
+  renderPipeline();
+}
+
+export function clearPipeline(): void {
+  if (S.pipelineRunning) return;
+  S.pipeline = [];
+  renderPipeline();
+}
+
+export function movePipelineItem(from: number, to: number): void {
+  if (S.pipelineRunning || to < 0 || to >= S.pipeline.length) return;
+  const [item] = S.pipeline.splice(from, 1);
+  S.pipeline.splice(to, 0, item);
+  renderPipeline();
+}
+
+export function renderPipeline(): void {
+  const el = document.getElementById('pipelineBar');
+  if (!el) return;
+  if (!S.pipeline.length) {
+    el.classList.remove('visible');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.add('visible');
+  const items = S.pipeline.map((id, i) => {
+    const s = SCRIPTS.find(x => x.id === id);
+    const name = s?.name || id;
+    const icon = ICONS[id] || '';
+    const running = S.pipelineRunning && i === S.pipelineIdx;
+    const done = S.pipelineRunning && i < S.pipelineIdx;
+    const cls = running ? 'pip-item running' : done ? 'pip-item done' : 'pip-item';
+    const status = done ? '<span class="pip-done">\u2714</span>' : running ? '<span class="pip-running">\u25B6</span>' : '';
+    const movebtns = !S.pipelineRunning ? `<span class="pip-move" onclick="event.stopPropagation();movePipelineItem(${i},${i - 1})" title="Move up">\u25B2</span><span class="pip-move" onclick="event.stopPropagation();movePipelineItem(${i},${i + 1})" title="Move down">\u25BC</span>` : '';
+    const removebtn = !S.pipelineRunning ? `<span class="pip-remove" onclick="event.stopPropagation();removeFromPipeline(${i})" title="Remove">\u2715</span>` : '';
+    return `<div class="${cls}" draggable="${!S.pipelineRunning}" data-pip-idx="${i}">${status}<span class="pip-icon">${icon}</span><span class="pip-name">${esc(name)}</span>${movebtns}${removebtn}</div>`;
+  }).join('<span class="pip-arrow">\u25B6</span>');
+
+  const actions = S.pipelineRunning
+    ? `<button class="pip-btn danger" onclick="cancelPipeline()">cancel</button>`
+    : `<button class="pip-btn primary" onclick="runPipeline()">run pipeline</button><button class="pip-btn" onclick="clearPipeline()">clear</button>`;
+  el.innerHTML = `<div class="pip-label">Pipeline (${S.pipeline.length})</div><div class="pip-items">${items}</div><div class="pip-actions">${actions}</div>`;
+
+  // Drag & drop reordering
+  if (!S.pipelineRunning) setupPipelineDragDrop();
+}
+
+function setupPipelineDragDrop(): void {
+  const items = document.querySelectorAll('.pip-item[draggable="true"]');
+  items.forEach(el => {
+    el.addEventListener('dragstart', (e: Event) => {
+      const de = e as DragEvent;
+      de.dataTransfer!.setData('text/plain', (el as HTMLElement).dataset.pipIdx || '');
+      (el as HTMLElement).classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => (el as HTMLElement).classList.remove('dragging'));
+    el.addEventListener('dragover', (e: Event) => { e.preventDefault(); (el as HTMLElement).classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => (el as HTMLElement).classList.remove('drag-over'));
+    el.addEventListener('drop', (e: Event) => {
+      e.preventDefault();
+      const de = e as DragEvent;
+      (el as HTMLElement).classList.remove('drag-over');
+      const from = parseInt(de.dataTransfer!.getData('text/plain'));
+      const to = parseInt((el as HTMLElement).dataset.pipIdx || '0');
+      if (!isNaN(from) && !isNaN(to) && from !== to) movePipelineItem(from, to);
+    });
+  });
+}
+
+export async function runPipeline(): Promise<void> {
+  if (!S.pipeline.length || S.isRunning || S.pipelineRunning) return;
+  if (!S.currentEnv) { toast('No environment selected', 'error'); return; }
+  S.pipelineRunning = true;
+  S.pipelineIdx = 0;
+  renderPipeline();
+  runPipelineStep();
+}
+
+function runPipelineStep(): void {
+  if (S.pipelineIdx >= S.pipeline.length) {
+    // Pipeline complete
+    S.pipelineRunning = false;
+    toast(`Pipeline complete (${S.pipeline.length} steps)`, 'success');
+    renderPipeline();
+    return;
+  }
+  const scriptId = S.pipeline[S.pipelineIdx];
+  S.selectedScript = scriptId;
+  renderScripts();
+  renderRunBar();
+  renderPipeline();
+  // Defer to doRun (skip danger confirm in pipeline mode)
+  appendLog(`\u2500\u2500 Pipeline step ${S.pipelineIdx + 1}/${S.pipeline.length} \u2500\u2500`, 'title');
+  invoke('run_script', { script: scriptId, envFile: S.currentEnv, message: null }).catch(e => {
+    appendLog('Pipeline step failed to start: ' + e, 'err');
+    S.pipelineRunning = false;
+    renderPipeline();
+  });
+}
+
+// Called from app.ts on run-end when pipeline is active
+export function onPipelineRunEnd(ok: boolean): void {
+  if (!S.pipelineRunning) return;
+  if (!ok) {
+    // Stop pipeline on failure
+    const failed = S.pipeline[S.pipelineIdx];
+    const name = SCRIPTS.find(x => x.id === failed)?.name || failed;
+    toast(`Pipeline stopped: ${name} failed`, 'error');
+    S.pipelineRunning = false;
+    renderPipeline();
+    return;
+  }
+  S.pipelineIdx++;
+  // Small delay before next step to let UI settle
+  setTimeout(() => runPipelineStep(), 1000);
+}
+
+export function cancelPipeline(): void {
+  S.pipelineRunning = false;
+  renderPipeline();
+  toast('Pipeline cancelled', 'warn');
 }
 
 // ── Tabs ──

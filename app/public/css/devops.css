@@ -116,7 +116,13 @@
 
 /* Conflict files */
 .dv-conflict-files { margin:6px 14px 8px; }
-.dv-conflict-file { font-size:10.5px; color:var(--warn); padding:2px 0; }
+.dv-conflict-group { margin-bottom:8px; }
+.dv-conflict-group:last-child { margin-bottom:0; }
+.dv-conflict-dir { font-size:10px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; padding:2px 0 1px; border-bottom:1px solid color-mix(in srgb, var(--border) 50%, transparent); margin-bottom:2px; }
+.dv-conflict-file { display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--warn); padding:2px 0 2px 8px; }
+.dv-conflict-icon { font-size:10px; flex-shrink:0; }
+.dv-conflict-name { font-family:'JetBrains Mono',monospace; font-weight:600; }
+.dv-conflict-ext { font-size:9px; color:var(--text-dim); background:rgba(255,255,255,.06); padding:0 4px; border-radius:3px; }
 
 /* Tools */
 .dv-tools { padding:8px 0; display:flex; gap:6px; }

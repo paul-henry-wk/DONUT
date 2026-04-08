@@ -24,7 +24,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.ico", "icons/128x128.png", "icons/32x32.png"]
+    "icon": ["icons/icon.ico", "icons/128x128.png", "icons/32x32.png"],
+    "resources": {
+      "../cli/scripts": "cli/scripts",
+      "../cli/modules": "cli/modules",
+      "../cli/config": "cli/config",
+      "../templates": "templates"
+    }
   },
   "plugins": {}
 }

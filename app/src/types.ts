@@ -145,6 +145,7 @@ declare global {
     __TAURI__: {
       core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
       event: { listen: (event: string, handler: (event: { payload: ScriptEvent }) => void) => Promise<() => void> };
+      window: { getCurrentWindow: () => { requestUserAttention: (type: number | null) => Promise<void>; setFocus: () => Promise<void> } };
     };
     _prereqs?: PrereqCheck[];
     _installCmds?: Record<string, string>;

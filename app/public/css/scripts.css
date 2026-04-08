@@ -51,6 +51,36 @@
 .selected-info { color:var(--accent); font-size:11px; margin-bottom:12px; padding:6px 10px; background:var(--accent-bg); border-radius:4px; border:1px solid var(--border-bar); }
 .selected-info:empty { display:none; }
 
+/* ── Pipeline bar ── */
+.pipeline-bar { display:none; margin-bottom:6px; padding:6px 10px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; gap:8px; align-items:center; animation:termFadeIn .15s ease; }
+.pipeline-bar.visible { display:flex; }
+.pip-label { font-size:10px; color:var(--text-dim); font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+.pip-items { display:flex; align-items:center; gap:2px; flex:1; overflow-x:auto; padding:2px 0; }
+.pip-arrow { color:var(--text-dim); font-size:8px; flex-shrink:0; }
+.pip-item { display:flex; align-items:center; gap:4px; padding:3px 8px; border-radius:5px; background:var(--accent-bg); border:1px solid var(--border); font-size:10.5px; cursor:grab; white-space:nowrap; transition:all .15s; }
+.pip-item.dragging { opacity:.4; }
+.pip-item.drag-over { border-color:var(--accent); box-shadow:0 0 6px var(--accent-glow); }
+.pip-item.running { border-color:var(--accent); background:rgba(59,130,246,.15); }
+.pip-item.done { opacity:.5; }
+.pip-icon { width:12px; height:12px; flex-shrink:0; }
+.pip-icon .s-icon { width:12px; height:12px; }
+.pip-name { font-weight:600; }
+.pip-done { color:var(--success); font-size:10px; }
+.pip-running { color:var(--accent); font-size:8px; animation:blink 1s infinite; }
+.pip-move { cursor:pointer; font-size:8px; color:var(--text-dim); padding:0 1px; }
+.pip-move:hover { color:var(--accent); }
+.pip-remove { cursor:pointer; font-size:10px; color:var(--text-dim); padding:0 2px; margin-left:2px; }
+.pip-remove:hover { color:var(--danger); }
+.pip-actions { display:flex; gap:4px; margin-left:auto; flex-shrink:0; }
+.pip-btn { font-family:inherit; font-size:10px; padding:3px 10px; border-radius:5px; border:1px solid var(--border); background:none; color:var(--text-dim); cursor:pointer; transition:all .15s; }
+.pip-btn:hover { color:var(--accent); border-color:var(--accent); }
+.pip-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+.pip-btn.primary:hover { filter:brightness(1.15); }
+.pip-btn.danger { color:var(--danger); border-color:var(--danger); }
+.pip-add-btn { position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%; border:1px solid var(--border); background:var(--bg-raised); color:var(--text-dim); font-size:12px; font-weight:700; line-height:1; cursor:pointer; display:none; align-items:center; justify-content:center; transition:all .15s; z-index:2; }
+.s-card:hover .pip-add-btn { display:flex; }
+.pip-add-btn:hover { color:var(--accent); border-color:var(--accent); background:var(--accent-bg); }
+
 /* ── Workflow bar ── */
 .workflow-bar { display:flex; align-items:center; margin-bottom:8px; padding:6px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; gap:0; min-height:40px; position:relative; overflow-x:auto; overflow-y:hidden; }
 .workflow-bar:empty { display:none; }
@@ -78,16 +108,28 @@
 /* Script highlight from workflow step click */
 .s-card.wf-highlighted { border-color:var(--accent); box-shadow:0 0 12px var(--accent-glow); animation:wfPulse 2s ease-in-out infinite; }
 .s-card.wf-highlighted .s-card-icon { color:var(--accent); }
-.wf-history-popup { position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; padding:8px 0; z-index:100; min-width:280px; max-height:240px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.3); animation:termFadeIn .15s ease; }
-.wf-h-title { font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; padding:2px 12px 6px; border-bottom:1px solid var(--border); margin-bottom:4px; }
-.wf-h-row { display:flex; align-items:center; gap:6px; padding:3px 12px; font-size:10.5px; color:var(--text); }
+.wf-history-popup { position:fixed; background:var(--bg-raised); border:1px solid var(--border); border-radius:10px; padding:0; z-index:1000; min-width:340px; max-width:420px; max-height:360px; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.35); animation:termFadeIn .15s ease; }
+.wf-h-title { font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; padding:10px 14px 4px; font-weight:700; }
+.wf-h-summary { font-size:11px; color:var(--text); padding:2px 14px 8px; border-bottom:1px solid var(--border); }
+.wf-h-summary strong { color:var(--accent); }
+.wf-h-empty { padding:20px 14px; text-align:center; color:var(--text-dim); font-size:11px; line-height:1.6; }
+.wf-h-row { display:flex; align-items:flex-start; gap:6px; padding:7px 14px; font-size:11px; color:var(--text); border-bottom:1px solid color-mix(in srgb, var(--border) 40%, transparent); }
+.wf-h-row:last-child { border-bottom:none; }
 .wf-h-row:hover { background:var(--accent-bg); }
-.wf-h-icon { width:14px; height:14px; flex-shrink:0; color:var(--text-dim); }
+.wf-h-status { flex-shrink:0; font-size:8px; margin-top:3px; }
+.wf-h-ok { color:#22c55e; }
+.wf-h-fail { color:#ef4444; }
+.wf-h-icon { width:14px; height:14px; flex-shrink:0; color:var(--text-dim); margin-top:1px; }
 .wf-h-icon .s-icon { width:12px; height:12px; }
+.wf-h-details { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.wf-h-main { display:flex; align-items:center; gap:6px; }
 .wf-h-name { font-weight:600; }
-.wf-h-arrow { color:var(--text-dim); font-size:10.5px; }
-.wf-h-state { color:var(--accent); font-size:10.5px; }
-.wf-h-time { margin-left:auto; color:var(--text-dim); font-size:10.5px; font-variant-numeric:tabular-nums; }
+.wf-h-dur { font-size:10px; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+.wf-h-transition { display:flex; align-items:center; gap:4px; font-size:9.5px; }
+.wf-h-from { color:var(--text-dim); }
+.wf-h-arrow { color:var(--text-dim); }
+.wf-h-state { color:var(--accent); }
+.wf-h-time { margin-left:auto; color:var(--text-dim); font-size:10px; font-variant-numeric:tabular-nums; white-space:nowrap; flex-shrink:0; margin-top:1px; }
 
 /* ── Workflow badges on script cards ── */
 .wf-badge { position:absolute; top:-1px; right:12px; transform:translateY(-50%); font-size:9.5px; border-radius:4px; padding:1px 8px; font-weight:600; letter-spacing:.3px; text-transform:uppercase; }

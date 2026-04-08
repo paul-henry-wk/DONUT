@@ -137,8 +137,12 @@ export function toggleMetadataBlocks(): void {
   const blocks = document.querySelectorAll('.diff-block.metadata-only');
   const allHidden = blocks.length > 0 && blocks[0].classList.contains('meta-hidden');
   blocks.forEach(b => b.classList.toggle('meta-hidden', !allHidden));
-  // Update button text
-  const btn = document.querySelector('.dfs-btn');
+  // Update button text to reflect current state
+  const btn = document.querySelector('.dfs-btn[onclick="toggleMetadataBlocks()"]');
+  if (btn) {
+    const count = blocks.length;
+    btn.textContent = allHidden ? `${count} metadata-only` : `show ${count} metadata`;
+  }
 }
 
 // ── Diff file navigator ──

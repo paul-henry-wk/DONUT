@@ -37,6 +37,8 @@ export function formatDuration(ms: number): string {
   return m + 'm ' + String(s % 60).padStart(2, '0') + 's';
 }
 
+let _currentEstimate: number | null = null;
+
 export function startRunTimer(): void {
   S.runStartTime = Date.now();
   stopRunTimer();
@@ -44,8 +46,21 @@ export function startRunTimer(): void {
   if (el) { el.textContent = '0s'; el.style.display = 'inline'; }
   S.runTimerInterval = setInterval(() => {
     const el = document.getElementById('termTimer');
-    if (el) el.textContent = formatDuration(Date.now() - S.runStartTime);
+    if (!el) return;
+    const elapsed = Date.now() - S.runStartTime;
+    let text = formatDuration(elapsed);
+    if (_currentEstimate && _currentEstimate > 0) {
+      const remaining = Math.max(0, _currentEstimate - elapsed);
+      if (remaining > 0) {
+        text += ` / ~${formatDuration(_currentEstimate)}`;
+      }
+    }
+    el.textContent = text;
   }, 1000);
+}
+
+export function setEstimate(scriptId: string): void {
+  _currentEstimate = getEstimatedDuration(scriptId);
 }
 
 export function stopRunTimer(): string {
@@ -53,6 +68,7 @@ export function stopRunTimer(): string {
   const dur = S.runStartTime ? formatDuration(Date.now() - S.runStartTime) : '0s';
   const el = document.getElementById('termTimer');
   if (el) el.style.display = 'none';
+  _currentEstimate = null;
   return dur;
 }
 

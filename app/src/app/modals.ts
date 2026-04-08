@@ -20,11 +20,12 @@ export function showModal(opts: ModalOptions): Promise<string | boolean | null> 
     titleEl.textContent = title || '';
     box.appendChild(titleEl);
 
-    // Message
+    // Message (supports HTML when html property is set)
     if (message) {
       const msgEl = document.createElement('div');
       msgEl.className = 'modal-msg';
-      msgEl.textContent = message;
+      if ((opts as any).html) { msgEl.innerHTML = message; }
+      else { msgEl.textContent = message; }
       box.appendChild(msgEl);
     }
 

@@ -587,3 +587,46 @@ mod tests {
         assert!(result.is_err());
     }
 }
+
+// ── Git preview for dangerous operations ──
+
+#[derive(serde::Serialize)]
+pub(crate) struct GitPreview {
+    uncommitted: Vec<String>,
+    recent_commits: Vec<String>,
+    branch: String,
+}
+
+#[tauri::command]
+pub(crate) async fn git_preview(site_path: String) -> Result<GitPreview, AppError> {
+    if site_path.is_empty() { return Err(AppError::Validation("Site path is empty.".into())); }
+    let sp = site_path.clone();
+    tokio::task::spawn_blocking(move || {
+        // Current branch
+        let branch_out = hidden_cmd("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&sp)
+            .output();
+        let branch = branch_out.map(|o| strip_ansi(&String::from_utf8_lossy(&o.stdout)).trim().to_string()).unwrap_or_default();
+
+        // Uncommitted changes (porcelain)
+        let status_out = hidden_cmd("git")
+            .args(["status", "--porcelain"])
+            .current_dir(&sp)
+            .output();
+        let uncommitted: Vec<String> = status_out
+            .map(|o| String::from_utf8_lossy(&o.stdout).lines().take(20).map(|l| l.to_string()).collect())
+            .unwrap_or_default();
+
+        // Recent commits (last 10)
+        let log_out = hidden_cmd("git")
+            .args(["log", "--oneline", "-10", "--no-color"])
+            .current_dir(&sp)
+            .output();
+        let recent_commits: Vec<String> = log_out
+            .map(|o| String::from_utf8_lossy(&o.stdout).lines().map(|l| l.to_string()).collect())
+            .unwrap_or_default();
+
+        Ok(GitPreview { uncommitted, recent_commits, branch })
+    }).await.map_err(|e| AppError::Validation(e.to_string()))?
+}

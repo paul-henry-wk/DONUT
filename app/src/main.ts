@@ -26,12 +26,14 @@ import {
   expandAllDiff, collapseAllDiff, toggleMetadataBlocks, navigateDiffBlock,
   navigateErrors, startProgress, stopProgress,
   startPatienceMessages, stopPatienceMessages, showPRLink,
-  openFilePath, setTermFontSize, addRunHistory, doStop,
+  openFilePath, setTermFontSize, addRunHistory, doStop, copySection,
 } from './terminal';
 
 import {
   renderScripts, selectScript, toggleFav, renderRunBar,
   doRun, showTab, validateEnvForScript, toggleWatch,
+  addToPipeline, removeFromPipeline, clearPipeline, movePipelineItem,
+  runPipeline, cancelPipeline, renderPipeline,
 } from './scripts';
 
 import {
@@ -86,6 +88,12 @@ window.selectScript = selectScript;
 window.toggleFav = toggleFav;
 window.renderScripts = renderScripts;
 window.renderRunBar = renderRunBar;
+window.addToPipeline = addToPipeline;
+window.removeFromPipeline = removeFromPipeline;
+window.clearPipeline = clearPipeline;
+window.movePipelineItem = movePipelineItem;
+window.runPipeline = runPipeline;
+window.cancelPipeline = cancelPipeline;
 
 // From terminal.ts
 window.togglePanel = togglePanel;
@@ -106,6 +114,7 @@ window.toggleMetadataBlocks = toggleMetadataBlocks;
 window.navigateDiffBlock = navigateDiffBlock;
 window.navigateErrors = navigateErrors;
 window.doStop = doStop;
+window.copySection = copySection;
 
 // From config.ts
 window.loadEnv = loadEnv;

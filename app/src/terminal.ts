@@ -40,6 +40,7 @@ export {
   startProgress, stopProgress,
   stopPatienceMessages,
   addRunHistory,
+  setEstimate,
 } from './terminal/controls';
 
 // ── Wrappers for sub-module functions that need local references ──
@@ -64,11 +65,41 @@ export function startPatienceMessages(): void {
   _startPatienceMessagesImpl(appendLog);
 }
 
+// ── Floating error badge ──
+let _unseenErrors = 0;
+
+function updateErrorBadge(): void {
+  if (!_termUserScrolled || !S.isRunning) { _unseenErrors = 0; return; }
+  _unseenErrors++;
+  let badge = document.getElementById('termErrorBadge');
+  if (!badge) {
+    badge = document.createElement('button');
+    badge.id = 'termErrorBadge';
+    badge.className = 'term-error-badge';
+    badge.onclick = () => {
+      navigateErrors(0); // jump to current
+      _unseenErrors = 0;
+      badge!.classList.remove('visible');
+    };
+    document.getElementById('terminal')!.appendChild(badge);
+  }
+  badge.innerHTML = `\u26A0 ${_unseenErrors} new error${_unseenErrors > 1 ? 's' : ''} \u2193`;
+  badge.classList.add('visible');
+}
+
+function clearErrorBadge(): void {
+  _unseenErrors = 0;
+  const badge = document.getElementById('termErrorBadge');
+  if (badge) badge.classList.remove('visible');
+}
+
 // ── Reset terminal module state (called from app.ts on run-start) ──
 export function resetTerminalState(): void {
   _lastTitleTime = null;
   _currentErrorIdx = -1;
   _termUserScrolled = false;
+  _unseenErrors = 0;
+  clearErrorBadge();
   resetDiffState();
 }
 
@@ -98,6 +129,7 @@ function termScrollToBottom(): void {
         _termUserScrolled = !atBottom;
         const btn = document.getElementById('termScrollBtn');
         if (btn) btn.classList.toggle('visible', !atBottom);
+        if (atBottom) clearErrorBadge();
         _scrollThrottle = null;
       });
     });
@@ -131,7 +163,7 @@ function _flushLines(): void {
   out.insertAdjacentHTML('beforeend', _pendingLines.join(''));
   _pendingLines = [];
   if (_pendingNeedsMinimapUpdate) { scheduleMinimapUpdate(); _pendingNeedsMinimapUpdate = false; }
-  if (_pendingNeedsErrorUpdate) { updateErrorSummary(); _pendingNeedsErrorUpdate = false; }
+  if (_pendingNeedsErrorUpdate) { updateErrorSummary(); updateErrorBadge(); _pendingNeedsErrorUpdate = false; }
   termScrollToBottom();
   const search = (document.getElementById('termSearch') as HTMLInputElement)?.value || '';
   if (search) filterTerm(search);
@@ -307,7 +339,7 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
       if (prevTitle) prevTitle.textContent = dur < 60 ? `${dur.toFixed(1)}s` : `${Math.floor(dur / 60)}m${Math.round(dur % 60)}s`;
     }
     _lastTitleTime = now;
-    out!.insertAdjacentHTML('beforeend', `<div class="term-separator"></div>`);
+    out!.insertAdjacentHTML('beforeend', `<div class="term-separator"><button class="section-copy-btn" onclick="copySection(this)" title="Copy this section">\u2398</button></div>`);
     escaped += ` <span class="section-dur"></span>`;
   }
 
@@ -477,6 +509,27 @@ export function copyLine(el: HTMLElement): void {
   }).catch(() => { /* ignore */ });
 }
 
+// ── Copy section (between two separators) ──
+export function copySection(btn: HTMLElement): void {
+  const separator = btn.parentElement!;
+  const lines: string[] = [];
+  let el = separator.nextElementSibling;
+  while (el) {
+    if (el.classList.contains('term-separator')) break; // next section
+    if (el.classList.contains('line') || el.classList.contains('diff-block') || el.classList.contains('diff-sbs')) {
+      const text = el.textContent?.trim();
+      if (text) lines.push(text);
+    }
+    el = el.nextElementSibling;
+  }
+  if (!lines.length) return;
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    btn.textContent = '\u2714';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '\u2398'; btn.classList.remove('copied'); }, 1000);
+  }).catch(() => { /* ignore */ });
+}
+
 // ── Error summary bar ──
 function updateErrorSummary(): void {
   const out = document.getElementById('termOutput')!;
@@ -541,11 +594,7 @@ function updateMinimap(): void {
 export function copyTerm(): void {
   const out = document.getElementById('termOutput')!;
   const text = Array.from(out.querySelectorAll('.line:not(.search-hidden):not(.type-hidden)')).map(l => l.textContent).join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    toast('Terminal copied to clipboard', 'success');
-  }).catch(() => {
-    toast('Failed to copy', 'error');
-  });
+  navigator.clipboard.writeText(text).catch(() => { /* ignore */ });
 }
 
 export function clearTerm(): void {
@@ -579,7 +628,7 @@ export function exportTerm(): void {
   a.download = `donut-log-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.txt`;
   a.click();
   URL.revokeObjectURL(url);
-  toast('Log exported', 'success');
+  // silent export
 }
 
 // ── Font size (Ctrl+Plus / Ctrl+Minus) ──
@@ -605,7 +654,7 @@ export function toggleRelativeTime(): void {
   localStorage.setItem('donut-term-reltime', String(S.termRelativeTime));
   const btn = document.querySelector('.term-reltime-btn');
   if (btn) btn.classList.toggle('active', S.termRelativeTime);
-  toast(S.termRelativeTime ? 'Relative timestamps' : 'Absolute timestamps', 'info');
+  // Visual feedback via button .active class is enough
 }
 
 // ── Re-run last failed script ──
@@ -692,6 +741,11 @@ function applyTypeFilter(): void {
     }
     const cls = (line as HTMLElement).dataset.cls || '';
     if (line.classList.contains('term-section-header')) { line.classList.remove('type-hidden'); return; }
+    // "title" filter: show section titles, status, success, and error lines (summary view)
+    if (S.termFilterType === 'title') {
+      line.classList.toggle('type-hidden', cls !== 'title' && cls !== 'status' && cls !== 'success' && cls !== 'err');
+      return;
+    }
     line.classList.toggle('type-hidden', cls !== S.termFilterType);
   });
 }

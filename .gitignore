@@ -9,6 +9,7 @@
 DONUT.exe
 DONUT*.exe
 DONUT-*.zip
+DONUT/
 *.exe
 /dist/
 src-tauri/target/

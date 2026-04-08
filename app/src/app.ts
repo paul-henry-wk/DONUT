@@ -9,9 +9,9 @@ import {
   startSpinner, stopSpinner, startRunTimer, stopRunTimer,
   startPatienceMessages, stopPatienceMessages, startProgress, stopProgress,
   expandTerminal, showPRLink, showRerunBtn, addRunHistory,
-  setTermFontSize, navigateErrors, resetTerminalState,
+  setTermFontSize, navigateErrors, resetTerminalState, setEstimate,
 } from './terminal';
-import { renderScripts, renderRunBar, doRun, selectScript } from './scripts';
+import { renderScripts, renderRunBar, doRun, selectScript, onPipelineRunEnd } from './scripts';
 import { advanceWorkflow, renderWorkflowBar, recalcWorkflow } from './workflow';
 import { startHealthPolling } from './health';
 import { renderConfig, saveConfig } from './config';
@@ -336,6 +336,7 @@ export function setupEventListeners(): void {
       showStopBtn(true);
       hideRerunBtn();
       startSpinner();
+      setEstimate(msg.script || '');
       startRunTimer();
       startPatienceMessages();
       startProgress(msg.script || '');
@@ -408,19 +409,28 @@ export function setupEventListeners(): void {
       // System notification when not focused OR long-running script
       const elapsed = S.runStartTime ? Date.now() - S.runStartTime : 0;
       if (!document.hasFocus() || elapsed > 30000) {
+        const notifScriptName = SCRIPTS.find(s => s.id === msg.script)?.name || msg.script;
+        // Flash taskbar icon via Tauri (Informational=1 for success, Critical=2 for failure)
+        try {
+          const appWindow = window.__TAURI__?.window?.getCurrentWindow?.();
+          if (appWindow) appWindow.requestUserAttention(ok ? 1 : 2);
+        } catch { /* Tauri API not available */ }
+        // Update title bar when not focused
         if (!document.hasFocus()) {
           const orig = document.title;
-          document.title = ok ? 'DONUT - Done!' : 'DONUT - Failed!';
+          document.title = ok ? `\u2714 ${notifScriptName} — Done!` : `\u2718 ${notifScriptName} — Failed!`;
           window.addEventListener('focus', () => { document.title = orig; }, { once: true });
         }
+        // Web notification (works in WebView2 if permissions granted)
         if ('Notification' in window && Notification.permission === 'granted') {
-          const scriptName = SCRIPTS.find(s => s.id === msg.script)?.name || msg.script;
           const notifBody = ok
-            ? `${scriptName} completed in ${duration}`
-            : `${scriptName} failed after ${duration} (exit code ${msg.code})`;
+            ? `${notifScriptName} completed in ${duration}`
+            : `${notifScriptName} failed after ${duration} (exit code ${msg.code})`;
           new Notification(ok ? '\u2705 DONUT' : '\u274C DONUT', { body: notifBody });
         }
       }
+      // Pipeline: advance to next step
+      onPipelineRunEnd(ok);
       // Auto-refresh DevOps data after scripts that change remote state
       const devopsScripts = ['commit', 'merge', 'pull-force', 'pull', 'reset', 'rollback'];
       if (devopsScripts.includes(msg.script || '')) {

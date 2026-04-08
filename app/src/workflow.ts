@@ -139,34 +139,101 @@ export function getScriptsForState(stateId: string): string[] {
   return Object.entries(WF_TRANSITIONS).filter(([, v]) => v.to === stateId).map(([k]) => k);
 }
 
+// ── Relative time helper ──
+function relativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'hier';
+  if (days < 7) return `il y a ${days}j`;
+  return date.toLocaleDateString('fr', { day: '2-digit', month: 'short' });
+}
+
 // ── Workflow history popup ──
 export function toggleWfHistory(): void {
   let popup = document.getElementById('wfHistoryPopup');
   if (popup) { popup.remove(); return; }
   const wf = getWorkflow(S.currentEnv);
-  if (!wf.steps.length) return;
 
   popup = document.createElement('div');
   popup.id = 'wfHistoryPopup';
   popup.className = 'wf-history-popup';
 
-  const rows = [...wf.steps].reverse().map(s => {
-    const name = SCRIPTS.find(x => x.id === s.script)?.name || s.script;
-    const icon = ICONS[s.script] || '';
-    const d = new Date(s.date);
-    const timeStr = d.toLocaleString('fr', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const tr = WF_TRANSITIONS[s.script];
-    const arrow = tr ? ` <span class="wf-h-arrow">&#8594;</span> <span class="wf-h-state">${WF_STATES.find(x => x.id === tr.to)?.label || tr.to}</span>` : '';
-    return `<div class="wf-h-row"><span class="wf-h-icon">${icon}</span><span class="wf-h-name">${esc(name)}</span>${arrow}<span class="wf-h-time">${timeStr}</span></div>`;
-  }).join('');
+  // Position popup relative to the history button, appended to body to avoid overflow clipping
+  const btn = document.querySelector('.wf-actions .wf-action-btn') as HTMLElement;
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    popup.style.position = 'fixed';
+    popup.style.top = (rect.bottom + 4) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+  }
 
-  popup.innerHTML = `<div class="wf-h-title">Workflow History</div>${rows}`;
-  document.getElementById('workflowBar')!.appendChild(popup);
+  let content = '';
+  const envLabel = S.currentEnv || 'unknown';
+  const stateLabel = WF_STATES.find(s => s.id === wf.state)?.label || wf.state;
+
+  // Header with current state
+  content += `<div class="wf-h-title">Historique — ${esc(envLabel)}</div>`;
+  content += `<div class="wf-h-summary">État actuel : <strong>${esc(stateLabel)}</strong> · ${wf.steps.length} étape${wf.steps.length !== 1 ? 's' : ''}</div>`;
+
+  if (!wf.steps.length) {
+    content += `<div class="wf-h-empty">Aucune action effectuée pour le moment.<br>Lancez un script pour commencer.</div>`;
+  } else {
+    // Build rows with enriched details
+    const rows = [...wf.steps].reverse().map((s, i, arr) => {
+      const name = SCRIPTS.find(x => x.id === s.script)?.name || s.script;
+      const icon = ICONS[s.script] || '';
+      const d = new Date(s.date);
+      const timeAgo = relativeTime(d);
+      const timeExact = d.toLocaleString('fr', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const tr = WF_TRANSITIONS[s.script];
+
+      // Find matching run history entry for duration
+      const runMatch = S.runHistory.find(h => h.script === s.script && h.date === d.toLocaleString('fr'));
+      const durationStr = runMatch ? `<span class="wf-h-dur">${runMatch.duration}</span>` : '';
+
+      // State transition: from → to
+      let transitionHtml = '';
+      if (tr) {
+        const toLabel = WF_STATES.find(x => x.id === tr.to)?.label || tr.to;
+        // Find the previous step's resulting state (or 'Start' if first)
+        const prevStep = arr[i + 1]; // reversed, so i+1 is the previous chronologically
+        let fromState = 'Start';
+        if (prevStep) {
+          const prevTr = WF_TRANSITIONS[prevStep.script];
+          if (prevTr) fromState = WF_STATES.find(x => x.id === prevTr.to)?.label || prevTr.to;
+        }
+        transitionHtml = `<span class="wf-h-transition"><span class="wf-h-from">${esc(fromState)}</span> <span class="wf-h-arrow">\u2192</span> <span class="wf-h-state">${esc(toLabel)}</span></span>`;
+      }
+
+      const statusCls = s.ok ? 'wf-h-ok' : 'wf-h-fail';
+      const statusDot = s.ok ? '\u25CF' : '\u25CF';
+
+      return `<div class="wf-h-row">
+        <span class="wf-h-status ${statusCls}">${statusDot}</span>
+        <span class="wf-h-icon">${icon}</span>
+        <div class="wf-h-details">
+          <div class="wf-h-main"><span class="wf-h-name">${esc(name)}</span>${durationStr}</div>
+          ${transitionHtml}
+        </div>
+        <span class="wf-h-time" title="${esc(timeExact)}">${timeAgo}</span>
+      </div>`;
+    }).join('');
+
+    content += rows;
+  }
+
+  popup.innerHTML = content;
+  document.body.appendChild(popup);
 
   // Close on click outside
   setTimeout(() => {
     document.addEventListener('click', function closeWfH(e: MouseEvent) {
-      if (!popup!.contains(e.target as Node) && !(e.target as HTMLElement).classList.contains('wf-history-btn')) {
+      if (!popup!.contains(e.target as Node) && !(e.target as HTMLElement).closest('.wf-action-btn')) {
         popup!.remove();
         document.removeEventListener('click', closeWfH);
       }

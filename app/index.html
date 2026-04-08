@@ -80,6 +80,9 @@
     </div>
   </div>
 
+  <!-- Pipeline bar -->
+  <div class="pipeline-bar" id="pipelineBar"></div>
+
   <!-- Run bar -->
   <div class="run-bar" id="runBar">
     <span class="run-label">select a script above</span>
@@ -107,15 +110,15 @@
           <button class="term-filter-btn active" data-filter="all" onclick="setTypeFilter('all')">all</button>
           <button class="term-filter-btn" data-filter="err" onclick="setTypeFilter('err')">err</button>
           <button class="term-filter-btn" data-filter="warn" onclick="setTypeFilter('warn')">warn</button>
-          <button class="term-filter-btn" data-filter="success" onclick="setTypeFilter('success')">ok</button>
+          <button class="term-filter-btn" data-filter="title" onclick="setTypeFilter('title')">steps</button>
         </span>
         <input class="term-search" id="termSearch" type="text" placeholder="search..." oninput="filterTerm(this.value)" autocomplete="off" aria-label="Search terminal output">
         <button class="clear-btn term-wrap-btn active" onclick="toggleWordWrap()" title="Toggle word wrap">wrap</button>
-        <button class="clear-btn term-reltime-btn" onclick="toggleRelativeTime()" title="Toggle relative timestamps">&#916;t</button>
+        <button class="clear-btn term-reltime-btn" onclick="toggleRelativeTime()" title="Toggle relative timestamps (absolute / elapsed)">&#9201; time</button>
         <button class="clear-btn" onclick="exportTerm()" title="Export log">export</button>
         <button class="clear-btn" onclick="copyTerm()">copy</button>
         <button class="clear-btn" onclick="clearTerm()">clear</button>
-        <button class="clear-btn" onclick="togglePanel()" title="Hide/show panel">&#9650; panel</button>
+        <button class="clear-btn term-fs-btn" onclick="toggleFullscreen()" title="Toggle fullscreen (Esc to exit)">&#9723; full</button>
       </div>
     </div>
     <div class="diff-nav" id="diffNav" style="display:none"></div>
