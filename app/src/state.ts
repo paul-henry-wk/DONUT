@@ -31,7 +31,7 @@ export const SCRIPT_GROUPS: ScriptGroup[] = [
     { id: 'set-master-packages', num: '02', name: 'Set Packages',        desc: 'select which packages are open for dev', requires: ['site_path'] },
   ]},
   { label: 'Synchronize', scripts: [
-    { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'full download: reset site & apply all commits', requires: ['site_path', 'feature_branch', 'repository'] },
+    { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'full download: reset site & apply all commits', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
     { id: 'reset',               num: '04', name: 'Full Reset',          desc: 'wipe & rebuild site from scratch (no history)', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
     { id: 'pull',                num: '05', name: 'Pull',                desc: 'apply new commits without resetting site', requires: ['site_path', 'feature_branch', 'repository'] },
     { id: 'commit',              num: '06', name: 'Commit',              desc: 'push local changes & create pull request', needsMsg: true, requires: ['site_path', 'feature_branch', 'target_branch', 'repository', 'token'] },

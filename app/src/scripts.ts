@@ -400,6 +400,7 @@ export async function doRun(): Promise<void> {
       } catch { /* git not available, show basic message */ }
     }
     const dangerMsgs: Record<string, string> = {
+      'pull-force': 'This will reset the local site and apply all commits from the repository. Uncommitted local changes will be lost.',
       'reset': 'This will wipe the local site and rebuild from scratch. All local changes and commit history will be lost.',
       'rollback': 'This will undo commits by creating a revert. Previous history is preserved but changes will be reverted.',
     };

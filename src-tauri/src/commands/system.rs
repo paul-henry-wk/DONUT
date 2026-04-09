@@ -408,11 +408,50 @@ pub(crate) async fn apply_update(
     let root_str = root.to_string_lossy().replace('/', "\\");
     let content_str = content_dir.to_string_lossy().replace('/', "\\");
 
+    let log_path = root.join("_update.log");
+    let log_str = log_path.to_string_lossy().replace('/', "\\");
+
     let bat = format!(
-        "@echo off\r\ncd /d \"{root}\"\r\necho Updating DONUT, please wait...\r\n:wait\r\ntasklist /FI \"IMAGENAME eq {exe}\" 2>NUL | find /I \"{exe}\" >NUL\r\nif \"%ERRORLEVEL%\"==\"0\" (\r\n    timeout /t 1 /nobreak >nul\r\n    goto wait\r\n)\r\nxcopy /E /Y /Q \"{content}\\*\" \"{root}\\\" >nul\r\nrmdir /S /Q \"_update\" >nul 2>&1\r\necho Update complete. Restarting...\r\nstart \"\" \"{exe}\"\r\n(goto) 2>nul & del \"%~f0\"",
+        concat!(
+            "@echo off\r\n",
+            "cd /d \"{root}\"\r\n",
+            "echo [%date% %time%] Update started > \"{log}\"\r\n",
+            "echo Waiting for {exe} to exit... >> \"{log}\"\r\n",
+            ":wait\r\n",
+            "tasklist /FI \"IMAGENAME eq {exe}\" 2>NUL | find /I \"{exe}\" >NUL\r\n",
+            "if not errorlevel 1 (\r\n",
+            "    timeout /t 1 /nobreak >nul\r\n",
+            "    goto wait\r\n",
+            ")\r\n",
+            "echo Process exited, waiting for file handles... >> \"{log}\"\r\n",
+            "timeout /t 3 /nobreak >nul\r\n",
+            "set RETRIES=0\r\n",
+            ":copy\r\n",
+            "echo Copying files (attempt %RETRIES%)... >> \"{log}\"\r\n",
+            "xcopy /E /Y /Q \"{content}\\*\" \"{root}\\\" >> \"{log}\" 2>&1\r\n",
+            "if not errorlevel 1 goto copydone\r\n",
+            "set /a RETRIES+=1\r\n",
+            "echo Xcopy failed, retry %RETRIES%/5... >> \"{log}\"\r\n",
+            "if %RETRIES% geq 5 goto copyfail\r\n",
+            "timeout /t 2 /nobreak >nul\r\n",
+            "goto copy\r\n",
+            ":copyfail\r\n",
+            "echo Update FAILED after 5 retries >> \"{log}\"\r\n",
+            "start \"\" \"{root}\\{exe}\"\r\n",
+            "goto end\r\n",
+            ":copydone\r\n",
+            "echo Copy succeeded >> \"{log}\"\r\n",
+            "rmdir /S /Q \"_update\" >nul 2>&1\r\n",
+            "del /Q \"_update.zip\" >nul 2>&1\r\n",
+            "echo Update complete. Restarting... >> \"{log}\"\r\n",
+            "start \"\" \"{root}\\{exe}\"\r\n",
+            ":end\r\n",
+            "(goto) 2>nul & del \"%~f0\"",
+        ),
         root = root_str,
         exe = exe_name,
         content = content_str,
+        log = log_str,
     );
 
     let bat_path = root.join("_update.bat");

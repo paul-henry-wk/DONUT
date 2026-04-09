@@ -239,13 +239,13 @@ export async function checkForUpdates(): Promise<void> {
     if (!btn) return;
     if (info.available) {
       btn.classList.add('available');
-      btn.title = `Mise à jour disponible : v${info.latest_version}`;
+      btn.title = `Update available: v${info.latest_version}`;
       btn.dataset.url = info.download_url;
       btn.dataset.version = info.latest_version;
       btn.dataset.notes = info.release_notes;
     } else {
       btn.classList.remove('available');
-      btn.title = 'Aucune mise à jour';
+      btn.title = 'No update available';
     }
   } catch (e) {
     console.warn('Update check failed:', e);
@@ -257,24 +257,48 @@ export async function checkForUpdates(): Promise<void> {
 export async function applyUpdate(): Promise<void> {
   const btn = document.getElementById('updateBtn');
   if (!btn?.classList.contains('available')) {
-    toast('Aucune mise à jour disponible.', 'info');
+    toast('No update available.', 'info');
     return;
   }
   const url = btn.dataset.url;
   const version = btn.dataset.version || '?';
   if (!url) return;
 
+  // Admin check — xcopy needs write access to the app directory
+  try {
+    const isAdmin = await invoke<boolean>('is_admin');
+    if (!isAdmin) {
+      toast('Update requires Administrator privileges. Restart DONUT as Administrator.', 'error');
+      return;
+    }
+  } catch { /* check failed, try anyway */ }
+
   const ok = await showConfirm(
-    `Mettre à jour vers v${version} ?`,
-    'DONUT va se fermer, se mettre à jour, puis redémarrer automatiquement.'
+    `Update to v${version}?`,
+    'DONUT will close, update, and restart automatically.'
   );
   if (!ok) return;
 
+  // Show donut download overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'update-overlay';
+  overlay.innerHTML = `
+    <div class="update-donuts">
+      <div class="update-donut d1">&#127849;</div>
+      <div class="update-donut d2">&#127849;</div>
+      <div class="update-donut d3">&#127849;</div>
+    </div>
+    <div class="update-title">Updating to v${version}</div>
+    <div class="update-sub">Downloading...</div>
+    <div class="update-bar"><div class="update-bar-fill"></div></div>
+  `;
+  document.body.appendChild(overlay);
+
   try {
-    toast('Téléchargement de la mise à jour...', 'info');
     await invoke('apply_update', { downloadUrl: url });
   } catch (e) {
-    toast(`Échec de la mise à jour : ${e}`, 'error');
+    overlay.remove();
+    toast(`Update failed: ${e}`, 'error');
   }
 }
 
