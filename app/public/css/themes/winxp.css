@@ -35,7 +35,8 @@
 [data-theme="winxp"] .tabs { background:rgba(0,0,0,.12); border-radius:4px; padding:2px; }
 [data-theme="winxp"] .tab { color:#c8dfff; border-radius:3px; }
 [data-theme="winxp"] .tab:hover { color:#fff; background:rgba(255,255,255,.18); }
-[data-theme="winxp"] .tab.active { color:#003399; background:linear-gradient(180deg, #fff, #e8eef5); box-shadow:0 1px 2px rgba(0,0,0,.15); font-weight:700; }
+[data-theme="winxp"] .tab.active { color:#003399; font-weight:700; }
+[data-theme="winxp"] .tab-pill { background:linear-gradient(180deg, #fff, #e8eef5); box-shadow:0 1px 2px rgba(0,0,0,.15); border-radius:3px; }
 [data-theme="winxp"] .tab-icon { opacity:1; }
 [data-theme="winxp"] .theme-btn { background:rgba(0,0,0,.15); border:1px solid rgba(255,255,255,.2); color:#fff; }
 [data-theme="winxp"] .theme-btn:hover { background:rgba(255,255,255,.2); }

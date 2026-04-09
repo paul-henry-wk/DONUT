@@ -302,6 +302,125 @@ export async function applyUpdate(): Promise<void> {
   }
 }
 
+// ── Tab pill (liquid glass drag effect) ──
+function initTabPill(): void {
+  const bar = document.getElementById('tabBar');
+  const pill = document.getElementById('tabPill');
+  if (!bar || !pill) return;
+
+  const tabs = () => Array.from(bar.querySelectorAll('.tab')) as HTMLElement[];
+
+  // Position pill over the active tab
+  function movePillTo(tab: HTMLElement, animate = true): void {
+    const barRect = bar!.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    const x = tabRect.left - barRect.left;
+    if (!animate) {
+      pill!.style.transition = 'none';
+      pill!.style.transform = `translateX(${x}px)`;
+      pill!.style.width = `${tabRect.width}px`;
+      // Force reflow then restore transition
+      pill!.offsetHeight;
+      pill!.style.transition = '';
+    } else {
+      pill!.classList.remove('dragging');
+      pill!.classList.add('snapping');
+      pill!.style.transform = `translateX(${x}px)`;
+      pill!.style.width = `${tabRect.width}px`;
+      setTimeout(() => pill!.classList.remove('snapping'), 500);
+    }
+  }
+
+  // Initial position (no animation)
+  const active = bar.querySelector('.tab.active') as HTMLElement;
+  if (active) requestAnimationFrame(() => movePillTo(active, false));
+
+  // On tab click, animate pill to new position
+  const origShowTab = (window as { showTab?: Function }).showTab;
+  (window as { showTab?: Function }).showTab = function(id: string, btn: HTMLElement) {
+    movePillTo(btn, true);
+    if (origShowTab) origShowTab(id, btn);
+  };
+
+  // ── Drag interaction ──
+  let dragging = false;
+  let dragStartX = 0;
+  let pillStartX = 0;
+
+  function getPillX(): number {
+    const m = pill!.style.transform.match(/translateX\(([\d.]+)px\)/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  bar.addEventListener('pointerdown', (e: PointerEvent) => {
+    // Only start drag on the pill area or the active tab
+    const target = e.target as HTMLElement;
+    if (!target.closest('.tab.active') && target !== pill) return;
+
+    dragging = true;
+    dragStartX = e.clientX;
+    pillStartX = getPillX();
+    pill!.classList.add('dragging');
+    pill!.classList.remove('snapping');
+    bar!.classList.add('dragging');
+    bar!.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  bar.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStartX;
+    const barRect = bar!.getBoundingClientRect();
+    const newX = Math.max(0, Math.min(pillStartX + dx, barRect.width - pill!.offsetWidth));
+    pill!.style.transform = `translateX(${newX}px)`;
+
+    // Highlight tab under pill center
+    const pillCenter = barRect.left + newX + pill!.offsetWidth / 2;
+    for (const tab of tabs()) {
+      const r = tab.getBoundingClientRect();
+      tab.classList.toggle('tab-hover', pillCenter >= r.left && pillCenter <= r.right);
+    }
+  });
+
+  function endDrag(e: PointerEvent): void {
+    if (!dragging) return;
+    dragging = false;
+    bar!.releasePointerCapture(e.pointerId);
+    bar!.classList.remove('dragging');
+    tabs().forEach(t => t.classList.remove('tab-hover'));
+
+    // Find closest tab to pill center
+    const barRect = bar!.getBoundingClientRect();
+    const pillCenter = barRect.left + getPillX() + pill!.offsetWidth / 2;
+    let closest: HTMLElement | null = null;
+    let minDist = Infinity;
+    for (const tab of tabs()) {
+      const r = tab.getBoundingClientRect();
+      const center = r.left + r.width / 2;
+      const dist = Math.abs(pillCenter - center);
+      if (dist < minDist) { minDist = dist; closest = tab; }
+    }
+
+    if (closest) {
+      // Snap pill with bounce
+      movePillTo(closest, true);
+      // Activate the tab if it changed
+      if (!closest.classList.contains('active')) {
+        closest.click();
+      }
+    }
+  }
+
+  bar.addEventListener('pointerup', endDrag);
+  bar.addEventListener('pointercancel', endDrag);
+
+  // Reposition on window resize
+  window.addEventListener('resize', () => {
+    const act = bar!.querySelector('.tab.active') as HTMLElement;
+    if (act) movePillTo(act, false);
+  });
+}
+
 // ── Setup all event listeners ──
 export function setupEventListeners(): void {
   // -- Prereq install event listener --
@@ -462,6 +581,9 @@ export function setupEventListeners(): void {
       }
     }
   });
+
+  // -- Tab pill drag effect --
+  initTabPill();
 
   // -- Keyboard navigation --
   document.addEventListener('keydown', (e: KeyboardEvent) => {

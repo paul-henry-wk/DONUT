@@ -3,11 +3,11 @@
 .s-group-label { grid-column:1/-1; font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; padding:4px 0 4px; margin-top:2px; display:flex; align-items:center; gap:8px; }
 .s-group-label::after { content:''; flex:1; height:1px; background:var(--border); }
 .s-group-label:first-child { margin-top:0; }
-.s-card { background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; transition:all .15s ease; display:flex; align-items:stretch; position:relative; }
+.s-card { background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; display:flex; align-items:stretch; position:relative; transform-style:preserve-3d; will-change:transform; }
 .s-card-icon { border-radius:7px 0 0 7px; }
-.s-card:hover { border-color:var(--accent-glow); transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.15); }
+.s-card:hover { border-color:var(--accent-glow); box-shadow:0 4px 12px rgba(0,0,0,.12); }
 .s-card:hover .s-name { color:var(--accent); }
-.s-card:active { transform:translateY(0) scale(.97); box-shadow:0 1px 4px rgba(0,0,0,.1); transition:all .05s; }
+.s-card:active { transform:translateY(0) scale(.97) !important; box-shadow:0 1px 4px rgba(0,0,0,.1); transition:all .05s; }
 .s-card.active { border-color:var(--accent); border-width:2px; box-shadow:0 0 12px var(--accent-glow); }
 .s-card.disabled { opacity:.4; pointer-events:none; }
 .s-card-icon { width:44px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--bg); border-right:1px solid var(--border); color:var(--text-dim); transition:all .2s; }
@@ -91,16 +91,18 @@
 .wf-step-icon { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all .2s; color:var(--text-dim); }
 .wf-step-icon .s-icon { width:14px; height:14px; }
 .wf-check { color:var(--success); font-size:14px; font-weight:700; }
-.wf-step.done .wf-step-icon { color:var(--success); }
+.wf-step.done .wf-step-icon { color:var(--success); animation:wfDonePop .4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes wfDonePop { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
 .wf-step.current .wf-step-icon { color:var(--accent); background:var(--accent-glow); border-radius:50%; animation:wfPulse 2s ease-in-out infinite; }
 .wf-step.upcoming .wf-step-icon { color:var(--border); }
 .wf-step-label { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; transition:color .2s; }
 .wf-step.done .wf-step-label { color:var(--success); }
 .wf-step.current .wf-step-label { color:var(--accent); font-weight:700; }
 .wf-step.selected .wf-step-label { color:var(--accent); }
-.wf-connector { flex:1; height:2px; background:var(--border); min-width:8px; transition:background .3s; }
-.wf-connector.done { background:var(--success); }
-.wf-connector.active { background:linear-gradient(90deg, var(--success), var(--accent)); }
+.wf-connector { flex:1; height:2px; min-width:8px; background:var(--border); position:relative; overflow:hidden; }
+.wf-connector::after { content:''; position:absolute; inset:0; background:var(--success); transform:scaleX(0); transform-origin:left; transition:transform .5s cubic-bezier(.34,1.2,.64,1); }
+.wf-connector.done::after { transform:scaleX(1); }
+.wf-connector.active::after { transform:scaleX(1); background:linear-gradient(90deg, var(--success), var(--accent)); }
 @keyframes wfPulse { 0%,100%{box-shadow:0 0 4px var(--accent-glow)} 50%{box-shadow:0 0 12px var(--accent-glow)} }
 .wf-actions { display:flex; flex-direction:column; gap:4px; margin-left:auto; padding-left:12px; flex-shrink:0; }
 .wf-action-btn { display:flex; align-items:center; justify-content:center; gap:5px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:inherit; font-size:10px; padding:5px 12px; border-radius:6px; cursor:pointer; transition:all .15s; white-space:nowrap; }

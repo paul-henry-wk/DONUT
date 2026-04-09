@@ -20,15 +20,20 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .update-btn.available { display:inline-flex; align-items:center; opacity:1; color:var(--accent); animation:update-pulse 2s ease-in-out infinite; }
 .update-btn.available:hover { opacity:.8; transform:scale(1.15); }
 @keyframes update-pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
-.tabs { display:flex; gap:2px; flex-shrink:0; background:rgba(128,128,128,.08); border-radius:8px; padding:3px; }
-.tab { padding:6px 16px; background:transparent; border:none; color:var(--text-dim); font-family:inherit; font-size:11px; font-weight:500; cursor:pointer; border-radius:6px; transition:all .2s ease; white-space:nowrap; display:flex; align-items:center; gap:6px; position:relative; }
-.tab:hover { color:var(--text); background:rgba(128,128,128,.12); }
-.tab:active { transform:scale(.96); }
-.tab.active { color:var(--accent); background:var(--bg-raised); font-weight:600; box-shadow:0 1px 4px rgba(0,0,0,.15); }
+.tabs { display:flex; gap:2px; flex-shrink:0; background:rgba(128,128,128,.08); border-radius:8px; padding:3px; position:relative; }
+.tab-pill { position:absolute; top:3px; left:3px; height:calc(100% - 6px); border-radius:6px; background:var(--bg-raised); box-shadow:0 1px 4px rgba(0,0,0,.15); transition:transform .35s cubic-bezier(.34,1.56,.64,1), width .3s cubic-bezier(.34,1.56,.64,1); pointer-events:none; z-index:0; will-change:transform,width; }
+.tab-pill.dragging { transition:none; cursor:grabbing; }
+.tabs.dragging, .tabs.dragging .tab { cursor:grabbing; }
+.tab-pill.snapping { transition:transform .45s cubic-bezier(.25,1.6,.5,1), width .35s cubic-bezier(.25,1.6,.5,1); }
+.tab { padding:6px 16px; background:transparent; border:none; color:var(--text-dim); font-family:inherit; font-size:11px; font-weight:500; cursor:pointer; border-radius:6px; transition:color .2s ease, font-weight .1s ease; white-space:nowrap; display:flex; align-items:center; gap:6px; position:relative; z-index:1; user-select:none; -webkit-user-select:none; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent); font-weight:600; }
 .tab.active .tab-icon { stroke-width:2.5; }
 .tab-icon { width:14px; height:14px; flex-shrink:0; opacity:.7; transition:opacity .2s; }
 .tab:hover .tab-icon { opacity:1; }
 .tab.active .tab-icon { opacity:1; }
+.tab.tab-hover { color:var(--accent); }
+.tab.tab-hover .tab-icon { opacity:1; }
 .topbar-left { display:flex; align-items:center; gap:8px; flex:1; min-width:0; overflow:hidden; }
 .topbar-right { display:flex; align-items:center; gap:8px; flex:1; justify-content:flex-end; min-width:0; }
 .env-pill { padding:3px 10px; border:1px solid var(--border); border-radius:4px; font-size:11px; color:var(--text-muted); }
@@ -70,9 +75,13 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .page { display:none; } .page.active { display:block; }
 
 /* ── Resize handle ── */
-.resizer { height:6px; background:var(--bg-bar); cursor:row-resize; flex-shrink:0; transition:background .15s; position:relative; }
+.resizer { height:6px; background:var(--bg-bar); cursor:row-resize; flex-shrink:0; transition:background .15s, height .15s; position:relative; display:flex; align-items:center; justify-content:center; }
+.resizer::before { content:''; width:32px; height:2px; border-radius:1px; background:var(--text-dim); opacity:.25; transition:opacity .2s, width .2s; }
 .resizer::after { content:''; position:absolute; inset:-4px 0; } /* larger grab area */
 .resizer:hover { background:var(--accent); opacity:.5; }
+.resizer:hover::before { opacity:.6; width:48px; }
+.resizer:active { height:8px; }
+.resizer:active::before { opacity:.8; width:56px; }
 
 /* ── Terminal ── */
 .terminal { height:200px; background:var(--term-bg); border-top:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; transition:height .3s ease; }
@@ -266,7 +275,7 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 
 /* ── Toasts ── */
 .toast-container { position:fixed; bottom:40px; right:16px; z-index:300; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; }
-.toast { --toast-duration:3500ms; pointer-events:auto; position:relative; display:flex; align-items:flex-start; gap:10px; padding:12px 36px 12px 14px; background:var(--bg-raised); border-left:3px solid var(--border); border-radius:6px; font-size:12px; line-height:1.5; color:var(--text); box-shadow:0 8px 30px rgba(0,0,0,.2), 0 2px 8px rgba(0,0,0,.1); animation:toastIn .3s cubic-bezier(.4,0,.2,1); max-width:400px; min-width:280px; overflow:hidden; backdrop-filter:blur(8px); }
+.toast { --toast-duration:3500ms; pointer-events:auto; position:relative; display:flex; align-items:flex-start; gap:10px; padding:12px 36px 12px 14px; background:var(--bg-raised); border-left:3px solid var(--border); border-radius:6px; font-size:12px; line-height:1.5; color:var(--text); box-shadow:0 8px 30px rgba(0,0,0,.2), 0 2px 8px rgba(0,0,0,.1); animation:toastIn .45s cubic-bezier(.34,1.56,.64,1); max-width:400px; min-width:280px; overflow:hidden; backdrop-filter:blur(8px); }
 .toast.out { animation:toastOut .25s ease forwards; }
 .toast.success { border-left-color:var(--success); }
 .toast.error   { border-left-color:var(--danger); }
@@ -295,8 +304,8 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .toast.error .toast-progress   { background:var(--danger); }
 .toast.warn .toast-progress    { background:var(--warn); }
 .toast.info .toast-progress    { background:var(--accent); }
-@keyframes toastIn  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
-@keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(20px)} }
+@keyframes toastIn  { from{opacity:0;transform:translateY(16px) scale(.92)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0) scale(1)} to{opacity:0;transform:translateX(30px) scale(.95)} }
 @keyframes toastProgress { from{width:100%} to{width:0%} }
 @keyframes cardSelect { 0%{transform:scale(1)} 40%{transform:scale(1.03)} 100%{transform:scale(1)} }
 @keyframes btnReady { 0%,100%{box-shadow:0 0 0 0 var(--accent-glow)} 50%{box-shadow:0 0 8px 2px var(--accent-glow)} }

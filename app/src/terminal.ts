@@ -885,17 +885,25 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
       document.body.style.cursor = 'row-resize';
       const onMove = (e: MouseEvent) => {
         e.preventDefault();
-        const newH = Math.max(80, startH - (e.clientY - startY));
+        const available = window.innerHeight - 40; // minus topbar
+        let newH = Math.max(80, startH - (e.clientY - startY));
+        // Magnetic snap at 50% — pull toward snap point when close
+        const snapH = available * 0.5;
+        const snapRange = 20;
+        if (Math.abs(newH - snapH) < snapRange) {
+          newH = snapH;
+        }
         terminal.style.height = newH + 'px';
         // Auto show/hide panel based on terminal size
         const panel = document.querySelector('.panel') as HTMLElement;
-        const available = window.innerHeight - 40; // minus topbar
         if (newH > available * 0.85) { panel.classList.add('collapsed'); }
         else { panel.classList.remove('collapsed'); }
       };
       const onUp = () => {
         document.body.style.userSelect = '';
         document.body.style.cursor = '';
+        terminal.style.transition = 'height .2s cubic-bezier(.34,1.2,.64,1)';
+        setTimeout(() => { terminal.style.transition = ''; }, 250);
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
       };

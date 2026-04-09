@@ -44,7 +44,8 @@
 [data-theme="win95"] .logo-o { color:#fff; }
 [data-theme="win95"] .tab { color:#fff; opacity:.8; box-shadow:none; background:transparent; }
 [data-theme="win95"] .tab:hover { color:#fff; opacity:1; background:rgba(255,255,255,.15); }
-[data-theme="win95"] .tab.active { color:#000; opacity:1; background:#c0c0c0; box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; font-weight:700; }
+[data-theme="win95"] .tab.active { color:#000; opacity:1; font-weight:700; }
+[data-theme="win95"] .tab-pill { background:#c0c0c0; box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; border-radius:0; }
 [data-theme="win95"] .tab-icon { opacity:1; }
 [data-theme="win95"] .tabs { background:none; padding:0; gap:1px; }
 [data-theme="win95"] .theme-btn { background:#c0c0c0; border:none; color:#000; box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #868a8e, inset 2px 2px 0 #dfdfdf; }

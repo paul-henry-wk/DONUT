@@ -69,6 +69,21 @@ export function renderScripts(): void {
     }).join('');
     return `<div class="s-group-label">${esc(g.label)}</div>${cards}`;
   }).join('');
+
+  // Parallax tilt on script cards
+  requestAnimationFrame(() => {
+    document.querySelectorAll<HTMLElement>('.s-card').forEach(card => {
+      card.addEventListener('mousemove', (e: MouseEvent) => {
+        const r = card.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;  // -0.5 to 0.5
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        card.style.transform = `perspective(600px) rotateY(${x * 3}deg) rotateX(${-y * 2}deg) translateY(-1px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+  });
 }
 
 export function toggleFav(id: string): void {
