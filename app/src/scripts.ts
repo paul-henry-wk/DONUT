@@ -403,6 +403,7 @@ export async function doRun(): Promise<void> {
       'pull-force': 'This will reset the local site and apply all commits from the repository. Uncommitted local changes will be lost.',
       'reset': 'This will wipe the local site and rebuild from scratch. All local changes and commit history will be lost.',
       'rollback': 'This will undo commits by creating a revert. Previous history is preserved but changes will be reverted.',
+      'cleanup': 'This will delete old commit files (.enzp), temp files, session cookies, and old logs (keeping the 10 most recent).',
     };
     const message = (dangerMsgs[s.id] || 'This is a destructive operation. Are you sure?') + previewHtml;
     const ok = await (window as any).showModal({ title: s.name, message, danger: true, html: !!previewHtml, confirmLabel: 'Confirm', cancelLabel: 'Cancel' });

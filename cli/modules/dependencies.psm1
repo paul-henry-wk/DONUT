@@ -166,5 +166,33 @@ function IsVersionOutDated {
     return $false
 }
 
+function RecycleAppPool {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $SiteId
+    )
+
+    $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
+    if (Test-Path $appcmd) {
+        $poolName = & $appcmd list app "/site.name:$SiteId" /text:APPPOOL.NAME 2>$null
+        if ($poolName) {
+            & $appcmd recycle apppool "$($poolName.Trim())" 2>&1 | Out-Null
+            Print_Text "App pool '$($poolName.Trim())' recycled"
+            return $true
+        }
+    }
+
+    # Fallback: iisreset
+    $result = & iisreset /restart 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Print_Text "IIS restarted via iisreset"
+        return $true
+    }
+
+    return $false
+}
+
 Export-ModuleMember -Function CheckPrerequisites
 Export-ModuleMember -Function CheckDependencies
+Export-ModuleMember -Function RecycleAppPool

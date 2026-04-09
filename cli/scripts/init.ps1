@@ -8,11 +8,73 @@ $ErrorActionPreference = "Stop"
 $RootPath = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 & "$RootPath\cli\modules\_import-all-modules.ps1"
 
+$UseGum = $null -ne (Get-Command 'gum' -ErrorAction SilentlyContinue)
+
+# GUI mode: create environment from DONUT_OVERRIDE_* env vars (non-interactive)
 if ($env:DONUT_GUI -eq "1") {
-    throw "Interactive init is not supported in DONUT GUI mode. Create or edit environment files in DONUT Config instead."
+    $envName = if ($EnvFile) { $EnvFile } else { ".env.json" }
+    $envPath = "$RootPath\working-environments\$envName"
+
+    $config = [ordered]@{
+        workitem_id    = $env:DONUT_OVERRIDE_WORKITEM_ID
+        feature_branch = $env:DONUT_OVERRIDE_FEATURE_BRANCH
+        target_branch  = $env:DONUT_OVERRIDE_TARGET_BRANCH
+        packages       = @(($env:DONUT_OVERRIDE_PACKAGES -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+        local = [ordered]@{
+            site_path    = $env:DONUT_OVERRIDE_SITE_PATH
+            parent_site  = $env:DONUT_OVERRIDE_PARENT_SITE
+            user         = if ($env:DONUT_OVERRIDE_USER) { $env:DONUT_OVERRIDE_USER } else { "admin" }
+            password     = $env:DONUT_OVERRIDE_PASSWORD
+            db_user      = if ($env:DONUT_OVERRIDE_DB_USER) { $env:DONUT_OVERRIDE_DB_USER } else { "sa" }
+            db_password  = $env:DONUT_OVERRIDE_DB_PASSWORD
+        }
+
+        azdo = [ordered]@{
+            organization = $env:DONUT_OVERRIDE_ORGANIZATION
+            project      = $env:DONUT_OVERRIDE_PROJECT
+            token        = $env:DONUT_OVERRIDE_TOKEN
+            repository   = $env:DONUT_OVERRIDE_REPOSITORY
+        }
+    }
+
+    # Validate required fields
+    $missing = @()
+    if (-not $config.azdo.organization) { $missing += "organization" }
+    if (-not $config.azdo.project) { $missing += "project" }
+    if (-not $config.azdo.token) { $missing += "token" }
+    if (-not $config.azdo.repository) { $missing += "repository" }
+    if (-not $config.feature_branch) { $missing += "feature_branch" }
+    if (-not $config.local.site_path) { $missing += "site_path" }
+
+    if ($missing.Count -gt 0) {
+        throw "Missing required fields for init: $($missing -join ', '). Set them via Config tab overrides."
+    }
+
+    # Add git config if available
+    $gitUsername = git config --global user.name 2>$null
+    $gitEmail = git config --global user.email 2>$null
+    if (-not $gitUsername -or -not $gitEmail) {
+        if ($env:DONUT_OVERRIDE_GIT_USERNAME -and $env:DONUT_OVERRIDE_GIT_EMAIL) {
+            $config.git = [ordered]@{
+                username = $env:DONUT_OVERRIDE_GIT_USERNAME
+                email    = $env:DONUT_OVERRIDE_GIT_EMAIL
+            }
+        }
+    }
+
+    $json = $config | ConvertTo-Json -Depth 10
+    $json | Set-Content -Path $envPath -Encoding utf8
+
+    Print_Script_Title "INIT"
+    Print_Status "Environment '$envName' created at: $envPath"
+    Print_Text "Branch:   $($config.feature_branch) -> $($config.target_branch)"
+    Print_Text "Repo:     $($config.azdo.repository)"
+    Print_Text "Site:     $($config.local.site_path)"
+    Print_Text "Packages: $($config.packages -join ', ')"
+    exit 0
 }
 
-$UseGum = $null -ne (Get-Command 'gum' -ErrorAction SilentlyContinue)
 if (-not $UseGum) {
     throw "gum is required for interactive init. Install it with: winget install charmbracelet.gum"
 }

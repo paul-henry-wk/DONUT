@@ -21,6 +21,9 @@ export const ICONS: Record<string, string> = {
   'health-check':        ICO('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>'),
   'setup-local-auth':     ICO('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
   'install-site':          ICO('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>'),
+  'cleanup':               ICO('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'),
+  'compare':               ICO('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>'),
+  'log':                   ICO('<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>'),
 };
 
 // ── Data ──
@@ -40,10 +43,13 @@ export const SCRIPT_GROUPS: ScriptGroup[] = [
     { id: 'status',              num: '07', name: 'Status',              desc: 'show site, branch & PR status', requires: ['repository', 'token'] },
     { id: 'diff',                num: '08', name: 'Diff',                desc: 'preview local changes before commit', requires: ['site_path', 'feature_branch'] },
     { id: 'health-check',        num: '09', name: 'Health Check',        desc: 'deep diagnostic of site, DB, git, APIs', requires: ['site_path'] },
+    { id: 'compare',             num: '12', name: 'Compare',             desc: 'compare current env with other environments', requires: [] },
+    { id: 'log',                 num: '13', name: 'Log',                 desc: 'view recent session logs', requires: [] },
   ]},
   { label: 'Git', scripts: [
     { id: 'merge',               num: '10', name: 'Merge',               desc: 'merge feature branch into target', requires: ['site_path', 'feature_branch', 'target_branch'] },
     { id: 'rollback',            num: '11', name: 'Rollback',            desc: 'undo commits (safe revert)', danger: true, requires: ['site_path', 'feature_branch'] },
+    { id: 'cleanup',             num: '14', name: 'Cleanup',             desc: 'clean old commits, temp files & logs', requires: [], danger: true },
   ]},
 ];
 
@@ -96,7 +102,7 @@ export const WF_RECOMMEND: Record<string, string[]> = {
   merged:            ['set-master-packages'],
 };
 
-export const WF_ALWAYS: string[] = ['status', 'health-check'];
+export const WF_ALWAYS: string[] = ['status', 'health-check', 'cleanup', 'compare', 'log'];
 
 // ── Shared mutable state ──
 export const S = {

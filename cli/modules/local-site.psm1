@@ -389,3 +389,4 @@ Export-ModuleMember -Function EnablonPullForce
 Export-ModuleMember -Function EnablonPull
 Export-ModuleMember -Function EnablonCommit
 Export-ModuleMember -Function EnablonPush
+Export-ModuleMember -Function CallLocalAPI

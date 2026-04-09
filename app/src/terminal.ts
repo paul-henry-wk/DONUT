@@ -220,6 +220,20 @@ function stripTag(text: string): string {
   return text.replace(/^\[(TITLE|STATUS|END|ERR|WARN|SUB)\] /, '');
 }
 
+// ── Collapsible sections ──
+let _currentSection: HTMLElement | null = null;
+let _currentSectionBody: HTMLElement | null = null;
+
+function closeSection(): void {
+  _currentSection = null;
+  _currentSectionBody = null;
+}
+
+function _flushBeforeSection(): void {
+  // Flush pending lines before modifying DOM for sections
+  if (_pendingLines.length > 0) _flushLines();
+}
+
 // Word-level diff highlight between two strings
 function wordDiffHighlight(oldStr: string, newStr: string): [string, string] {
   const oldWords = oldStr.split(/(\s+)/);
@@ -304,6 +318,39 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     closeDiffBlock();
   }
 
+  // ── Collapsible sections: [SECTION:title] ... [/SECTION] ──
+  const sectionStart = text.match(/^\[SECTION(?::([^\]]*))?\]\s*(.*)/);
+  if (sectionStart) {
+    _flushBeforeSection();
+    if (_currentSection) closeSection();
+    const label = (sectionStart[1] || sectionStart[2] || 'Section').trim();
+    const extra = sectionStart[2] && sectionStart[1] ? sectionStart[2].trim() : '';
+    // Color OK/FAILED in the extra label
+    let extraHtml = '';
+    if (extra) {
+      extraHtml = esc(extra)
+        .replace(/\bOK\b/, '<span class="section-ok">OK</span>')
+        .replace(/\bFAILED\b/, '<span class="section-fail">FAILED</span>');
+    }
+    const block = document.createElement('div');
+    block.className = 'term-section collapsed';
+    block.innerHTML = `<div class="term-section-header"><span class="term-section-toggle">&#9654;</span><span class="term-section-label">${esc(label)}</span>${extraHtml ? `<span class="term-section-extra">${extraHtml}</span>` : ''}</div><div class="term-section-body"></div>`;
+    block.querySelector('.term-section-header')!.addEventListener('click', () => {
+      block.classList.toggle('collapsed');
+      block.querySelector('.term-section-toggle')!.innerHTML = block.classList.contains('collapsed') ? '&#9654;' : '&#9660;';
+    });
+    out!.appendChild(block);
+    _currentSection = block;
+    _currentSectionBody = block.querySelector('.term-section-body');
+    termScrollToBottom();
+    return;
+  }
+  if (text === '[/SECTION]') {
+    _flushBeforeSection();
+    closeSection();
+    return;
+  }
+
   // Strip tag prefix for display
   const displayText = stripTag(text);
 
@@ -330,8 +377,8 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     if (stepEl && S.isRunning) stepEl.textContent = displayText;
   }
 
-  // Section separator + duration before title lines
-  if (cls === 'title') {
+  // Section separator + duration before title lines (skip when inside a collapsible section)
+  if (cls === 'title' && !_currentSectionBody) {
     const now = Date.now();
     if (_lastTitleTime) {
       const dur = ((now - _lastTitleTime) / 1000);
@@ -343,8 +390,8 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     escaped += ` <span class="section-dur"></span>`;
   }
 
-  // ── Diff rendering ──
-  const isDiff = cls.startsWith('diff-');
+  // ── Diff rendering (skip when inside a collapsible section) ──
+  const isDiff = !_currentSectionBody && cls.startsWith('diff-');
 
   if (cls === 'diff-file') {
     const fileMatch = displayText.match(/DIFF\s+\[.*?\]\s+(.*)/);
@@ -490,8 +537,17 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     return;
   }
 
-  // ── Regular lines (batched) ──
-  _pendingLines.push(`<div class="line ${cls}" data-cls="${cls}" onclick="copyLine(this)"><span class="t">${getTimestamp()}</span> ${escaped}</div>`);
+  // ── Regular lines ──
+  const lineHtml = `<div class="line ${cls}" data-cls="${cls}" onclick="copyLine(this)"><span class="t">${getTimestamp()}</span> ${escaped}</div>`;
+
+  // If inside a collapsible section, append directly to section body
+  if (_currentSectionBody) {
+    _currentSectionBody.insertAdjacentHTML('beforeend', lineHtml);
+    termScrollToBottom();
+    return;
+  }
+
+  _pendingLines.push(lineHtml);
   if (cls === 'err' || cls === 'warn') _pendingNeedsMinimapUpdate = true;
   if (cls === 'err') _pendingNeedsErrorUpdate = true;
   _scheduleFlush();

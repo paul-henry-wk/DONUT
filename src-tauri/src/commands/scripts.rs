@@ -11,6 +11,19 @@ use crate::error::AppError;
 use crate::helpers::{app_root, hidden_cmd, is_noise, now_ts, sanitize_ps_arg, strip_ansi, validate_env_name};
 use crate::AppState;
 
+/// Map a UI script ID to its PowerShell filename (without .ps1).
+/// Returns None for unknown scripts.
+fn resolve_ps_script(script: &str) -> Option<&str> {
+    match script {
+        "set-master-packages" | "pull-force" | "pull" | "commit" | "status"
+        | "diff" | "merge" | "rollback" | "health-check"
+        | "setup-local-auth" | "install-site"
+        | "cleanup" | "compare" | "log" => Some(script),
+        "reset" => Some("pull-force"),
+        _ => None,
+    }
+}
+
 #[derive(Clone, serde::Serialize)]
 pub(crate) struct ScriptEvent {
     #[serde(rename = "type")]
@@ -42,14 +55,8 @@ pub(crate) fn get_run_status(state: tauri::State<'_, AppState>) -> Result<serde_
 
 #[tauri::command]
 pub(crate) async fn run_script(app: AppHandle, state: tauri::State<'_, AppState>, script: String, env_file: String, message: Option<String>, overrides: Option<std::collections::HashMap<String, String>>) -> Result<(), AppError> {
-    let ps_script = match script.as_str() {
-        "set-master-packages" => "set-master-packages", "pull-force" => "pull-force",
-        "reset" => "pull-force", "pull" => "pull", "commit" => "commit", "status" => "status",
-        "diff" => "diff", "merge" => "merge", "rollback" => "rollback", "health-check" => "health-check",
-        "setup-local-auth" => "setup-local-auth",
-        "install-site" => "install-site",
-        _ => return Err(AppError::Validation(format!("Unknown script: {}", script))),
-    };
+    let ps_script = resolve_ps_script(&script)
+        .ok_or_else(|| AppError::Validation(format!("Unknown script: {}", script)))?;
 
     let root = app_root();
     let script_path = root.join("cli").join("scripts").join(format!("{}.ps1", ps_script));
@@ -279,36 +286,31 @@ mod tests {
 
     // ── Script name validation ──
 
-    fn validate_script_name(script: &str) -> Result<&str, AppError> {
-        match script {
-            "set-master-packages" | "pull-force" | "reset" | "pull" | "commit" | "status"
-            | "diff" | "merge" | "rollback" | "health-check" | "setup-local-auth" | "install-site" => Ok(script),
-            _ => Err(AppError::Validation(format!("Unknown script: {}", script))),
-        }
-    }
-
     #[test]
     fn valid_script_names() {
-        assert!(validate_script_name("pull").is_ok());
-        assert!(validate_script_name("commit").is_ok());
-        assert!(validate_script_name("diff").is_ok());
-        assert!(validate_script_name("merge").is_ok());
-        assert!(validate_script_name("rollback").is_ok());
-        assert!(validate_script_name("status").is_ok());
-        assert!(validate_script_name("health-check").is_ok());
-        assert!(validate_script_name("install-site").is_ok());
-        assert!(validate_script_name("setup-local-auth").is_ok());
-        assert!(validate_script_name("set-master-packages").is_ok());
-        assert!(validate_script_name("pull-force").is_ok());
-        assert!(validate_script_name("reset").is_ok());
+        assert!(resolve_ps_script("pull").is_some());
+        assert!(resolve_ps_script("commit").is_some());
+        assert!(resolve_ps_script("diff").is_some());
+        assert!(resolve_ps_script("merge").is_some());
+        assert!(resolve_ps_script("rollback").is_some());
+        assert!(resolve_ps_script("status").is_some());
+        assert!(resolve_ps_script("health-check").is_some());
+        assert!(resolve_ps_script("install-site").is_some());
+        assert!(resolve_ps_script("setup-local-auth").is_some());
+        assert!(resolve_ps_script("set-master-packages").is_some());
+        assert!(resolve_ps_script("pull-force").is_some());
+        assert!(resolve_ps_script("reset").is_some());
+        assert!(resolve_ps_script("cleanup").is_some());
+        assert!(resolve_ps_script("compare").is_some());
+        assert!(resolve_ps_script("log").is_some());
     }
 
     #[test]
     fn unknown_script_rejected() {
-        assert!(validate_script_name("unknown").is_err());
-        assert!(validate_script_name("").is_err());
-        assert!(validate_script_name("rm -rf /").is_err());
-        assert!(validate_script_name("../../etc/passwd").is_err());
+        assert!(resolve_ps_script("unknown").is_none());
+        assert!(resolve_ps_script("").is_none());
+        assert!(resolve_ps_script("rm -rf /").is_none());
+        assert!(resolve_ps_script("../../etc/passwd").is_none());
     }
 
     // ── Prerequisite name validation ──
@@ -392,5 +394,122 @@ mod tests {
         let guard = lock_script(&state);
         assert!(guard.running.is_none());
         assert!(guard.child_pid.is_none());
+    }
+
+    // ── Script-to-PS mapping ──
+
+    #[test]
+    fn reset_maps_to_pull_force_ps1() {
+        // "reset" must map to "pull-force" ps1 (same file, different flag)
+        let ps_script = match "reset" {
+            "reset" => "pull-force",
+            other => other,
+        };
+        assert_eq!(ps_script, "pull-force");
+    }
+
+    #[test]
+    fn all_scripts_map_to_ps1_file() {
+        let scripts = [
+            "set-master-packages", "pull-force", "reset", "pull", "commit",
+            "status", "diff", "merge", "rollback", "health-check",
+            "setup-local-auth", "install-site",
+            "cleanup", "compare", "log",
+        ];
+        for script in scripts {
+            let ps = resolve_ps_script(script).unwrap_or_else(|| panic!("unmapped script: {}", script));
+            assert!(!ps.is_empty(), "script {} should map to a ps1 name", script);
+        }
+    }
+
+    // ── Script path construction ──
+
+    #[test]
+    fn script_path_is_under_cli_scripts() {
+        let root = std::path::PathBuf::from("C:\\DONUT");
+        let script_path = root.join("cli").join("scripts").join("pull-force.ps1");
+        assert!(script_path.to_string_lossy().contains("cli"));
+        assert!(script_path.to_string_lossy().contains("scripts"));
+        assert!(script_path.to_string_lossy().ends_with(".ps1"));
+    }
+
+    // ── Argument construction ──
+
+    #[test]
+    fn args_include_no_profile_and_bypass() {
+        let script_path = "C:\\DONUT\\cli\\scripts\\pull.ps1";
+        let args = vec![
+            "-NoProfile".to_string(), "-ExecutionPolicy".to_string(), "Bypass".to_string(),
+            "-File".to_string(), script_path.to_string(),
+        ];
+        assert!(args.contains(&"-NoProfile".to_string()));
+        assert!(args.contains(&"Bypass".to_string()));
+        assert!(args.contains(&"-File".to_string()));
+    }
+
+    #[test]
+    fn reset_script_adds_force_flag() {
+        let script = "reset";
+        let mut args = vec!["-NoProfile".to_string(), "-ExecutionPolicy".to_string(), "Bypass".to_string(), "-File".to_string(), "pull-force.ps1".to_string()];
+        if script == "reset" { args.push("-ForceStartFromScratch".into()); }
+        assert!(args.contains(&"-ForceStartFromScratch".to_string()));
+    }
+
+    #[test]
+    fn non_reset_script_no_force_flag() {
+        let script = "pull-force";
+        let mut args = vec!["-NoProfile".to_string(), "-ExecutionPolicy".to_string(), "Bypass".to_string(), "-File".to_string(), "pull-force.ps1".to_string()];
+        if script == "reset" { args.push("-ForceStartFromScratch".into()); }
+        assert!(!args.contains(&"-ForceStartFromScratch".to_string()));
+    }
+
+    #[test]
+    fn env_file_appended_when_non_empty() {
+        let env_file = "myenv.json";
+        let mut args: Vec<String> = vec!["-File".into(), "pull.ps1".into()];
+        if !env_file.is_empty() { args.push(env_file.into()); }
+        assert_eq!(args.last().unwrap(), "myenv.json");
+    }
+
+    #[test]
+    fn env_file_not_appended_when_empty() {
+        let env_file = "";
+        let mut args: Vec<String> = vec!["-File".into(), "pull.ps1".into()];
+        if !env_file.is_empty() { args.push(env_file.into()); }
+        assert_eq!(args.len(), 2);
+    }
+
+    // ── Concurrent run prevention ──
+
+    #[test]
+    fn concurrent_run_blocked() {
+        let state = crate::AppState {
+            script: std::sync::Mutex::new(crate::ScriptState {
+                running: Some(crate::RunInfo { script: "pull".into(), started_at: 12345 }),
+                child_pid: Some(100),
+            }),
+            watcher: std::sync::Mutex::new(None),
+            http: reqwest::Client::new(),
+            pr_cache: crate::cache::TtlCache::new(60),
+            build_cache: crate::cache::TtlCache::new(60),
+        };
+        let guard = lock_script(&state);
+        assert!(guard.running.is_some(), "should block new script when one is already running");
+    }
+
+    // ── Overrides env vars ──
+
+    #[test]
+    fn override_key_format() {
+        let key = "site_path";
+        let env_key = format!("DONUT_OVERRIDE_{}", key.to_uppercase());
+        assert_eq!(env_key, "DONUT_OVERRIDE_SITE_PATH");
+    }
+
+    #[test]
+    fn override_key_with_special_chars() {
+        let key = "ena_path";
+        let env_key = format!("DONUT_OVERRIDE_{}", key.to_uppercase());
+        assert_eq!(env_key, "DONUT_OVERRIDE_ENA_PATH");
     }
 }

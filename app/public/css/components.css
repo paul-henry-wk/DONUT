@@ -116,6 +116,21 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 [data-theme="light"] .term-output .sys { color:#6366f1; }
 [data-theme="light"] .term-output .t { color:#a3a3a3; }
 [data-theme="light"] .term-output .dim { color:#b0b0b0; }
+/* ── Collapsible sections ── */
+.term-section { margin:1px 0; border:1px solid var(--diff-border); border-radius:4px; overflow:hidden; }
+.term-section + .term-section { margin-top:1px; }
+.term-section-header { display:flex; align-items:center; gap:8px; padding:5px 10px; background:var(--diff-header-bg); cursor:pointer; user-select:none; font-size:11px; line-height:1.3; }
+.term-section-header:hover { filter:brightness(1.2); }
+.term-section-toggle { font-size:9px; color:var(--text-dim); width:10px; flex-shrink:0; }
+.term-section-label { color:var(--text); font-weight:600; white-space:nowrap; }
+.term-section-extra { color:var(--text-dim); font-size:10px; margin-left:auto; white-space:nowrap; }
+.term-section-extra .section-ok { color:var(--success); }
+.term-section-extra .section-fail { color:var(--danger); font-weight:600; }
+.term-section.collapsed .term-section-body { display:none; }
+.term-section:not(.collapsed) .term-section-header { border-bottom:1px solid var(--diff-border); }
+.term-section-body { padding:2px 0; max-height:350px; overflow-y:auto; }
+.term-section-body .line { font-size:10.5px; padding:0 8px; }
+.term-section-body .line .t { display:none; }
 /* ── Diff blocks ── */
 .diff-block { margin:6px 0; border:2px solid var(--diff-border); border-radius:8px; overflow:hidden; }
 .diff-header { display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--diff-header-bg); cursor:pointer; user-select:none; }

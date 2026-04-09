@@ -85,6 +85,26 @@ if ([string]::IsNullOrEmpty($_c.workitem_id)) {
 $Title = if ($Workitem) { $Workitem.title } else { $Message}
 
 # ── Preview before commit ──
+
+# Show diff summary (quick git diff stats from the repository)
+$repoPath = $_c.local.repository
+if (Test-Path $repoPath) {
+    Print_Title "Changes Summary"
+    $statusLines = @(git -C "$repoPath" status --porcelain 2>$null)
+    if ($statusLines.Count -gt 0) {
+        $added    = @($statusLines | Where-Object { $_ -match '^\?\?' -or $_ -match '^A' }).Count
+        $modified = @($statusLines | Where-Object { $_ -match '^.M' -or $_ -match '^M' }).Count
+        $deleted  = @($statusLines | Where-Object { $_ -match '^.D' -or $_ -match '^D' }).Count
+        Print_Text "$($statusLines.Count) file(s): $modified modified, $added added, $deleted deleted"
+        $diffStat = git -C "$repoPath" diff --stat HEAD 2>$null
+        if ($diffStat) { $diffStat | ForEach-Object { Print_Text "  $_" } }
+    }
+    $commits = @(git -C "$repoPath" log --oneline "origin/$($_c.target_branch)..HEAD" 2>$null)
+    if ($commits.Count -gt 0) {
+        Print_Text "$($commits.Count) commit(s) ahead of '$($_c.target_branch)'"
+    }
+}
+
 if ($env:DONUT_GUI -eq "1") {
     Print_Title "Commit Preview"
     Print_Text "Message:    $Message"
