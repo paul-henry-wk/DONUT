@@ -16,6 +16,7 @@ import { advanceWorkflow, renderWorkflowBar, recalcWorkflow } from './workflow';
 import { startHealthPolling } from './health';
 import { renderConfig, saveConfig } from './config';
 import { renderDevops } from './devops';
+import { onInstanceActionEnd } from './instances';
 import { setTheme, toggleThemeList, closeThemeList } from './app/themes';
 import { showModal, showConfirm, showPrompt } from './app/modals';
 
@@ -543,6 +544,8 @@ export function setupEventListeners(): void {
       }
       // Show re-run button on failure
       if (!ok) { showRerunBtn(); S._pendingInstallSitePath = null; }
+      // Refresh instance list after WizManager actions
+      if (msg.script?.startsWith('instance:')) { onInstanceActionEnd(); }
       renderRunBar();
       renderScripts();
       // Save to history & advance workflow

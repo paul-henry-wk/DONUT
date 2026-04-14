@@ -168,10 +168,6 @@
 /* ── XP Error bar ── */
 [data-theme="winxp"] .term-error-bar { background:linear-gradient(180deg, #fde8e8, #f5d0d0); border:1px solid #c80000; }
 [data-theme="winxp"] .err-nav-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
-/* ── XP Watch button — green gel like Start ── */
-[data-theme="winxp"] .watch-btn { background:linear-gradient(180deg, #fff, #ece9d8) !important; border:1px solid #aca899 !important; color:#003399 !important; animation:none !important; }
-[data-theme="winxp"] .watch-btn:hover { background:linear-gradient(180deg, #d6e5f8, #b8cde8) !important; border-color:#316ac5 !important; }
-[data-theme="winxp"] .watch-btn.active { background:linear-gradient(180deg, #69ce3e, #2d8c14) !important; color:#fff !important; border-color:#1a6600 !important; text-shadow:0 -1px 0 rgba(0,0,0,.3); }
 /* ── XP Health widget ── */
 [data-theme="winxp"] .health-widget { border:1px solid #7f9db9; background:linear-gradient(180deg, #d6e5f8, #c1d9f5); }
 [data-theme="winxp"] .prereq .dot { box-shadow:0 0 3px rgba(0,0,0,.25); }

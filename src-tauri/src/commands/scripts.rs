@@ -40,7 +40,7 @@ pub(crate) struct ScriptEvent {
 pub(crate) struct PrereqCheck { name: String, ok: bool, #[serde(skip_serializing_if = "Option::is_none")] version: Option<String> }
 
 /// Helper to lock AppState.script with poisoning recovery.
-fn lock_script(state: &AppState) -> std::sync::MutexGuard<'_, crate::ScriptState> {
+pub(crate) fn lock_script(state: &AppState) -> std::sync::MutexGuard<'_, crate::ScriptState> {
     state.script.lock().unwrap_or_else(|e| e.into_inner())
 }
 

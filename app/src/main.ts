@@ -31,7 +31,7 @@ import {
 
 import {
   renderScripts, selectScript, toggleFav, renderRunBar,
-  doRun, showTab, validateEnvForScript, toggleWatch,
+  doRun, showTab, validateEnvForScript,
   addToPipeline, removeFromPipeline, clearPipeline, movePipelineItem,
   runPipeline, cancelPipeline, renderPipeline,
   toggleCommitHistory, pickCommitMsg, validateCommitMsg,
@@ -44,11 +44,13 @@ import {
   onProjectChange, onRepoChange, wizValidatePat, refreshRepos, refreshBranches,
   togglePwd, onVersionChange, searchWI, showWIResults, showWIResultsCached,
   loadPackages, loadWorkItems, loadMyWorkItems,
-  createBranch, deleteBranch, doBrowse, doBrowseFile, selectWI,
+  createBranch, deleteBranch, doBrowse, doBrowseFile, selectWI, launchInstallSite,
   getToken, getRepo, loadBranches, loadRepos, validatePath,
 } from './config';
 
 import { renderDevops, resetGitCreds, reassignWI, viewPrDiff } from './devops';
+
+import { toggleInstance, instanceArchive, instanceRemove, instanceForceRemove, onInstanceActionEnd, refreshAllInstances } from './instances';
 
 import { refreshHealth, toggleHealthPopup, autoFixHealth } from './health';
 
@@ -83,7 +85,6 @@ async function initGravityEgg(): Promise<void> {
 
 // From scripts.ts
 window.doRun = doRun;
-window.toggleWatch = toggleWatch;
 window.showTab = showTab;
 window.selectScript = selectScript;
 window.toggleFav = toggleFav;
@@ -153,7 +154,14 @@ window.createBranch = createBranch;
 window.deleteBranch = deleteBranch;
 window.doBrowse = doBrowse;
 window.doBrowseFile = doBrowseFile;
+window.launchInstallSite = launchInstallSite;
 window.validatePath = validatePath;
+
+window.toggleInstance = toggleInstance;
+window.instanceArchive = instanceArchive;
+window.instanceRemove = instanceRemove;
+window.instanceForceRemove = instanceForceRemove;
+window.refreshAllInstances = refreshAllInstances;
 
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;

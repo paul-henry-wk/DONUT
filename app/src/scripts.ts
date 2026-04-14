@@ -138,10 +138,6 @@ export function renderRunBar(): void {
     wfHint = '<span class="wf-hint diag">diagnostic</span>';
   }
 
-  const watchBtn = s.id === 'diff' && !S.isRunning
-    ? `<button class="run-btn watch-btn ${S.isWatching ? 'active' : ''}" onclick="toggleWatch()">${S.isWatching ? '&#9632; STOP WATCH' : '&#9673; WATCH'}</button>`
-    : '';
-
   // Last run result badge
   const r = S.lastRunResult;
   const resultBadge = r && !S.isRunning
@@ -159,7 +155,7 @@ export function renderRunBar(): void {
     ${msgInput}
     ${S.isRunning
       ? `<button class="run-btn danger" id="runBtn" onclick="doStop()">STOP</button>`
-      : `${watchBtn}<span class="run-arrows">&#9654;&#9654;&#9654;</span><button class="${btnCls}" id="runBtn" onclick="doRun()">${btnLabel}</button>`
+      : `<span class="run-arrows">&#9654;&#9654;&#9654;</span><button class="${btnCls}" id="runBtn" onclick="doRun()">${btnLabel}</button>`
     }
   `;
   if (s.needsMsg) {
@@ -185,30 +181,11 @@ export function validateEnvForScript(scriptId: string): string[] | null {
   return missing.length ? missing : null;
 }
 
-// ── Watch mode ──
-export async function toggleWatch(): Promise<void> {
-  if (S.isWatching) {
-    try {
-      await invoke('stop_watch');
-      S.isWatching = false;
-      toast('Watch stopped', 'info');
-      appendLog('[STATUS] Watch mode stopped', 'status');
-    } catch (e) { toast('Stop watch: ' + e, 'error'); }
-  } else {
-    if (!S.currentEnv) { toast('Select an environment first', 'error'); return; }
-    try {
-      await invoke('start_watch', { envFile: S.currentEnv });
-      S.isWatching = true;
-      toast('Watching for changes...', 'success');
-    } catch (e) { toast('Start watch: ' + e, 'error'); }
-  }
-  renderRunBar();
-}
 
 // ── Install Site Wizard ─────────────────────────────────────────
 interface WizardResult { enaPath: string; sitePath: string; }
 
-function showInstallWizard(): Promise<WizardResult | null> {
+export function showInstallWizard(): Promise<WizardResult | null> {
   return new Promise(async (resolve) => {
     let enaPath = '';
     let siteName = '';
@@ -524,16 +501,6 @@ export async function doRun(): Promise<void> {
         changesHtml += `</div>`;
       }
 
-      // Message history
-      const history = getCommitHistory();
-      let historyHtml = '';
-      if (history.length) {
-        historyHtml = `<div class="cc-section"><div class="cc-section-title">Recent messages</div><div class="cc-history">`;
-        history.slice(0, 5).forEach(m => {
-          historyHtml += `<div class="cc-hist-item" data-msg="${esc(m)}">${esc(m.length > 80 ? m.slice(0, 77) + '...' : m)}</div>`;
-        });
-        historyHtml += `</div></div>`;
-      }
 
       panel.innerHTML = `
         <div class="cc-header">
@@ -546,7 +513,6 @@ export async function doRun(): Promise<void> {
             <div class="cc-section-title">Message</div>
             <textarea class="cc-msg" id="ccMsgEdit" placeholder="Describe your changes...">${esc(msg)}</textarea>
           </div>
-          ${historyHtml}
           <div class="cc-section">
             <div class="cc-section-title">Target</div>
             <div class="cc-route">
@@ -574,13 +540,6 @@ export async function doRun(): Promise<void> {
       document.body.appendChild(overlay);
       requestAnimationFrame(() => { overlay.classList.add('open'); panel.querySelector<HTMLTextAreaElement>('#ccMsgEdit')?.focus(); });
 
-      // History item click → fill message
-      panel.querySelectorAll('.cc-hist-item').forEach(el => {
-        el.addEventListener('click', () => {
-          const ta = panel.querySelector<HTMLTextAreaElement>('#ccMsgEdit');
-          if (ta) { ta.value = (el as HTMLElement).dataset.msg || ''; ta.focus(); }
-        });
-      });
 
       const close = (val: boolean) => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); resolve(val); };
       panel.querySelector('#ccClose')!.addEventListener('click', () => close(false));
@@ -604,8 +563,6 @@ export async function doRun(): Promise<void> {
 
     body.message = msg;
 
-    // Save to commit history
-    saveCommitHistory(msg);
   }
 
   appendLog(`> donut ${S.selectedScript} ${S.currentEnv}`, 'prompt');
@@ -614,22 +571,6 @@ export async function doRun(): Promise<void> {
   catch(e) { appendLog('Failed to start: '+e, 'err'); }
 }
 
-// ── Commit message history ──
-
-function getCommitHistory(): string[] {
-  try { return JSON.parse(localStorage.getItem('donut-commit-history') || '[]'); }
-  catch { return []; }
-}
-
-function saveCommitHistory(msg: string): void {
-  // Strip AB# prefix for storage (will be re-added)
-  const clean = msg.replace(/^AB#\d+\s*-\s*/, '').trim();
-  if (!clean) return;
-  const history = getCommitHistory().filter(m => m !== clean);
-  history.unshift(clean);
-  if (history.length > 10) history.length = 10;
-  localStorage.setItem('donut-commit-history', JSON.stringify(history));
-}
 
 export function toggleCommitHistory(): void {
   const dd = document.getElementById('commitHistDropdown');

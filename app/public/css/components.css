@@ -151,9 +151,10 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .diff-block.collapsed .diff-body { display:none; }
 .diff-block:not(.collapsed) .diff-header { border-bottom:2px solid var(--diff-sep); }
 .diff-body { font-size:10.5px; line-height:1.7; background:var(--diff-body-bg); padding:4px 0; }
+.diff-block > .diff-body { max-height:400px; overflow:auto; }
 .diff-sep { height:0; margin:8px 16px; border-top:2px dashed var(--diff-sep); }
 .diff-subfile { padding:4px 12px; font-size:10.5px; color:var(--text-dim); background:var(--diff-header-bg); border-top:1px solid var(--diff-sep); border-bottom:1px solid var(--diff-sep); margin:6px 0 2px; text-transform:uppercase; letter-spacing:.5px; }
-.diff-line { display:flex; white-space:pre-wrap; word-break:break-all; border-left:3px solid transparent; }
+.diff-line { display:flex; white-space:pre; border-left:3px solid transparent; }
 .dl-gutter { width:20px; flex-shrink:0; text-align:center; font-weight:700; user-select:none; }
 .dl-content { flex:1; padding:1px 10px; }
 .diff-line.add { border-left-color:var(--success); background:var(--diff-add-bg); }
@@ -167,13 +168,13 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .diff-hl { border-radius:2px; padding:0 2px; }
 .diff-line.add .diff-hl { background:var(--diff-add-hl); }
 .diff-line.del .diff-hl { background:var(--diff-del-hl); }
-/* Side-by-side */
-.diff-sbs { display:flex; border-left:3px solid var(--accent); }
-.diff-sbs .sbs-del, .diff-sbs .sbs-add { flex:1; display:flex; white-space:pre-wrap; word-break:break-all; min-width:0; }
+/* Side-by-side → stacked (old on top, new below, full width each) */
+.diff-sbs { display:flex; flex-direction:column; border-left:3px solid var(--accent); }
+.diff-sbs .sbs-del, .diff-sbs .sbs-add { display:flex; white-space:pre; }
 .diff-sbs .sbs-del { background:var(--diff-del-bg); }
 .diff-sbs .sbs-del .dl-gutter { color:var(--danger); }
 .diff-sbs .sbs-del .dl-content { color:var(--danger); }
-.diff-sbs .sbs-add { background:var(--diff-add-bg); border-left:1px solid var(--diff-sep); }
+.diff-sbs .sbs-add { background:var(--diff-add-bg); }
 .diff-sbs .sbs-add .dl-gutter { color:var(--success); }
 .diff-sbs .sbs-add .dl-content { color:var(--success); }
 .diff-sbs .dl-gutter { width:20px; flex-shrink:0; text-align:center; font-weight:700; user-select:none; }
@@ -274,31 +275,29 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .hist-date { color:var(--text-dim); font-size:10.5px; }
 
 /* ── Toasts ── */
-.toast-container { position:fixed; bottom:40px; right:16px; z-index:300; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; }
-.toast { --toast-duration:3500ms; pointer-events:auto; position:relative; display:flex; align-items:flex-start; gap:10px; padding:12px 36px 12px 14px; background:var(--bg-raised); border-left:3px solid var(--border); border-radius:6px; font-size:12px; line-height:1.5; color:var(--text); box-shadow:0 8px 30px rgba(0,0,0,.2), 0 2px 8px rgba(0,0,0,.1); animation:toastIn .45s cubic-bezier(.34,1.56,.64,1); max-width:400px; min-width:280px; overflow:hidden; backdrop-filter:blur(8px); }
+.toast-container { position:fixed; bottom:40px; left:16px; z-index:300; display:flex; flex-direction:column-reverse; gap:4px; pointer-events:none; width:180px; }
+.toast { --toast-duration:3500ms; pointer-events:auto; position:relative; display:flex; align-items:center; gap:6px; padding:5px 8px; background:var(--bg-raised); border-left:3px solid var(--border); border-radius:4px; font-size:10.5px; line-height:1.3; color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.12); animation:toastIn .25s ease; overflow:hidden; }
 .toast.out { animation:toastOut .25s ease forwards; }
 .toast.success { border-left-color:var(--success); }
 .toast.error   { border-left-color:var(--danger); }
 .toast.warn    { border-left-color:var(--warn); }
 .toast.info    { border-left-color:var(--accent); }
-.toast-icon { flex-shrink:0; width:20px; height:20px; margin-top:1px; }
-.toast-icon svg { width:20px; height:20px; }
+.toast-icon { flex-shrink:0; width:14px; height:14px; }
+.toast-icon svg { width:14px; height:14px; }
 .toast.success .toast-icon { color:var(--success); }
 .toast.error .toast-icon   { color:var(--danger); }
 .toast.warn .toast-icon    { color:var(--warn); }
 .toast.info .toast-icon    { color:var(--accent); }
-.toast-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.toast-title { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
+.toast-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.toast-title { display:none; }
 .toast.success .toast-title { color:var(--success); }
 .toast.error .toast-title   { color:var(--danger); }
 .toast.warn .toast-title    { color:var(--warn); }
 .toast.info .toast-title    { color:var(--accent); }
-.toast-msg { font-size:11.5px; color:var(--text-muted); word-break:break-word; }
-.toast-close { position:absolute; top:8px; right:8px; background:none; border:none; color:var(--text-dim); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px; border-radius:4px; opacity:.5; transition:opacity .15s, background .15s; }
-.toast:hover .toast-close { opacity:1; }
-.toast-close:hover { color:var(--text); background:var(--border); }
-.toast-close:focus-visible { opacity:1; outline:2px solid var(--accent); outline-offset:1px; }
-.toast-progress { position:absolute; bottom:0; left:0; height:3px; animation:toastProgress var(--toast-duration) linear forwards; }
+.toast-msg { font-size:10px; color:var(--text-muted); word-break:break-word; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.toast.error .toast-title, .toast.warn .toast-title { display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
+.toast-close { display:none; }
+.toast-progress { position:absolute; bottom:0; left:0; height:2px; animation:toastProgress var(--toast-duration) linear forwards; }
 .toast.paused .toast-progress { animation-play-state:paused; }
 .toast.success .toast-progress { background:var(--success); }
 .toast.error .toast-progress   { background:var(--danger); }

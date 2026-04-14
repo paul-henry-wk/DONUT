@@ -39,10 +39,6 @@
 .run-bar .run-btn:active { transform:scale(.95); }
 .run-bar .run-btn:disabled { background:var(--border); color:var(--text-dim); cursor:not-allowed; animation:none; transform:none; box-shadow:none; }
 .run-bar .run-btn.danger { background:var(--danger); color:#fff; }
-.run-bar .watch-btn { background:none; border:1px solid var(--accent); color:var(--accent); font-size:10px; padding:4px 10px; }
-.run-bar .watch-btn:hover { background:var(--accent-bg); }
-.run-bar .watch-btn.active { background:var(--accent); color:#000; animation:watchPulse 2s ease-in-out infinite; }
-@keyframes watchPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
 .run-bar .run-btn.danger:hover { background:#b91c1c; }
 .run-label { color:var(--text); font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .run-label .s-icon { width:14px; height:14px; color:var(--accent); }

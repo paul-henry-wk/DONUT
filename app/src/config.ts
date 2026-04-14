@@ -4,11 +4,12 @@
 
 import type { EnvConfig, WorkItem } from './types';
 import { S, esc, toast, invoke, azdoInvoke, getOrg, getProject } from './state';
-import { renderSelectedInfo } from './scripts';
+import { renderSelectedInfo, showInstallWizard } from './scripts';
+import { renderInstancesSection } from './instances';
 import {
   field, fieldVersion, fieldBrowse, fieldWorkItem,
   nativeSelectInline, ssInputInline, ssFieldWithCreate,
-  wizStep, wizClosed,
+  wizStep, wizClosed, CFG_ICO,
 } from './config/form-fields';
 
 // ── Config ──
@@ -215,9 +216,12 @@ export function renderConfig(): void {
 
   cfgForm.innerHTML = `
     <div class="cfg-summary">${summaryItems.join('<span class="cfg-sum-sep">\u00B7</span>')}</div>
+    ${wizStep(0, 'Instances', true, true, '', `
+      <div id="instancesContainer">${renderInstancesSection()}</div>
+    `)}
     ${wizStep(1, 'Local Site & Packages', true, !!sitePath, sitePath ? esc(sitePath) : '', `
       <div class="cfg-fields">
-        ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)')}
+        ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)',`<button class="cfg-action-btn" onclick="launchInstallSite()" title="Install new site">${CFG_ICO.download}</button>`)}
         ${field('c-ps','parent site',c.local?.parent_site||'','full','text','Parent site used to download master packages. Local: relative path (e.g. /WizRisk.10.13). Remote: full URL (e.g. https://myserver/10.13/WizRisk.10.13/)')}
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
@@ -225,7 +229,7 @@ export function renderConfig(): void {
         ${field('c-devpw','developer password',c.local?.developer_password||'','','password','Builder developer password (used by Setup Local Auth)')}
         ${field('c-dbu','DB user',c.local?.db_user||'sa','','text','SQL Server login (default: sa)')}
         ${field('c-dbpw','DB password',c.local?.db_password||'','','password','SQL Server password for DB user')}<span id="credBadgeSql" class="cred-badge" style="display:none"></span>
-        <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="cfg-action-btn pkg-load-btn" onclick="loadPackages()">load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="cfg-action-btn" onclick="selectAllPkgs()">all</button><button class="cfg-action-btn" onclick="deselectAllPkgs()">none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
+        <div class="cfg-field full"><label>packages ${S.cachedPackages.length ? `<span class="pkg-count" id="pkgCount">${(c.packages||[]).length}/${S.cachedPackages.length} selected</span>` : '<button class="cfg-action-btn pkg-load-btn" onclick="loadPackages()">${CFG_ICO.db} load from DB</button>'}</label>${S.cachedPackages.length ? `<div class="pkg-filter"><input class="pkg-filter-input" type="text" placeholder="filter packages..." oninput="filterPackages(this.value)" autocomplete="off"><button class="cfg-action-btn" onclick="selectAllPkgs()">${CFG_ICO.check} all</button><button class="cfg-action-btn" onclick="deselectAllPkgs()">${CFG_ICO.x} none</button></div><div class="pkg-grid" id="pkgGrid">${S.cachedPackages.slice().sort().map(p => `<label class="pkg-chip${(c.packages||[]).includes(p)?' selected':''}" data-pkg="${esc(p)}" onclick="this.classList.toggle('selected');updatePkgCount();autoSave()"><span>${esc(p)}</span></label>`).join('')}</div>` : `<input id="c-pkg" type="text" value="${esc((c.packages||[]).join(', '))}" placeholder="comma separated, or click 'load from DB'">`}</div>
       </div>
     `)}
     ${wizStep(2, 'Azure DevOps — Connection', true, okToken, okToken ? `${S.cachedProjects.length} projects` : '', `
@@ -234,22 +238,22 @@ export function renderConfig(): void {
         ${field('c-pat','personal access token (PAT)',token,'full','password','Personal Access Token — create one at Azure DevOps > User Settings > Personal Access Tokens. Required scopes: Code (Read & Write), Work Items (Read & Write)')}
       </div>
       <div class="cfg-btn-row">
-        <button class="cfg-action-btn" onclick="wizValidatePat()">test PAT & load projects</button>
-        <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">create a PAT ↗</button>
+        <button class="cfg-action-btn" onclick="wizValidatePat()">${CFG_ICO.check} test PAT & load projects</button>
+        <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">${CFG_ICO.link} create a PAT</button>
         <span id="credBadgePat" class="cred-badge" style="display:none"></span>
       </div>
     `)}
     ${wizStep(3, 'Project & Repository', okToken, okRepo, okRepo ? `${proj} / ${repo}` : (okProj ? proj : ''), `
       <div class="cfg-fields">
-        <div class="cfg-field"><label>project</label><div class="cfg-input-row">${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}<button class="cfg-action-btn" onclick="wizValidatePat()" title="Refresh projects">↻</button></div></div>
-        <div class="cfg-field ss-wrap"><label>repository</label><div class="cfg-input-row">${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">↻</button></div></div>
-        <div class="cfg-field full ss-wrap"><label>metadata repository<span class="cfg-tip" title="Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB">?</span></label><div class="cfg-input-row">${ssInputInline('c-rdm',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB',S.cachedRepos,'')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">↻</button></div></div>
+        <div class="cfg-field"><label>project</label><div class="cfg-input-row">${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}<button class="cfg-action-btn" onclick="wizValidatePat()" title="Refresh projects">${CFG_ICO.refresh}</button></div></div>
+        <div class="cfg-field ss-wrap"><label>repository</label><div class="cfg-input-row">${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
+        <div class="cfg-field full ss-wrap"><label>metadata repository<span class="cfg-tip" title="Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB">?</span></label><div class="cfg-input-row">${ssInputInline('c-rdm',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB',S.cachedRepos,'')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
       </div>
     `)}
     ${wizStep(4, 'Branches', okRepo, okFb && okTb, okFb ? `${c.feature_branch} → ${c.target_branch||'?'}` : '', `
       <div class="cfg-fields">
         ${ssFieldWithCreate('c-fb','feature branch',c.feature_branch,S.cachedBranches,'Your working branch where changes are committed')}
-        <div class="cfg-field ss-wrap"><label>target branch<span class="cfg-tip" title="The branch your feature will be merged into (e.g. main, develop)">?</span></label><div class="cfg-input-row">${ssInputInline('c-tb',c.target_branch||'',S.cachedBranches,'')}<button class="cfg-action-btn" onclick="refreshBranches()" title="Refresh branches">↻</button></div></div>
+        <div class="cfg-field ss-wrap"><label>target branch<span class="cfg-tip" title="The branch your feature will be merged into (e.g. main, develop)">?</span></label><div class="cfg-input-row">${ssInputInline('c-tb',c.target_branch||'',S.cachedBranches,'')}<button class="cfg-action-btn" onclick="refreshBranches()" title="Refresh branches">${CFG_ICO.refresh}</button></div></div>
         <div class="cfg-field full"><label><input type="checkbox" id="c-md" ${c.deactivate_metadata_conversion ? '' : 'checked'}> Enable metadata conversion (view-diff)</label><p class="wiz-desc">Disable if the metadata repository is not set up for this project.</p></div>
       </div>
     `)}
@@ -293,16 +297,32 @@ export function toggleWizStep(num: number): void {
 
 export function ssOpen(id: string): void {
   document.querySelectorAll('.ss-results.open').forEach(el => { el.classList.remove('open'); });
-  const input = document.getElementById(id) as HTMLInputElement | null;
-  const list = document.getElementById(id+'-list');
+  const input = document.getElementById(id) as HTMLElement | null;
+  const list = document.getElementById(id+'-list') as HTMLElement | null;
   if (!input || !list) return;
-  // Position fixed dropdown below the input
-  const rect = input.getBoundingClientRect();
-  (list as HTMLElement).style.top = rect.bottom + 2 + 'px';
-  (list as HTMLElement).style.left = rect.left + 'px';
-  (list as HTMLElement).style.width = rect.width + 'px';
+  positionDropdown(input, list);
   list.classList.add('open');
   ssFilter(id);
+}
+
+function positionDropdown(anchor: HTMLElement, dropdown: HTMLElement): void {
+  const rect = anchor.getBoundingClientRect();
+  const maxH = 200;
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const spaceAbove = rect.top - 8;
+  dropdown.style.left = rect.left + 'px';
+  dropdown.style.width = rect.width + 'px';
+  if (spaceBelow >= 100 || spaceBelow >= spaceAbove) {
+    // Open below
+    dropdown.style.top = rect.bottom + 2 + 'px';
+    dropdown.style.bottom = '';
+    dropdown.style.maxHeight = Math.min(maxH, Math.max(60, spaceBelow)) + 'px';
+  } else {
+    // Open above
+    dropdown.style.top = '';
+    dropdown.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+    dropdown.style.maxHeight = Math.min(maxH, Math.max(60, spaceAbove)) + 'px';
+  }
 }
 export function ssFilter(id: string): void {
   const q = (document.getElementById(id) as HTMLInputElement)?.value?.toLowerCase() || '';
@@ -328,8 +348,10 @@ document.addEventListener('click', (e: MouseEvent) => {
   if (!(e.target as HTMLElement).closest('.ss-wrap')) document.querySelectorAll('.ss-results.open').forEach(el => el.classList.remove('open'));
 });
 // Close dropdowns on scroll to prevent position desync
+// Close dropdowns when clicking outside
 document.querySelector('.panel')?.addEventListener('scroll', () => {
   document.querySelectorAll('.ss-results.open').forEach(el => el.classList.remove('open'));
+  document.getElementById('wiResults')?.classList.remove('open');
 }, { passive: true });
 
 // ── Wizard cascade triggers ──
@@ -439,9 +461,11 @@ function getSelectedPackages(): string[] {
 }
 let wiDebounce: ReturnType<typeof setTimeout> | null = null;
 function renderWIResults(items: WorkItem[]): void {
-  const el = document.getElementById('wiResults');
+  const el = document.getElementById('wiResults') as HTMLElement | null;
   if (!el) return;
   if (!items.length) { el.classList.remove('open'); return; }
+  const input = document.getElementById('c-wi');
+  if (input) positionDropdown(input, el);
   el.innerHTML = items.map(wi =>
     `<div class="wi-item" onclick="selectWI(${wi.id})">
       <span class="wi-id">${wi.id}</span>
@@ -512,13 +536,12 @@ export async function selectWI(id: number): Promise<void> {
   wiInput.value = wi ? `#${id} — ${wi.title}` : String(id);
   document.getElementById('wiResults')?.classList.remove('open');
   if (wi) {
-    const slug = (wi.title || '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 40);
+    const slug = (wi.title || '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
     const prefix = wi.type === 'Bug' ? 'fix' : 'feature';
-    const typePrefix = (wi.type || '').includes('User Story') ? 'US' : (wi.type || '').includes('Bug') ? 'BUG' : 'WI';
     // Derive user initials from git username (fallback to empty)
     const gitUser = S.envConfig.git?.username || '';
     const initials = gitUser ? gitUser.split(/[\s.]+/).map(p => p[0]?.toUpperCase() || '').join('') : '';
-    const branch = initials ? `${prefix}/${initials}/${typePrefix}-${id}-${slug}` : `${prefix}/${typePrefix}-${id}-${slug}`;
+    const branch = initials ? `${prefix}/${initials}/${slug}` : `${prefix}/${slug}`;
     const fbEl = document.getElementById('c-fb') as HTMLInputElement | null;
     const shouldReplace = !fbEl?.value || await (window as any).showModal({ title: 'Replace branch?', message: `Set feature branch to:\n${branch}`, confirmLabel: 'Replace' });
     if (fbEl && shouldReplace) {
@@ -596,6 +619,15 @@ export async function doBrowseFile(id: string, filter?: string): Promise<void> {
       toast('Selected: ' + path, 'success');
     }
   } catch(e) { toast('Browse failed: '+e, 'error'); }
+}
+
+export async function launchInstallSite(): Promise<void> {
+  const result = await showInstallWizard();
+  if (!result) return;
+  const el = document.getElementById('c-sp') as HTMLInputElement | null;
+  if (el) { el.value = result.sitePath; }
+  autoSave();
+  renderConfig();
 }
 
 // ── Inline validation ──

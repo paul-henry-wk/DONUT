@@ -160,9 +160,6 @@
 /* Win95: error bar */
 [data-theme="win95"] .term-error-bar { background:#c0c0c0; box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; }
 [data-theme="win95"] .err-nav-btn { box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; background:#c0c0c0; border:none; }
-/* Win95: watch button */
-[data-theme="win95"] .watch-btn { box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #868a8e, inset 2px 2px 0 #dfdfdf; background:#c0c0c0 !important; color:#000 !important; border:none !important; animation:none !important; }
-[data-theme="win95"] .watch-btn.active { box-shadow:inset 1px 1px 0 #000, inset -1px -1px 0 #fff, inset 2px 2px 0 #868a8e; background:#d4d0c8 !important; }
 /* Win95: new components */
 [data-theme="win95"] .pr-link-banner { background:#c0c0c0; border:none; box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; }
 [data-theme="win95"] .pr-link-banner button { box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #868a8e, inset 2px 2px 0 #dfdfdf; background:#c0c0c0; color:#000; }

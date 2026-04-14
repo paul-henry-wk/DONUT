@@ -22,20 +22,30 @@
 .wiz-chevron { margin-left:auto; color:var(--text-dim); font-size:10.5px; flex-shrink:0; }
 .wiz-desc { font-size:10.5px; color:var(--text-dim); margin:0 0 8px; line-height:1.4; }
 .wiz-desc strong { color:var(--text-muted); }
-/* Unified input row — input + action buttons fused together */
+/* ── Input group: input + fused buttons ── */
 .cfg-input-row { display:flex; align-items:stretch; }
-.cfg-input-row input, .cfg-input-row select, .cfg-input-row .ss-input { flex:1; min-width:0; border-radius:4px 0 0 4px; }
-.cfg-input-row input:only-child, .cfg-input-row select:only-child { border-radius:4px; }
-/* Unified action button — visually fused to the input */
-.cfg-action-btn { background:var(--bg); border:1px solid var(--border); border-left:none; color:var(--text-dim); font-family:inherit; font-size:11px; padding:0 10px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap; transition:all .15s; }
-.cfg-action-btn:last-child { border-radius:0 4px 4px 0; }
-.cfg-action-btn:hover { color:var(--accent); background:var(--accent-bg); }
+/* Every child in the group: kill radius + overlap borders via negative margin */
+.cfg-input-row > * { border-radius:0 !important; position:relative; }
+.cfg-input-row > *:not(:first-child) { margin-left:-1px; }
+/* First and last child get their radius back */
+.cfg-input-row > *:first-child { border-radius:4px 0 0 4px !important; }
+.cfg-input-row > *:last-child { border-radius:0 4px 4px 0 !important; }
+.cfg-input-row > *:only-child { border-radius:4px !important; }
+/* Hover/focus raises z so its border is fully visible */
+.cfg-input-row > *:hover, .cfg-input-row > *:focus { z-index:1; }
+.cfg-input-row input, .cfg-input-row select, .cfg-input-row .ss-input { flex:1; min-width:0; }
+/* ── Action button (default = standalone pill) ── */
+.cfg-action-btn { background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text-dim); font-family:inherit; font-size:10.5px; padding:4px 10px; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap; transition:all .15s; }
+.cfg-action-btn:hover { color:var(--accent); background:var(--accent-bg); border-color:var(--accent); z-index:1; }
 .cfg-action-btn:active { background:var(--border); }
-/* When there's only one button and no input (standalone) */
-.cfg-btn-row .cfg-action-btn { border:1px solid var(--border); border-radius:4px; padding:6px 14px; }
-/* Button row — for standalone action buttons below fields */
+.cfg-action-btn svg { width:13px; height:13px; flex-shrink:0; }
+/* Fused buttons inside input-row: use group radius rules, just adjust padding */
+.cfg-input-row .cfg-action-btn { padding:0 8px; }
+/* Standalone button row */
 .cfg-btn-row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.pkg-load-btn { margin-left:8px; border:1px solid var(--border); border-radius:4px; padding:4px 10px; }
+.cfg-btn-row .cfg-action-btn { padding:5px 12px; }
+/* Package load (inline in label) */
+.pkg-load-btn { margin-left:8px; }
 .wiz-body { padding:10px 12px; display:none; }
 .wiz-step.active .wiz-body { display:block; }
 
@@ -44,7 +54,7 @@
 .ss-input { background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:12px; padding:7px 10px; border-radius:4px; width:100%; transition:border-color .15s; }
 .ss-input:focus { outline:none; border-color:var(--accent); }
 .ss-input::placeholder { color:var(--text-dim); }
-.ss-results { display:none; position:fixed; background:var(--bg-raised); border:1px solid var(--border); border-radius:6px; max-height:200px; overflow-y:auto; z-index:9999; box-shadow:0 6px 24px rgba(0,0,0,.3); }
+.ss-results { display:none; position:fixed; border:1px solid var(--accent); border-radius:6px; max-height:200px; overflow-y:auto; background:var(--bg-raised); z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,.25); }
 .ss-results.open { display:block; }
 .ss-item { padding:6px 10px; cursor:pointer; font-size:11.5px; color:var(--text); border-bottom:1px solid var(--border); transition:background .1s; }
 .ss-item:last-child { border-bottom:none; }
@@ -90,7 +100,7 @@
 .cfg-select:focus { outline:none; border-color:var(--accent); }
 .cfg-select option { background:var(--select-bg); color:var(--text); }
 .wi-search { position:relative; }
-.wi-results { position:absolute; top:100%; left:0; right:0; background:var(--bg-raised); border:1px solid var(--border); border-radius:6px; max-height:200px; overflow-y:auto; z-index:100; display:none; box-shadow:0 6px 24px rgba(0,0,0,.3); }
+.wi-results { position:fixed; border:1px solid var(--accent); border-radius:6px; max-height:200px; overflow-y:auto; background:var(--bg-raised); z-index:9999; display:none; box-shadow:0 8px 24px rgba(0,0,0,.25); }
 .wi-results.open { display:block; }
 .wi-item { padding:6px 10px; cursor:pointer; font-size:11.5px; border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:baseline; transition:background .1s; }
 .wi-item:last-child { border-bottom:none; }
@@ -112,7 +122,7 @@
 .cfg-sum-item.dim { color:var(--text-dim); }
 .cfg-sum-sep { color:var(--border); font-size:10px; }
 /* Inline validation indicators */
-.cfg-valid { display:inline-flex; align-items:center; width:18px; flex-shrink:0; font-size:13px; margin-left:6px; }
+.cfg-valid { display:inline-flex; align-items:center; width:18px; flex-shrink:0; font-size:13px; margin-left:6px; border:none !important; border-radius:0 !important; }
 .cfg-valid-ok { color:var(--success); }
 .cfg-valid-err { color:var(--danger); }
 
@@ -133,10 +143,16 @@
 .cfg-save-float .save-btn:hover { transform:scale(1.05); box-shadow:0 6px 24px rgba(0,0,0,.3); }
 
 /* Packages filter & grid */
-.pkg-filter { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
-.pkg-filter-input { flex:1; background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:11.5px; padding:5px 10px; border-radius:4px; }
+.pkg-filter { display:flex; align-items:stretch; margin-bottom:6px; }
+.pkg-filter > * { border-radius:0 !important; position:relative; }
+.pkg-filter > *:not(:first-child) { margin-left:-1px; }
+.pkg-filter > *:first-child { border-radius:4px 0 0 4px !important; }
+.pkg-filter > *:last-child { border-radius:0 4px 4px 0 !important; }
+.pkg-filter > *:hover, .pkg-filter > *:focus { z-index:1; }
+.pkg-filter-input { flex:1; background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:11.5px; padding:5px 10px; min-width:0; }
 .pkg-filter-input:focus { outline:none; border-color:var(--accent); }
 .pkg-filter-input::placeholder { color:var(--text-dim); }
+.pkg-filter .cfg-action-btn { padding:0 10px; }
 .pkg-count { font-size:10.5px; color:var(--text-dim); flex-shrink:0; }
 .pkg-grid { display:flex; flex-wrap:wrap; gap:4px; max-height:160px; overflow-y:auto; }
 .pkg-chip.hidden { display:none; }

@@ -244,6 +244,224 @@ pub(crate) fn scan_enablon_instances() -> Vec<EnablonInstance> {
     instances
 }
 
+// ── Instance site scanner ──
+
+#[derive(Clone, serde::Serialize)]
+pub(crate) struct InstanceSite {
+    name: String,
+    path: String,
+    size_mb: f64,
+    has_database: bool,
+}
+
+#[tauri::command]
+pub(crate) fn list_instance_sites(instance_path: String) -> Vec<InstanceSite> {
+    let sites_dir = std::path::Path::new(&instance_path).join("Sites");
+    let mut sites = Vec::new();
+    if !sites_dir.exists() { return sites; }
+    if let Ok(entries) = std::fs::read_dir(&sites_dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if !p.is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+            // Skip hidden/system folders
+            if name.starts_with('.') { continue; }
+            // Calculate folder size (non-recursive top-level estimate)
+            let size_mb = dir_size_mb(&p);
+            // Check if site has a database (look for .mdf files or Data folder)
+            let has_database = p.join("Data").exists()
+                || std::fs::read_dir(&p).map(|rd| rd.flatten().any(|e| {
+                    e.file_name().to_string_lossy().ends_with(".mdf")
+                })).unwrap_or(false);
+            sites.push(InstanceSite { name, path: p.to_string_lossy().to_string(), size_mb, has_database });
+        }
+    }
+    sites.sort_by(|a, b| a.name.cmp(&b.name));
+    sites
+}
+
+fn dir_size_mb(path: &std::path::Path) -> f64 {
+    let mut total: u64 = 0;
+    // Walk up to 2 levels deep to get a reasonable estimate without taking too long
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_file() {
+                    total += meta.len();
+                } else if meta.is_dir() {
+                    if let Ok(sub) = std::fs::read_dir(entry.path()) {
+                        for sub_entry in sub.flatten() {
+                            if let Ok(sm) = sub_entry.metadata() {
+                                if sm.is_file() { total += sm.len(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    total as f64 / (1024.0 * 1024.0)
+}
+
+// ── AS version reader ──
+
+#[tauri::command]
+pub(crate) fn get_as_version(instance_path: String) -> Option<String> {
+    let wiz = std::path::Path::new(&instance_path).join("Binary").join("WizManager.exe");
+    if !wiz.exists() { return None; }
+    // Use PowerShell to read file version (reliable on Windows)
+    let output = hidden_cmd("pwsh")
+        .args(["-NoProfile", "-Command",
+            &format!("(Get-Item '{}').VersionInfo.FileVersion", wiz.to_string_lossy())])
+        .output()
+        .ok()?;
+    let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if ver.is_empty() { None } else { Some(ver) }
+}
+
+// ── Instance actions (archive / remove / force-remove) ──
+
+#[tauri::command]
+pub(crate) async fn run_instance_action(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+    instance_path: String,
+    site_id: String,
+    action: String,
+    target_path: Option<String>,
+) -> Result<(), AppError> {
+    use tauri::{Emitter, Manager};
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    use tokio::process::Command as AsyncCommand;
+
+    let wiz = std::path::Path::new(&instance_path).join("Binary").join("WizManager.exe");
+    if !wiz.exists() {
+        return Err(AppError::Validation("WizManager.exe not found in this instance".into()));
+    }
+
+    // Build WizManager arguments based on action
+    let mut args: Vec<String> = vec!["/quiet".into(), "/exitcode".into()];
+    let action_label = match action.as_str() {
+        "archive" => {
+            let tp = target_path.ok_or_else(|| AppError::Validation("Target path required for archive".into()))?;
+            args.extend(["/nostop".into(), "/archive".into(), site_id.clone(), tp]);
+            "Archive"
+        }
+        "remove" => {
+            args.extend(["/remove".into(), site_id.clone()]);
+            "Remove"
+        }
+        "force-remove" => {
+            args.extend(["/remove".into(), site_id.clone(), "/blindrem".into()]);
+            "Force Remove"
+        }
+        _ => return Err(AppError::Validation(format!("Unknown action: {}", action))),
+    };
+
+    // Lock: prevent concurrent operations
+    {
+        let mut guard = crate::commands::scripts::lock_script(&state);
+        if guard.running.is_some() { return Err(AppError::Validation("A script is already running.".into())); }
+        guard.running = Some(crate::RunInfo { script: format!("instance:{}", action), started_at: crate::helpers::now_ts() });
+    }
+
+    let action_tag = format!("instance:{}", action);
+
+    let mk_event = |etype: &str, text: Option<String>, code: Option<i32>, tag: &str| {
+        crate::commands::scripts::ScriptEvent {
+            event_type: etype.to_string(),
+            script: Some(tag.to_string()),
+            text,
+            code,
+        }
+    };
+
+    let _ = app.emit("script-event", mk_event("run-start", None, None, &action_tag));
+    let _ = app.emit("script-event", mk_event("log", Some(format!("{} site '{}' on {}", action_label, site_id, instance_path)), None, &action_tag));
+
+    let app_handle = app.clone();
+    let tag = action_tag.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut cmd = AsyncCommand::new(wiz.to_string_lossy().to_string());
+        cmd.args(&args)
+            .current_dir(std::path::Path::new(&instance_path).join("Binary"))
+            .env("NO_COLOR", "1")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = app_handle.emit("script-event", crate::commands::scripts::ScriptEvent {
+                    event_type: "error".into(), text: Some(format!("Failed to start WizManager: {}", e)), script: Some(tag.clone()), code: None,
+                });
+                { let mut g = crate::commands::scripts::lock_script(app_handle.state::<crate::AppState>().inner()); g.running = None; }
+                return;
+            }
+        };
+
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let app_out = app_handle.clone();
+        let app_err = app_handle.clone();
+        let tag_out = tag.clone();
+        let tag_err = tag.clone();
+
+        let stdout_task = tokio::spawn(async move {
+            if let Some(out) = stdout {
+                let mut r = BufReader::new(out).lines();
+                while let Ok(Some(line)) = r.next_line().await {
+                    let text = strip_ansi(&line).trim_end().to_string();
+                    if !text.is_empty() {
+                        let _ = app_out.emit("script-event", crate::commands::scripts::ScriptEvent {
+                            event_type: "log".into(), text: Some(text), script: Some(tag_out.clone()), code: None,
+                        });
+                    }
+                }
+            }
+        });
+        let stderr_task = tokio::spawn(async move {
+            if let Some(err) = stderr {
+                let mut r = BufReader::new(err).lines();
+                while let Ok(Some(line)) = r.next_line().await {
+                    let text = strip_ansi(&line).trim_end().to_string();
+                    if !text.is_empty() {
+                        let _ = app_err.emit("script-event", crate::commands::scripts::ScriptEvent {
+                            event_type: "error".into(), text: Some(text), script: Some(tag_err.clone()), code: None,
+                        });
+                    }
+                }
+            }
+        });
+
+        let _ = stdout_task.await;
+        let _ = stderr_task.await;
+        let code = child.wait().await.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+
+        let result_text = match code {
+            0 => "completed successfully".to_string(),
+            1 => "completed with warnings".to_string(),
+            2 => "failed (script error)".to_string(),
+            3 => "aborted".to_string(),
+            _ => format!("exited with code {}", code),
+        };
+        let _ = app_handle.emit("script-event", crate::commands::scripts::ScriptEvent {
+            event_type: "log".into(), text: Some(format!("WizManager {}", result_text)),
+            script: Some(tag.clone()), code: None,
+        });
+
+        { let mut g = crate::commands::scripts::lock_script(app_handle.state::<crate::AppState>().inner()); g.running = None; g.child_pid = None; }
+        let _ = app_handle.emit("script-event", crate::commands::scripts::ScriptEvent {
+            event_type: "run-end".into(), script: Some(tag), text: None, code: Some(code),
+        });
+    });
+
+    Ok(())
+}
+
 // ── Self-update ──
 
 const GITHUB_REPO: &str = "paul-henry-wk/DONUT";

@@ -172,9 +172,9 @@ export function toast(msg: string, type: string = 'info'): void {
   const container = document.getElementById('toasts');
   if (!container) return;
 
-  // Duration scales with message length and severity
-  const baseDuration = type === 'error' ? 8000 : type === 'warn' ? 6000 : 3500;
-  const duration = Math.min(baseDuration + msg.length * 20, 15000);
+  // Duration: errors/warnings stay longer, info/success are brief
+  const baseDuration = type === 'error' ? 6000 : type === 'warn' ? 4000 : 2000;
+  const duration = Math.min(baseDuration + msg.length * 10, 10000);
 
   const dismiss = (el: HTMLElement) => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
 
@@ -202,8 +202,8 @@ export function toast(msg: string, type: string = 'info'): void {
     timer = setTimeout(() => dismiss(el), 2000);
   });
 
-  // Limit to 5 toasts visible
-  while (container.children.length >= 5) container.removeChild(container.children[0]);
+  // Limit to 3 toasts visible
+  while (container.children.length >= 3) container.removeChild(container.children[0]);
 
   container.appendChild(el);
 }
