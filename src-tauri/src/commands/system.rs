@@ -63,6 +63,36 @@ pub(crate) async fn browse_file(default_path: Option<String>, filter: Option<Str
 }
 
 #[tauri::command]
+pub(crate) fn read_text_file(path: String) -> Result<String, AppError> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() { return Err(AppError::Validation(format!("File not found: {}", path))); }
+    Ok(std::fs::read_to_string(p)?)
+}
+
+#[tauri::command]
+pub(crate) async fn export_file(default_name: String, content: String) -> Result<Option<String>, AppError> {
+    tokio::task::spawn_blocking(move || {
+        #[cfg(windows)]
+        {
+            let safe_name = escape_ps_single_quote(&default_name);
+            let cmd = format!(
+                "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.Title = 'Export environment'; $f.Filter = 'JSON files (*.json)|*.json|All files (*.*)|*.*'; $f.FileName = '{}'; if ($f.ShowDialog() -eq 'OK') {{ $f.FileName }} else {{ '' }}",
+                safe_name
+            );
+            let output = hidden_cmd("pwsh")
+                .args(["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", &cmd])
+                .output()?;
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if path.is_empty() { return Ok(None); }
+            std::fs::write(&path, &content)?;
+            Ok(Some(path))
+        }
+        #[cfg(not(windows))]
+        Ok(None)
+    }).await.map_err(|e| AppError::Validation(e.to_string()))?
+}
+
+#[tauri::command]
 pub(crate) async fn list_sql_packages(site_path: String, password: Option<String>) -> Result<Vec<String>, AppError> {
     if site_path.is_empty() { return Err(AppError::Validation("Set a site path first.".into())); }
     let db_name = PathBuf::from(&site_path).file_name()

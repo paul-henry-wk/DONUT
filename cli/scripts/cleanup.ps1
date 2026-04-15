@@ -131,8 +131,16 @@ Print_Text "Total: $($items.Count) file(s), $sizeKB KB to free"
 
 # ── Dry-run mode: stop here ──
 if ($DryRun) {
-    Write-Host
-    Print_Status "Preview complete. $($items.Count) file(s) ($sizeKB KB) will be cleaned."
+    if ($env:DONUT_GUI -eq "1") {
+        $categories = @($grouped | ForEach-Object {
+            $gs = ($_.Group | Measure-Object -Property Size -Sum).Sum
+            @{ name = $_.Name; count = $_.Count; sizeKB = [math]::Round($gs / 1KB) }
+        })
+        $cardData = @{ dryRun = $true; fileCount = $items.Count; sizeFormatted = "$sizeKB KB"; categories = $categories }
+        Write-Host "[CARD:cleanup]$($cardData | ConvertTo-Json -Depth 3 -Compress)[/CARD]"
+    } else {
+        Print_Status "Preview complete. $($items.Count) file(s) ($sizeKB KB) will be cleaned."
+    }
     exit 0
 }
 
@@ -150,5 +158,14 @@ foreach ($item in $items) {
     }
 }
 
-Write-Host
-Print_Status "Cleanup complete: $cleaned file(s) removed, $([math]::Round($freedBytes / 1KB)) KB freed."
+$freedKB = [math]::Round($freedBytes / 1KB)
+if ($env:DONUT_GUI -eq "1") {
+    $categories = @($grouped | ForEach-Object {
+        $gs = ($_.Group | Measure-Object -Property Size -Sum).Sum
+        @{ name = $_.Name; count = $_.Count; sizeKB = [math]::Round($gs / 1KB) }
+    })
+    $cardData = @{ dryRun = $false; fileCount = $cleaned; sizeFormatted = "$freedKB KB"; categories = $categories }
+    Write-Host "[CARD:cleanup]$($cardData | ConvertTo-Json -Depth 3 -Compress)[/CARD]"
+} else {
+    Print_Status "Cleanup complete: $cleaned file(s) removed, $freedKB KB freed."
+}

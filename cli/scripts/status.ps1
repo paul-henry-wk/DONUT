@@ -14,12 +14,14 @@ Print_Script_Title "DONUT STATUS"
 
 $_c = LoadConfig -RootPath $RootPath -EnvFile $EnvFile -Interactive $false
 
-# Check Azure DevOps connectivity
+# ── Azure DevOps connectivity ──
+$azdoOk = $false
 if ($_c.azdo.base_uri -match "https?://([^/]+)") {
     $remoteHost = $Matches[1]
     Print_Text "Checking connectivity to $remoteHost..."
     try {
         $null = [System.Net.Dns]::GetHostAddresses($remoteHost)
+        $azdoOk = $true
     } catch {
         Print_Error "Cannot reach $remoteHost - is your VPN connected?"
         throw "Network error: cannot resolve $remoteHost. Connect your VPN and try again."
@@ -27,12 +29,13 @@ if ($_c.azdo.base_uri -match "https?://([^/]+)") {
 }
 
 # ── Site reachability ──
-Print_Title "Local Site"
 Print_Text "Checking site reachability..."
 $siteUrl = "http://localhost/$($_c.local.site_id)/go.aspx"
+$siteStatus = "unknown"
+$siteOk = $false
 try {
     $response = Invoke-WebRequest -Uri $siteUrl -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
-    $siteStatus = "reachable (HTTP $($response.StatusCode))"
+    $siteStatus = "HTTP $($response.StatusCode)"
     $siteOk = $true
 } catch {
     $httpCode = $_.Exception.Response.StatusCode.value__
@@ -41,55 +44,52 @@ try {
     } else {
         $innerMsg = $_.Exception.InnerException.Message
         if ($innerMsg -match "No connection|actively refused") {
-            $siteStatus = "connection refused (IIS stopped or site not started?)"
+            $siteStatus = "connection refused"
         } elseif ($innerMsg -match "timed out") {
-            $siteStatus = "timed out after 5s"
+            $siteStatus = "timed out"
         } else {
-            $siteStatus = "unreachable: $($_.Exception.Message)"
+            $siteStatus = "unreachable"
         }
     }
-    $siteOk = $false
 }
 
 # ── Git branch status ──
-Print_Title "Repository"
 Print_Text "Checking git repository status..."
 $repoPath = $_c.local.repository
 $gitBranch = ""
-$gitAhead = ""
-$gitBehind = ""
+$gitAhead = 0
+$gitBehind = 0
+$gitDirty = $false
 if (Test-Path $repoPath) {
     try {
         $gitBranch = git -C "$repoPath" rev-parse --abbrev-ref HEAD 2>$null
         git -C "$repoPath" fetch -q 2>$null
-        $gitStatus = git -C "$repoPath" status -sb 2>$null | Select-Object -First 1
-        if ($gitStatus -match '\[ahead (\d+)') { $gitAhead = "$($Matches[1]) ahead" }
-        if ($gitStatus -match 'behind (\d+)') { $gitBehind = "$($Matches[1]) behind" }
+        $gitStatusLine = git -C "$repoPath" status -sb 2>$null | Select-Object -First 1
+        if ($gitStatusLine -match '\[ahead (\d+)') { $gitAhead = [int]$Matches[1] }
+        if ($gitStatusLine -match 'behind (\d+)') { $gitBehind = [int]$Matches[1] }
+        $dirtyFiles = @(git -C "$repoPath" status --porcelain 2>$null)
+        $gitDirty = $dirtyFiles.Count -gt 0
     } catch {
-        $gitBranch = "(git error: $($_.Exception.Message))"
+        $gitBranch = "(error)"
     }
 } else {
-    $gitBranch = "(repository not found)"
+    $gitBranch = "(not found)"
 }
 
 # ── Packages info ──
-Print_Title "Packages"
-Print_Text "Querying master packages from database..."
+Print_Text "Querying packages..."
 $masterPkgs = @()
 try {
     if (Get-Command 'Invoke-Sqlcmd' -ErrorAction SilentlyContinue) {
         $pkgRows = Invoke-Sqlcmd -ServerInstance "(local)" -Database $_c.local.site_id -Username $_c.local.db_user -Password $_c.local.db_password `
             -Query "SELECT XMLInfo, IIF((Special&1)<>0, 'master', 'closed') as Status FROM Meta_Products WHERE MetaType=2 AND (Special&64)=0 ORDER BY IIF((Special&1)=1,0,1), XMLInfo" `
             -QueryTimeout 5
-        $masterPkgs = $pkgRows | Where-Object { $_.Status -eq 'master' } | ForEach-Object { $_.XMLInfo }
+        $masterPkgs = @($pkgRows | Where-Object { $_.Status -eq 'master' } | ForEach-Object { $_.XMLInfo })
     }
-} catch {
-    Print_Warning "Could not query packages: $($_.Exception.Message)"
-}
+} catch {}
 
 # ── Active PRs ──
-Print_Title "Pull Requests"
-Print_Text "Fetching active pull requests from Azure DevOps..."
+Print_Text "Fetching pull requests..."
 $activePRs = @()
 try {
     $ApiHeaders = GetApiHeaders -AzDoToken $_c.azdo.token
@@ -97,55 +97,57 @@ try {
     $prResponse = Invoke-RestMethod -Headers $ApiHeaders -Method GET -TimeoutSec 15 `
         -Uri "$($_c.azdo.base_uri)/_apis/git/repositories/$($_c.azdo.repository)/pullrequests?api-version=7.0&searchCriteria.sourceRefName=$srcRef&searchCriteria.status=active"
     foreach ($pr in $prResponse.value) {
-        $activePRs += @{ id = $pr.pullRequestId; title = $pr.title; url = "$($_c.azdo.base_uri)/_git/$($_c.azdo.repository)/pullrequest/$($pr.pullRequestId)" }
-    }
-} catch {
-    Print_Warning "Could not fetch PRs: $($_.Exception.Message)"
-}
-
-# ── Display ──
-Write-Host
-
-if ($env:DONUT_GUI -ne "1" -and $UseGum) {
-    $siteIcon = if ($siteOk) { "OK" } else { "FAIL" }
-    $statusLines = @(
-        "Site:       $($_c.local.site_id) [$siteIcon] $siteStatus",
-        "Branch:     $gitBranch $(if ($gitAhead) { "($gitAhead)" }) $(if ($gitBehind) { "($gitBehind)" })",
-        "Target:     $($_c.target_branch)",
-        "Repository: $($_c.azdo.repository)",
-        "Workitem:   $(if ($_c.workitem_id) { '#' + $_c.workitem_id } else { '(none)' })",
-        "",
-        "Config packages: $($_c.packages -join ', ')",
-        "Master on site:  $(if ($masterPkgs) { $masterPkgs -join ', ' } else { '(unknown)' })"
-    )
-
-    if ($activePRs.Count -gt 0) {
-        $statusLines += ""
-        $statusLines += "Active PRs:"
-        foreach ($pr in $activePRs) {
-            $statusLines += "  #$($pr.id) - $($pr.title)"
+        $activePRs += @{
+            id    = $pr.pullRequestId
+            title = $pr.title
+            url   = "$($_c.azdo.base_uri)/_git/$($_c.azdo.repository)/pullrequest/$($pr.pullRequestId)"
         }
-    } else {
-        $statusLines += ""
-        $statusLines += "Active PRs:  (none)"
     }
+} catch {}
 
-    $borderColor = if ($siteOk) { "10" } else { "196" }
-    gum style --border rounded --border-foreground $borderColor --padding "0 2" --foreground 252 ($statusLines -join "`n")
-} else {
-    Print_Text "Site:       $($_c.local.site_id) - $siteStatus"
-    Print_Text "Branch:     $gitBranch $gitAhead $gitBehind"
-    Print_Text "Target:     $($_c.target_branch)"
-    Print_Text "Repository: $($_c.azdo.repository)"
-    Print_Text "Workitem:   $(if ($_c.workitem_id) { '#' + $_c.workitem_id } else { '(none)' })"
-    Print_Text "Packages:   $($_c.packages -join ', ')"
-    Print_Text "Master:     $(if ($masterPkgs) { $masterPkgs -join ', ' } else { '(unknown)' })"
-    if ($activePRs.Count -gt 0) {
-        Print_SubTitle "Active PRs:"
-        foreach ($pr in $activePRs) {
-            Print_Text "  #$($pr.id) - $($pr.title)"
-        }
+# ── Build JSON card data ──
+$workitemId = if ($_c.workitem_id) { $_c.workitem_id } else { "" }
+$workitemTitle = ""
+if ($_c.workitem_id) {
+    $branchParts = $_c.feature_branch -split '[-/]'
+    $idIndex = [array]::IndexOf($branchParts, $_c.workitem_id)
+    if ($idIndex -ge 0 -and ($idIndex + 1) -lt $branchParts.Count) {
+        $workitemTitle = ($branchParts[($idIndex+1)..($branchParts.Count-1)] -join ' ')
     }
 }
 
-Write-Host
+$cardData = @{
+    site = @{
+        id     = $_c.local.site_id
+        ok     = $siteOk
+        status = $siteStatus
+        path   = $_c.local.site_path
+    }
+    git = @{
+        branch = $gitBranch
+        target = $_c.target_branch
+        ahead  = $gitAhead
+        behind = $gitBehind
+        dirty  = $gitDirty
+    }
+    repo = @{
+        name = $_c.azdo.repository
+        org  = $_c.azdo.organization
+    }
+    workitem = @{
+        id    = $workitemId
+        title = $workitemTitle
+    }
+    packages = @{
+        config = @($_c.packages)
+        master = @($masterPkgs)
+    }
+    prs = @($activePRs | ForEach-Object { @{ id = $_.id; title = $_.title; url = $_.url } })
+    azdo = @{
+        ok      = $azdoOk
+        baseUri = $_c.azdo.base_uri
+    }
+}
+
+$json = $cardData | ConvertTo-Json -Depth 4 -Compress
+Write-Host "[CARD:status]$json[/CARD]"

@@ -8,7 +8,7 @@ import {
   appendLog, closeDiffBlock, setIndicator, showStopBtn, hideRerunBtn,
   startSpinner, stopSpinner, startRunTimer, stopRunTimer,
   startPatienceMessages, stopPatienceMessages, startProgress, stopProgress,
-  expandTerminal, showPRLink, showRerunBtn, addRunHistory,
+  expandTerminal, showPRLink, showScriptCard, showRerunBtn, addRunHistory,
   setTermFontSize, navigateErrors, resetTerminalState, setEstimate,
 } from './terminal';
 import { renderScripts, renderRunBar, doRun, selectScript, onPipelineRunEnd } from './scripts';
@@ -143,6 +143,9 @@ export async function init(): Promise<void> {
   if (envs.length) {
     S.currentEnv = sel.value || envs[0];
     await loadEnv();
+  } else {
+    // First launch — no environments yet, open setup wizard
+    (window as any).openSetupWizard?.();
   }
 
   // Splash step 3
@@ -534,6 +537,7 @@ export function setupEventListeners(): void {
       }
       // Show PR link button after successful commit
       if (ok && msg.script === 'commit') { showPRLink(); }
+      if (ok && (msg.script === 'status' || msg.script === 'health-check' || msg.script === 'cleanup' || msg.script === 'init')) { showScriptCard(); }
       // After successful install-site, save site_path into config
       if (ok && msg.script === 'install-site' && S._pendingInstallSitePath) {
         if (!S.envConfig.local) S.envConfig.local = {};

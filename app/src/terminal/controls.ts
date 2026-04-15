@@ -162,6 +162,157 @@ export function showPRLink(termScrollToBottom: () => void): void {
   }
 }
 
+// ── Script card system ──
+// Generic card renderer: finds [CARD:type]{json}[/CARD] in terminal output and renders a rich card.
+// Shared by: status, health-check, cleanup, init
+
+function extractCard(out: HTMLElement): { type: string; data: any } | null {
+  const lines = out.querySelectorAll('.line');
+  for (const line of lines) {
+    const text = line.textContent || '';
+    const match = text.match(/\[CARD:(\w+)\](.*)\[\/CARD\]/);
+    if (match) {
+      line.remove();
+      try { return { type: match[1], data: JSON.parse(match[2]) }; } catch { return null; }
+    }
+  }
+  return null;
+}
+
+const dot = (ok: boolean) => `<span class="sc-dot ${ok ? 'ok' : 'fail'}"></span>`;
+const badge = (text: string, cls: string) => `<span class="sc-badge ${cls}">${esc(text)}</span>`;
+
+function renderStatusCard(d: any): string {
+  const gitAhead = d.git?.ahead || 0;
+  const gitBehind = d.git?.behind || 0;
+  const gitDirty = d.git?.dirty;
+  let h = '';
+
+  // Site + Repository
+  h += `<div class="sc-row">`;
+  h += `<div class="sc-block"><div class="sc-label">${dot(d.site?.ok)}Local Site</div><div class="sc-value">${esc(d.site?.id || '?')} ${badge(d.site?.status || '?', d.site?.ok ? 'ok' : 'fail')}</div>`;
+  if (d.site?.path) h += `<div class="sc-sub">${esc(d.site.path)}</div>`;
+  h += `</div>`;
+  h += `<div class="sc-block"><div class="sc-label">${dot(d.azdo?.ok)}Repository</div><div class="sc-value">${esc(d.repo?.name || '?')}</div>`;
+  if (d.repo?.org) h += `<div class="sc-sub">${esc(d.repo.org)}</div>`;
+  h += `</div></div>`;
+
+  // Branch
+  h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Branch</div><div class="sc-value sc-branch">${esc(d.git?.branch || '?')} <span class="sc-arrow">\u2192</span> ${esc(d.git?.target || '?')}`;
+  if (gitAhead > 0) h += ` ${badge(gitAhead + ' ahead', 'info')}`;
+  if (gitBehind > 0) h += ` ${badge(gitBehind + ' behind', 'warn')}`;
+  if (gitDirty) h += ` ${badge('dirty', 'warn')}`;
+  if (gitAhead === 0 && gitBehind === 0 && !gitDirty) h += ` ${badge('clean', 'ok')}`;
+  h += `</div></div></div>`;
+
+  // Work item
+  if (d.workitem?.id) {
+    h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Work Item</div><div class="sc-value">#${esc(d.workitem.id)}`;
+    if (d.workitem.title) h += ` \u2014 ${esc(d.workitem.title)}`;
+    h += `</div></div></div>`;
+  }
+
+  // Packages
+  const cfgPkgs = d.packages?.config || [];
+  const masterPkgs = d.packages?.master || [];
+  if (cfgPkgs.length > 0 || masterPkgs.length > 0) {
+    h += `<div class="sc-row">`;
+    h += `<div class="sc-block"><div class="sc-label">Config Packages <span class="sc-count">${cfgPkgs.length}</span></div><div class="sc-chips">${cfgPkgs.map((p: string) => `<span class="sc-chip">${esc(p)}</span>`).join('')}</div></div>`;
+    h += `<div class="sc-block"><div class="sc-label">Master on Site <span class="sc-count">${masterPkgs.length}</span></div><div class="sc-chips">${masterPkgs.length ? masterPkgs.map((p: string) => `<span class="sc-chip master">${esc(p)}</span>`).join('') : '<span class="sc-dim">unknown</span>'}</div></div>`;
+    h += `</div>`;
+  }
+
+  // PRs
+  const prs = d.prs || [];
+  h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Pull Requests ${prs.length > 0 ? `<span class="sc-count">${prs.length}</span>` : ''}</div>`;
+  if (prs.length === 0) {
+    h += `<div class="sc-dim">No active PRs</div>`;
+  } else {
+    prs.forEach((pr: any) => {
+      h += `<div class="sc-pr"><span class="sc-pr-id">#${pr.id}</span><span class="sc-pr-title">${esc(pr.title || '')}</span>`;
+      if (pr.url) h += `<button class="sc-pr-btn" onclick="openUrl('${esc(pr.url)}')">\u2192 Open</button>`;
+      h += `</div>`;
+    });
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+function renderHealthCard(d: any): string {
+  const checks: { name: string; ok: boolean; detail: string }[] = d.checks || [];
+  const passed = d.passed || 0;
+  const failed = d.failed || 0;
+  const allOk = failed === 0;
+  let h = '';
+
+  // Header
+  h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-value" style="font-size:13px; gap:10px;">${dot(allOk)}<span>Health Check</span>${badge(passed + ' passed', allOk ? 'ok' : 'warn')}`;
+  if (failed > 0) h += badge(failed + ' failed', 'fail');
+  h += `</div></div></div>`;
+
+  // Checks — two per row
+  for (let i = 0; i < checks.length; i += 2) {
+    h += `<div class="sc-row">`;
+    for (let j = i; j < Math.min(i + 2, checks.length); j++) {
+      const c = checks[j];
+      h += `<div class="sc-block"><div class="sc-label">${dot(c.ok)}${esc(c.name)}</div><div class="sc-value">${esc(c.detail)}</div></div>`;
+    }
+    h += `</div>`;
+  }
+  return h;
+}
+
+function renderCleanupCard(d: any): string {
+  let h = '';
+  const isDry = d.dryRun;
+  h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-value" style="font-size:13px; gap:10px;">${isDry ? '\uD83D\uDD0D' : '\u2714'} ${isDry ? 'Dry Run — Preview' : 'Cleanup Complete'}</div></div></div>`;
+  h += `<div class="sc-row">`;
+  h += `<div class="sc-block"><div class="sc-label">Files</div><div class="sc-value">${d.fileCount || 0} file${(d.fileCount || 0) !== 1 ? 's' : ''}</div></div>`;
+  h += `<div class="sc-block"><div class="sc-label">Space ${isDry ? 'Reclaimable' : 'Freed'}</div><div class="sc-value">${esc(d.sizeFormatted || '0 KB')}</div></div>`;
+  h += `</div>`;
+  if (d.categories && d.categories.length > 0) {
+    h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Categories</div><div class="sc-chips">${d.categories.map((c: any) => `<span class="sc-chip">${esc(c.name)} <span class="sc-count">${c.count}</span></span>`).join('')}</div></div></div>`;
+  }
+  return h;
+}
+
+function renderInitCard(d: any): string {
+  let h = '';
+  h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-value" style="font-size:13px; gap:10px;">\u2714 Environment Initialized${d.envName ? ` \u2014 ${esc(d.envName)}` : ''}</div></div></div>`;
+  h += `<div class="sc-row">`;
+  if (d.branch) h += `<div class="sc-block"><div class="sc-label">Branch</div><div class="sc-value sc-branch">${esc(d.branch)}${d.target ? ` <span class="sc-arrow">\u2192</span> ${esc(d.target)}` : ''}</div></div>`;
+  if (d.repository) h += `<div class="sc-block"><div class="sc-label">Repository</div><div class="sc-value">${esc(d.repository)}</div></div>`;
+  h += `</div>`;
+  if (d.sitePath) {
+    h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Site Path</div><div class="sc-value">${esc(d.sitePath)}</div></div></div>`;
+  }
+  if (d.packages && d.packages.length > 0) {
+    h += `<div class="sc-row"><div class="sc-block wide"><div class="sc-label">Packages <span class="sc-count">${d.packages.length}</span></div><div class="sc-chips">${d.packages.map((p: string) => `<span class="sc-chip">${esc(p)}</span>`).join('')}</div></div></div>`;
+  }
+  return h;
+}
+
+const CARD_RENDERERS: Record<string, (d: any) => string> = {
+  status: renderStatusCard,
+  health: renderHealthCard,
+  cleanup: renderCleanupCard,
+  init: renderInitCard,
+};
+
+export function showScriptCard(termScrollToBottom: () => void): void {
+  const out = document.getElementById('termOutput');
+  if (!out) return;
+  const result = extractCard(out);
+  if (!result) return;
+  const renderer = CARD_RENDERERS[result.type];
+  if (!renderer) return;
+  const card = document.createElement('div');
+  card.className = 'status-card';
+  card.innerHTML = renderer(result.data);
+  out.appendChild(card);
+  termScrollToBottom();
+}
+
 // ── Patience messages (during long operations) ──
 const PATIENCE_MSGS = [
   'Still baking... the dough needs time to rise',

@@ -46,6 +46,13 @@ import {
   loadPackages, loadWorkItems, loadMyWorkItems,
   createBranch, deleteBranch, doBrowse, doBrowseFile, selectWI, launchInstallSite,
   getToken, getRepo, loadBranches, loadRepos, validatePath,
+  openSetupWizard, closeSetupWizard,
+  swizNext, swizPrev, swizUpdate, swizUpdateSitePath, swizSetVersion,
+  swizTestPat, swizSelectProject, swizSelectRepo,
+  swizDetectSites, swizPickSite, swizBrowseSite,
+  swizSearchWI, swizLoadMyWI, swizSelectWI,
+  swizLoadPackages, swizTogglePkg, swizCreate,
+  swizInstallSite, swizBrowseEna, swizInstallNext, swizInstallStepBack, swizInstallBack, swizDoInstall,
 } from './config';
 
 import { renderDevops, resetGitCreds, reassignWI, viewPrDiff } from './devops';
@@ -162,6 +169,32 @@ window.instanceArchive = instanceArchive;
 window.instanceRemove = instanceRemove;
 window.instanceForceRemove = instanceForceRemove;
 window.refreshAllInstances = refreshAllInstances;
+
+window.openSetupWizard = openSetupWizard;
+window.closeSetupWizard = closeSetupWizard;
+window.swizNext = swizNext;
+window.swizPrev = swizPrev;
+window.swizUpdate = swizUpdate;
+window.swizUpdateSitePath = swizUpdateSitePath;
+window.swizSetVersion = swizSetVersion;
+window.swizTestPat = swizTestPat;
+window.swizSelectProject = swizSelectProject;
+window.swizSelectRepo = swizSelectRepo;
+window.swizDetectSites = swizDetectSites;
+window.swizPickSite = swizPickSite;
+window.swizBrowseSite = swizBrowseSite;
+window.swizSearchWI = swizSearchWI;
+window.swizLoadMyWI = swizLoadMyWI;
+window.swizSelectWI = swizSelectWI;
+window.swizLoadPackages = swizLoadPackages;
+window.swizTogglePkg = swizTogglePkg;
+window.swizCreate = swizCreate;
+window.swizInstallSite = swizInstallSite;
+window.swizBrowseEna = swizBrowseEna;
+window.swizInstallNext = swizInstallNext;
+window.swizInstallStepBack = swizInstallStepBack;
+window.swizInstallBack = swizInstallBack;
+window.swizDoInstall = swizDoInstall;
 
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;

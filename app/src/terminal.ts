@@ -26,6 +26,7 @@ import {
   stopPatienceMessages,
   addRunHistory,
   showPRLink as _showPRLinkImpl,
+  showScriptCard as _showScriptCardImpl,
 } from './terminal/controls';
 
 // ── Re-exports from sub-modules ──
@@ -59,6 +60,10 @@ export function closeDiffBlock(): void {
 
 export function showPRLink(): void {
   _showPRLinkImpl(termScrollToBottom);
+}
+
+export function showScriptCard(): void {
+  _showScriptCardImpl(termScrollToBottom);
 }
 
 export function startPatienceMessages(): void {
@@ -309,6 +314,11 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
     else cls = 'diff-ctx';
   } else {
     if (!cls || cls === 'info') cls = classifyLine(text);
+    else if (cls === 'error') {
+      // Stderr lines: reclassify but preserve as 'err' if classifyLine finds nothing specific
+      const reclassified = classifyLine(text);
+      cls = reclassified === 'info' ? 'err' : reclassified;
+    }
   }
 
   // Open/close diff block tracking
@@ -489,24 +499,24 @@ function _appendLogInner(text: string, cls: string = 'info'): void {
       if (cls === 'diff-del') { oldLn = _diffOldLine; _diffOldLine++; }
       else { newLn = _diffNewLine; _diffNewLine++; }
 
-      // Side-by-side for -/+ pairs
-      const prevEl = _currentDiffBody.querySelector('.diff-line:last-child, .diff-sbs:last-child') as HTMLElement | null;
+      // Word-diff highlight: when an add follows a del, highlight the changed words in both
+      const prevEl = _currentDiffBody.querySelector('.diff-line:last-child') as HTMLElement | null;
       if (cls === 'diff-add' && prevEl && prevEl.classList.contains('del')) {
         const oldRaw = prevEl.getAttribute('data-raw') || '';
         if (oldRaw) {
           const [hlOld, hlNew] = wordDiffHighlight(oldRaw, raw);
-          const prevOldLn = prevEl.getAttribute('data-ln') || '';
-          const sbs = document.createElement('div');
-          sbs.className = 'diff-sbs';
-          sbs.onclick = function (this: HTMLElement) { copyLine(this); } as unknown as (ev: PointerEvent) => void;
-          sbs.innerHTML = `<div class="sbs-del"><span class="dl-ln">${prevOldLn}</span><span class="dl-gutter">\u2212</span><span class="dl-content">${syntaxHL(hlOld, _currentDiffExt)}</span></div><div class="sbs-add"><span class="dl-ln">${newLn}</span><span class="dl-gutter">+</span><span class="dl-content">${syntaxHL(hlNew, _currentDiffExt)}</span></div>`;
-          prevEl.replaceWith(sbs);
-          termScrollToBottom();
-          return;
+          // Update the previous del line with highlights
+          const prevContent = prevEl.querySelector('.dl-content');
+          if (prevContent) prevContent.innerHTML = syntaxHL(hlOld, _currentDiffExt);
+          // Render the add line with highlights
+          content = syntaxHL(hlNew, _currentDiffExt);
+        } else {
+          content = syntaxHL(content, _currentDiffExt);
         }
+      } else {
+        content = syntaxHL(content, _currentDiffExt);
       }
 
-      content = syntaxHL(content, _currentDiffExt);
       const lnDisplay = cls === 'diff-del' ? oldLn : newLn;
       const rawAttr = (cls === 'diff-del') ? ` data-raw="${esc(raw)}" data-ln="${oldLn}"` : '';
       _currentDiffBody.insertAdjacentHTML('beforeend', `<div class="diff-line ${cls === 'diff-add' ? 'add' : 'del'}"${rawAttr} onclick="copyLine(this)"><span class="dl-ln">${lnDisplay}</span><span class="dl-gutter">${prefix}</span><span class="dl-content">${content}</span></div>`);
@@ -572,7 +582,7 @@ export function copySection(btn: HTMLElement): void {
   let el = separator.nextElementSibling;
   while (el) {
     if (el.classList.contains('term-separator')) break; // next section
-    if (el.classList.contains('line') || el.classList.contains('diff-block') || el.classList.contains('diff-sbs')) {
+    if (el.classList.contains('line') || el.classList.contains('diff-block')) {
       const text = el.textContent?.trim();
       if (text) lines.push(text);
     }

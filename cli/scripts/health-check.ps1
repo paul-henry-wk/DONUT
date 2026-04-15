@@ -232,11 +232,19 @@ if ($disk) {
 }
 
 # ── Summary ──
-Write-Host
 $okCount = @($checks | Where-Object { $_.ok }).Count
 $failCount = @($checks | Where-Object { -not $_.ok }).Count
 
-if ($env:DONUT_GUI -ne "1" -and $UseGum) {
+if ($env:DONUT_GUI -eq "1") {
+    # Emit structured card for DONUT GUI
+    $cardData = @{
+        checks = @($checks | ForEach-Object { @{ name = $_.name; ok = $_.ok; detail = $_.detail } })
+        passed = $okCount
+        failed = $failCount
+    }
+    $json = $cardData | ConvertTo-Json -Depth 3 -Compress
+    Write-Host "[CARD:health]$json[/CARD]"
+} elseif ($UseGum) {
     $summaryLines = $checks | ForEach-Object {
         $icon = if ($_.ok) { "OK" } else { "FAIL" }
         "  [$icon] $($_.name): $($_.detail)"
@@ -254,5 +262,3 @@ if ($env:DONUT_GUI -ne "1" -and $UseGum) {
         }
     }
 }
-
-Write-Host

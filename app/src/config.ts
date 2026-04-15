@@ -6,6 +6,16 @@ import type { EnvConfig, WorkItem } from './types';
 import { S, esc, toast, invoke, azdoInvoke, getOrg, getProject } from './state';
 import { renderSelectedInfo, showInstallWizard } from './scripts';
 import { renderInstancesSection } from './instances';
+export {
+  openSetupWizard, closeSetupWizard,
+  swizNext, swizPrev, swizUpdate, swizUpdateSitePath, swizSetVersion,
+  swizTestPat, swizSelectProject, swizSelectRepo,
+  swizDetectSites, swizPickSite, swizBrowseSite,
+  swizSearchWI, swizLoadMyWI, swizSelectWI,
+  swizLoadPackages, swizTogglePkg, swizCreate,
+  swizInstallSite, swizBrowseEna, swizInstallNext, swizInstallStepBack, swizInstallBack, swizDoInstall,
+} from './config/setup-wizard';
+import { openSetupWizard as _openSetupWizard } from './config/setup-wizard';
 import {
   field, fieldVersion, fieldBrowse, fieldWorkItem,
   nativeSelectInline, ssInputInline, ssFieldWithCreate,
@@ -30,7 +40,7 @@ interface TemplateInfo { name: string; description: string; filename: string; }
     const btn = target.closest('[data-action]') as HTMLElement | null;
     if (!btn) return;
     switch (btn.dataset.action) {
-      case 'new': createNewEnv(); break;
+      case 'new': _openSetupWizard(); break;
       case 'clone': cloneCurrentEnv(); break;
       case 'rename': renameCurrentEnv(); break;
       case 'export': exportEnv(); break;
@@ -114,7 +124,7 @@ export async function renameCurrentEnv(): Promise<void> {
 
 // ── Export / Import environments ──
 
-function exportEnv(): void {
+async function exportEnv(): Promise<void> {
   if (!S.currentEnv) return;
   // Clone config and strip sensitive fields
   const config = JSON.parse(JSON.stringify(S.envConfig)) as EnvConfig;
@@ -125,43 +135,42 @@ function exportEnv(): void {
     delete (config.local as any).db_password;
   }
   const json = JSON.stringify(config, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
   const label = S.currentEnv.replace(/\.json$/, '');
-  a.download = `${label}.env.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Environment exported (without secrets)', 'success');
+  try {
+    const path = await invoke<string | null>('export_file', { defaultName: `${label}.env.json`, content: json });
+    if (path) toast('Exported (without secrets): ' + path, 'success');
+  } catch (e) { toast('Export failed: ' + e, 'error'); }
 }
 
 async function importEnv(): Promise<void> {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const config = JSON.parse(text) as EnvConfig;
-      // Derive env name from filename
-      let name = file.name.replace(/\.env\.json$/, '').replace(/\.json$/, '');
-      if (!name) name = 'imported';
-      // Create the env
-      await invoke('create_env', { name });
-      // Save the config into it
-      const envs: string[] = await invoke('list_envs');
-      const match = envs.find(e => e.includes(name));
-      if (match) {
-        await invoke('save_env', { name: match, config });
-        toast(`Imported: ${match} — fill in secrets (PAT, passwords)`, 'success');
-        await refreshEnvList(name);
-      }
-    } catch (e) { toast('Import failed: ' + e, 'error'); }
-  };
-  input.click();
+  try {
+    const path = await invoke<string | null>('browse_file', { defaultPath: null, filter: 'JSON files (*.json)|*.json' });
+    if (!path) return;
+    // Read the file via Rust
+    const text = await invoke<string>('read_text_file', { path });
+    const config = JSON.parse(text) as EnvConfig;
+    // Strip secrets from imported config for safety
+    if (config.azdo) delete (config.azdo as any).token;
+    if (config.local) {
+      delete (config.local as any).password;
+      delete (config.local as any).developer_password;
+      delete (config.local as any).db_password;
+    }
+    // Derive env name from filename
+    const basename = path.replace(/\\/g, '/').split('/').pop() || 'imported';
+    let name = basename.replace(/\.env\.json$/, '').replace(/\.json$/, '').replace(/^\.env-/, '');
+    if (!name) name = 'imported';
+    // Create the env
+    await invoke('create_env', { name });
+    // Save the config into it
+    const envs: string[] = await invoke('list_envs');
+    const match = envs.find(e => e.includes(name));
+    if (match) {
+      await invoke('save_env', { name: match, config });
+      toast(`Imported: ${match} — fill in secrets (PAT, passwords)`, 'success');
+      await refreshEnvList(name);
+    }
+  } catch (e) { toast('Import failed: ' + e, 'error'); }
 }
 
 async function refreshEnvList(selectName: string): Promise<void> {
@@ -221,7 +230,7 @@ export function renderConfig(): void {
     `)}
     ${wizStep(1, 'Local Site & Packages', true, !!sitePath, sitePath ? esc(sitePath) : '', `
       <div class="cfg-fields">
-        ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)',`<button class="cfg-action-btn" onclick="launchInstallSite()" title="Install new site">${CFG_ICO.download}</button>`)}
+        ${fieldBrowse('c-sp','site path',c.local?.site_path,'full','Full path to the local IIS site (e.g. C:\\MySite\\10.7\\WizRisk.MyProject)',`<button class="cfg-action-btn" onclick="launchInstallSite()" title="Install new site">${CFG_ICO.plus}</button>`)}
         ${field('c-ps','parent site',c.local?.parent_site||'','full','text','Parent site used to download master packages. Local: relative path (e.g. /WizRisk.10.13). Remote: full URL (e.g. https://myserver/10.13/WizRisk.10.13/)')}
         ${fieldVersion('c-ver','version',ver,'Platform version (e.g. 10.7, 10.11)')}
         ${field('c-usr','site user',c.local?.user||'admin','','text','Site admin username')}
@@ -244,22 +253,18 @@ export function renderConfig(): void {
       </div>
     `)}
     ${wizStep(3, 'Project & Repository', okToken, okRepo, okRepo ? `${proj} / ${repo}` : (okProj ? proj : ''), `
-      <div class="cfg-fields">
+      <div class="cfg-fields cfg-fields-3col">
         <div class="cfg-field"><label>project</label><div class="cfg-input-row">${nativeSelectInline('c-proj',proj,S.cachedProjects,'onProjectChange')}<button class="cfg-action-btn" onclick="wizValidatePat()" title="Refresh projects">${CFG_ICO.refresh}</button></div></div>
-        <div class="cfg-field ss-wrap"><label>repository</label><div class="cfg-input-row">${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
-        <div class="cfg-field full ss-wrap"><label>metadata repository<span class="cfg-tip" title="Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB">?</span></label><div class="cfg-input-row">${ssInputInline('c-rdm',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB',S.cachedRepos,'')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
+        <div class="cfg-field"><label>repository</label><div class="cfg-input-row ss-wrap">${ssInputInline('c-repo',repo,S.cachedRepos,'onRepoChange')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
+        <div class="cfg-field"><label>metadata repository<span class="cfg-tip" title="Repository containing the metadata/version database (git4inno). Default: Test.Package.Metadata.GitObjectDB">?</span></label><div class="cfg-input-row ss-wrap">${ssInputInline('c-rdm',c.azdo?.repository_metadata||'Test.Package.Metadata.GitObjectDB',S.cachedRepos,'')}<button class="cfg-action-btn" onclick="refreshRepos()" title="Refresh repos">${CFG_ICO.refresh}</button></div></div>
       </div>
     `)}
-    ${wizStep(4, 'Branches', okRepo, okFb && okTb, okFb ? `${c.feature_branch} → ${c.target_branch||'?'}` : '', `
+    ${wizStep(4, 'Work Item & Branches', okRepo, okFb && okTb, c.workitem_id ? `#${c.workitem_id} \u00B7 ${c.feature_branch||'?'} → ${c.target_branch||'?'}` : (okFb ? `${c.feature_branch} → ${c.target_branch||'?'}` : ''), `
       <div class="cfg-fields">
+        ${fieldWorkItem('c-wi','work item',c.workitem_id,'Link a User Story or Bug to auto-generate branch name')}
         ${ssFieldWithCreate('c-fb','feature branch',c.feature_branch,S.cachedBranches,'Your working branch where changes are committed')}
         <div class="cfg-field ss-wrap"><label>target branch<span class="cfg-tip" title="The branch your feature will be merged into (e.g. main, develop)">?</span></label><div class="cfg-input-row">${ssInputInline('c-tb',c.target_branch||'',S.cachedBranches,'')}<button class="cfg-action-btn" onclick="refreshBranches()" title="Refresh branches">${CFG_ICO.refresh}</button></div></div>
         <div class="cfg-field full"><label><input type="checkbox" id="c-md" ${c.deactivate_metadata_conversion ? '' : 'checked'}> Enable metadata conversion (view-diff)</label><p class="wiz-desc">Disable if the metadata repository is not set up for this project.</p></div>
-      </div>
-    `)}
-    ${wizStep(5, 'Work Item', okToken, !!c.workitem_id, c.workitem_id || '', `
-      <div class="cfg-fields">
-        ${fieldWorkItem('c-wi','work item',c.workitem_id,'Link a User Story or Bug to auto-generate branch name')}
       </div>
     `)}
   `;
@@ -307,11 +312,13 @@ export function ssOpen(id: string): void {
 
 function positionDropdown(anchor: HTMLElement, dropdown: HTMLElement): void {
   const rect = anchor.getBoundingClientRect();
-  const maxH = 200;
+  const maxH = 300;
   const spaceBelow = window.innerHeight - rect.bottom - 8;
   const spaceAbove = rect.top - 8;
   dropdown.style.left = rect.left + 'px';
-  dropdown.style.width = rect.width + 'px';
+  dropdown.style.minWidth = rect.width + 'px';
+  dropdown.style.width = 'max-content';
+  dropdown.style.maxWidth = Math.min(600, window.innerWidth - rect.left - 16) + 'px';
   if (spaceBelow >= 100 || spaceBelow >= spaceAbove) {
     // Open below
     dropdown.style.top = rect.bottom + 2 + 'px';

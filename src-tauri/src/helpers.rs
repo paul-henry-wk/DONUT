@@ -144,6 +144,8 @@ pub(crate) fn sanitize_ps_arg(s: &str) -> Result<String, AppError> {
 
 /// Filter out noisy lines that clutter the terminal
 pub(crate) fn is_noise(text: &str) -> bool {
+    // Whitespace-only lines (blank lines from PowerShell Write-Host)
+    if text.trim().is_empty() { return true; }
     let t = text.to_lowercase();
     // Git safe.directory warnings
     if t.contains("safe.directory") && t.contains("not absolute") { return true; }
@@ -155,6 +157,8 @@ pub(crate) fn is_noise(text: &str) -> bool {
     if t.starts_with("verbose:") || t.starts_with("debug:") { return true; }
     // Git noise
     if text.starts_with("\\ No newline") { return true; }
+    // Separator-only lines (dashes, equals)
+    if text.len() >= 3 && text.trim().chars().all(|c| c == '-' || c == '=' || c == ' ') { return true; }
     false
 }
 

@@ -154,35 +154,20 @@ body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; backgro
 .diff-block > .diff-body { max-height:400px; overflow:auto; }
 .diff-sep { height:0; margin:8px 16px; border-top:2px dashed var(--diff-sep); }
 .diff-subfile { padding:4px 12px; font-size:10.5px; color:var(--text-dim); background:var(--diff-header-bg); border-top:1px solid var(--diff-sep); border-bottom:1px solid var(--diff-sep); margin:6px 0 2px; text-transform:uppercase; letter-spacing:.5px; }
-.diff-line { display:flex; white-space:pre; border-left:3px solid transparent; }
+.diff-line { display:flex; white-space:pre-wrap; word-break:break-word; border-left:3px solid transparent; }
 .dl-gutter { width:20px; flex-shrink:0; text-align:center; font-weight:700; user-select:none; }
-.dl-content { flex:1; padding:1px 10px; }
+.dl-content { flex:1; padding:1px 10px; min-width:0; }
 .diff-line.add { border-left-color:var(--success); background:var(--diff-add-bg); }
 .diff-line.add .dl-gutter { color:var(--success); }
 .diff-line.add .dl-content { color:var(--success); }
 .diff-line.del { border-left-color:var(--danger); background:var(--diff-del-bg); }
 .diff-line.del .dl-gutter { color:var(--danger); }
 .diff-line.del .dl-content { color:var(--danger); }
-.diff-line.ctx .dl-gutter { color:transparent; }
-.diff-line.ctx .dl-content { color:var(--diff-ctx); }
+.diff-line.ctx { display:none; }
 .diff-hl { border-radius:2px; padding:0 2px; }
 .diff-line.add .diff-hl { background:var(--diff-add-hl); }
 .diff-line.del .diff-hl { background:var(--diff-del-hl); }
-/* Side-by-side → stacked (old on top, new below, full width each) */
-.diff-sbs { display:flex; flex-direction:column; border-left:3px solid var(--accent); }
-.diff-sbs .sbs-del, .diff-sbs .sbs-add { display:flex; white-space:pre; }
-.diff-sbs .sbs-del { background:var(--diff-del-bg); }
-.diff-sbs .sbs-del .dl-gutter { color:var(--danger); }
-.diff-sbs .sbs-del .dl-content { color:var(--danger); }
-.diff-sbs .sbs-add { background:var(--diff-add-bg); }
-.diff-sbs .sbs-add .dl-gutter { color:var(--success); }
-.diff-sbs .sbs-add .dl-content { color:var(--success); }
-.diff-sbs .dl-gutter { width:20px; flex-shrink:0; text-align:center; font-weight:700; user-select:none; }
-.diff-sbs .dl-content { flex:1; padding:1px 8px; }
-.diff-sbs .diff-hl { border-radius:2px; padding:0 2px; }
-.diff-sbs .sbs-add .diff-hl { background:var(--diff-add-hl); }
-.diff-sbs .sbs-del .diff-hl { background:var(--diff-del-hl); }
-.diff-sbs .dl-ln { width:28px; flex-shrink:0; text-align:right; padding-right:4px; color:var(--diff-ln); font-size:10.5px; user-select:none; }
+/* Legacy .diff-sbs removed — diff now uses stacked full-width lines with word-diff highlights */
 /* Line numbers */
 .dl-ln { width:28px; flex-shrink:0; text-align:right; padding-right:4px; color:var(--diff-ln); font-size:10.5px; user-select:none; }
 /* Syntax highlighting */

@@ -68,10 +68,15 @@ if ($env:DONUT_GUI -eq "1") {
 
     Print_Script_Title "INIT"
     Print_Status "Environment '$envName' created at: $envPath"
-    Print_Text "Branch:   $($config.feature_branch) -> $($config.target_branch)"
-    Print_Text "Repo:     $($config.azdo.repository)"
-    Print_Text "Site:     $($config.local.site_path)"
-    Print_Text "Packages: $($config.packages -join ', ')"
+    $cardData = @{
+        branch     = $config.feature_branch
+        target     = $config.target_branch
+        repository = $config.azdo.repository
+        sitePath   = $config.local.site_path
+        packages   = @($config.packages)
+        envName    = $envName
+    }
+    Write-Host "[CARD:init]$($cardData | ConvertTo-Json -Depth 3 -Compress)[/CARD]"
     exit 0
 }
 

@@ -1,0 +1,122 @@
+/* ═══════════════════════════════════════════════════════
+   Setup Wizard — Guided environment creation
+   ═══════════════════════════════════════════════════════ */
+
+/* Overlay */
+.swiz-overlay { position:fixed; inset:0; z-index:9998; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+@keyframes swizFadeIn { from { opacity:0; } to { opacity:1; } }
+
+/* Modal */
+.swiz-modal { background:var(--bg); border:1px solid var(--border); border-radius:12px; width:680px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.3); animation:swizSlideIn .25s ease; }
+@keyframes swizSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+/* Header */
+.swiz-header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border); }
+.swiz-title { font-size:14px; font-weight:700; color:var(--text); letter-spacing:.3px; white-space:nowrap; }
+.swiz-close { background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; padding:0 4px; line-height:1; margin-left:auto; flex-shrink:0; }
+.swiz-close:hover { color:var(--danger); }
+
+/* Step bar (inline in header) */
+.swiz-steps { display:flex; align-items:center; gap:2px; margin-left:auto; background:var(--bg-input); border-radius:4px; padding:2px; border:1px solid var(--border); }
+.swiz-step-pill { padding:4px 10px; border-radius:3px; font-size:10px; font-weight:600; color:var(--text-dim); white-space:nowrap; transition:all .2s; display:flex; align-items:center; gap:4px; }
+.swiz-step-pill.active { background:var(--accent); color:var(--bg); }
+.swiz-step-pill.done { color:var(--success); }
+.swiz-step-pill .swiz-step-num { font-size:9px; opacity:.6; }
+.swiz-step-pill.active .swiz-step-num { opacity:1; }
+
+/* Body */
+.swiz-body { flex:1; overflow-y:auto; padding:20px 24px; }
+
+/* Section */
+.swiz-section { margin-bottom:16px; }
+.swiz-section h3 { font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:.8px; margin:0 0 4px; }
+.swiz-hint { font-size:11px; color:var(--text-dim); margin:0 0 14px; line-height:1.4; }
+
+/* Fields grid */
+.swiz-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.swiz-field { display:flex; flex-direction:column; gap:4px; }
+.swiz-field.full { grid-column:1/-1; }
+.swiz-field label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-label); font-weight:600; }
+.swiz-field input, .swiz-field select { background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:12px; padding:8px 11px; border-radius:4px; transition:border-color .15s; }
+.swiz-field input:focus, .swiz-field select:focus { outline:none; border-color:var(--accent); }
+.swiz-field input::placeholder { color:var(--text-dim); }
+.swiz-field input:disabled, .swiz-field select:disabled { opacity:.45; cursor:not-allowed; }
+.swiz-help { font-size:10px; color:var(--text-dim); }
+.swiz-ok { font-size:10.5px; color:var(--success); font-weight:600; }
+
+/* Input row (input + button) */
+.swiz-input-row { display:flex; gap:0; }
+.swiz-input-row input { flex:1; border-radius:6px 0 0 6px; min-width:0; }
+.swiz-input-row .swiz-action-btn { border-radius:0 6px 6px 0; border-left:none; }
+
+/* Action button */
+.swiz-action-btn { padding:8px 14px; background:var(--bg-bar); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:11px; font-weight:600; cursor:pointer; border-radius:4px; white-space:nowrap; transition:all .15s; }
+.swiz-action-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-bg); }
+.swiz-action-btn:disabled { opacity:.4; pointer-events:none; }
+
+/* PAT action row */
+.swiz-pat-actions { display:flex; gap:8px; margin-top:10px; }
+.swiz-install-btn { color:var(--accent); border-color:var(--accent); }
+
+/* Eye toggle for password fields */
+.swiz-eye-btn { padding:0 10px; background:var(--bg-bar); border:1px solid var(--border); border-left:none; color:var(--text-dim); cursor:pointer; font-size:13px; display:flex; align-items:center; transition:color .15s; }
+.swiz-eye-btn:hover { color:var(--accent); }
+
+/* Choices row */
+.swiz-choices { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+
+/* Version chips */
+.swiz-chips-row { display:flex; gap:6px; flex-wrap:wrap; }
+.swiz-chip { padding:6px 14px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-family:inherit; font-size:11.5px; font-weight:600; color:var(--text-dim); cursor:pointer; transition:all .15s; }
+.swiz-chip:hover { border-color:var(--accent); color:var(--accent); }
+.swiz-chip.active { border-color:var(--accent); background:var(--accent); color:var(--bg); }
+
+/* Detected sites */
+.swiz-sites { margin-bottom:12px; }
+.swiz-sites > label { font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-label); font-weight:600; display:block; margin-bottom:6px; }
+.swiz-site-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:6px; max-height:150px; overflow-y:auto; }
+.swiz-site-item { padding:8px 12px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; cursor:pointer; transition:all .15s; }
+.swiz-site-item:hover { border-color:var(--accent); background:var(--accent-bg); }
+.swiz-site-item.selected { border-color:var(--accent); background:var(--accent-bg); }
+.swiz-site-name { font-size:11.5px; font-weight:600; color:var(--text); display:block; }
+.swiz-site-path { font-size:9.5px; color:var(--text-dim); display:block; margin-top:2px; }
+
+/* Work item results */
+.swiz-wi-results { border:1px solid var(--accent); border-radius:4px; max-height:180px; overflow-y:auto; background:var(--bg-raised); box-shadow:0 8px 24px rgba(0,0,0,.2); margin-top:4px; }
+.swiz-wi-item { padding:7px 12px; cursor:pointer; font-size:11px; color:var(--text); border-bottom:1px solid var(--border); transition:background .1s; display:flex; align-items:center; gap:8px; }
+.swiz-wi-item:last-child { border-bottom:none; }
+.swiz-wi-item:hover { background:var(--accent-bg); color:var(--accent); }
+.swiz-wi-type { font-size:9px; color:var(--text-dim); margin-left:auto; text-transform:uppercase; }
+
+/* Package grid */
+.swiz-pkg-grid { display:flex; flex-wrap:wrap; gap:5px; max-height:160px; overflow-y:auto; padding:2px; }
+.swiz-pkg { display:inline-flex; align-items:center; padding:5px 10px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-size:10.5px; cursor:pointer; user-select:none; white-space:nowrap; transition:all .15s; }
+.swiz-pkg:hover { border-color:var(--accent); color:var(--accent); }
+.swiz-pkg.selected { border-color:var(--accent); background:var(--accent-bg); color:var(--accent); font-weight:600; }
+
+/* Review card */
+.swiz-rv-card { border:2px solid var(--accent); border-radius:10px; overflow:hidden; background:var(--bg-bar); }
+.swiz-rv-section { padding:10px 16px; border-bottom:1px solid var(--border); }
+.swiz-rv-section:last-child { border-bottom:none; }
+.swiz-rv-title { font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--accent); font-weight:700; margin-bottom:8px; opacity:.7; display:flex; align-items:center; gap:6px; }
+.swiz-rv-count { background:var(--accent); color:var(--bg); font-size:9px; padding:1px 6px; border-radius:8px; }
+.swiz-rv-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; }
+.swiz-rv-item { display:flex; align-items:baseline; gap:6px; font-size:11.5px; min-width:0; }
+.swiz-rv-item.full { grid-column:1/-1; }
+.swiz-rv-label { font-size:9px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); font-weight:600; flex-shrink:0; width:70px; }
+.swiz-rv-val { color:var(--text); font-weight:500; word-break:break-all; min-width:0; }
+.swiz-rv-ok { color:var(--success); font-size:11px; flex-shrink:0; }
+.swiz-rv-miss { color:var(--danger); font-size:11px; flex-shrink:0; }
+.swiz-rv-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.swiz-rv-chip { padding:2px 8px; background:var(--accent-bg); border:1px solid var(--accent); border-radius:4px; font-size:10px; color:var(--accent); font-weight:600; }
+[data-theme="light"] .swiz-rv-card { background:#fff; }
+
+/* Footer */
+.swiz-footer { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-top:1px solid var(--border); }
+.swiz-footer-right { display:flex; gap:8px; }
+.swiz-btn { padding:8px 20px; font-family:inherit; font-size:11.5px; font-weight:700; border-radius:4px; cursor:pointer; border:none; transition:all .15s; }
+.swiz-btn.primary { background:var(--accent); color:var(--bg); }
+.swiz-btn.primary:hover { filter:brightness(1.15); transform:scale(1.02); }
+.swiz-btn.primary:disabled { opacity:.4; pointer-events:none; filter:none; transform:none; }
+.swiz-btn.secondary { background:var(--bg-input); border:1px solid var(--border); color:var(--text-dim); }
+.swiz-btn.secondary:hover { border-color:var(--accent); color:var(--accent); }

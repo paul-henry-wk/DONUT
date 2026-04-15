@@ -108,13 +108,13 @@
 .drp-more { font-size:10px; color:var(--text-dim); font-style:italic; padding-top:2px; }
 [data-theme="light"] .drp-preview { background:rgba(0,0,0,.05); }
 
-/* ── Diff viewer ── */
+/* ── Diff viewer (DevOps panel) ── */
 .diff-viewer { font-family:inherit; font-size:11px; max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:4px; margin-top:8px; }
-.diff-line { padding:1px 8px; white-space:pre-wrap; word-break:break-all; }
-.diff-line.add { background:rgba(34,197,94,.08); color:var(--success); }
-.diff-line.del { background:rgba(239,68,68,.08); color:var(--danger); }
-.diff-line.hunk { color:var(--accent); font-weight:600; background:var(--accent-bg); }
-.diff-line.ctx { color:var(--text-dim); }
+.diff-viewer .diff-line { padding:1px 8px; white-space:pre-wrap; word-break:break-all; display:block; }
+.diff-viewer .diff-line.add { background:rgba(34,197,94,.08); color:var(--success); }
+.diff-viewer .diff-line.del { background:rgba(239,68,68,.08); color:var(--danger); }
+.diff-viewer .diff-line.hunk { color:var(--accent); font-weight:600; background:var(--accent-bg); }
+.diff-viewer .diff-line.ctx { color:var(--text-dim); }
 
 /* ── Terminal search ── */
 .term-search { background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:10.5px; padding:2px 8px; border-radius:4px; width:120px; }
