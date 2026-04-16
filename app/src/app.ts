@@ -11,7 +11,7 @@ import {
   expandTerminal, showPRLink, showScriptCard, showRerunBtn, addRunHistory,
   setTermFontSize, navigateErrors, resetTerminalState, setEstimate,
 } from './terminal';
-import { renderScripts, renderRunBar, doRun, selectScript, onPipelineRunEnd } from './scripts';
+import { renderScripts, renderRunBar, renderSelectedInfo, doRun, selectScript, onPipelineRunEnd, onSetupRunEnd, restoreSetupAfterSingleStep } from './scripts';
 import { advanceWorkflow, renderWorkflowBar, recalcWorkflow } from './workflow';
 import { startHealthPolling } from './health';
 import { renderConfig, saveConfig } from './config';
@@ -54,6 +54,13 @@ export async function openUrl(url: string): Promise<void> {
 export async function loadEnv(): Promise<void> {
   S.currentEnv = (document.getElementById('envSel') as HTMLSelectElement)?.value || '';
   if (!S.currentEnv) return;
+  // Reset setup & pipeline state when switching environments
+  S.setupRunning = false;
+  S.setupIdx = 0;
+  S.setupFocusedStep = null;
+  S.pipeline = [];
+  S.pipelineRunning = false;
+  S.pipelineIdx = 0;
   const thisVersion = ++_loadEnvVersion;
   localStorage.setItem('donut-env', S.currentEnv);
   try {
@@ -92,6 +99,7 @@ export async function loadEnv(): Promise<void> {
     recalcWorkflow(S.currentEnv);
     renderScripts();
     renderWorkflowBar();
+    renderSelectedInfo();
     renderRunBar();
     startHealthPolling();
   } catch (e) {
@@ -123,12 +131,14 @@ export async function init(): Promise<void> {
     sel.value = savedEnv;
   }
 
-  // Restore script: favorite first, then last selected
-  const favScript = localStorage.getItem('donut-fav');
-  const savedScript = localStorage.getItem('donut-script');
-  const restoreScript = (favScript && SCRIPTS.find(s => s.id === favScript)) ? favScript : savedScript;
-  if (restoreScript && SCRIPTS.find(s => s.id === restoreScript)) {
-    S.selectedScript = restoreScript;
+  // Restore script: favorite first, then last selected (only if envs exist)
+  if (envs.length) {
+    const favScript = localStorage.getItem('donut-fav');
+    const savedScript = localStorage.getItem('donut-script');
+    const restoreScript = (favScript && SCRIPTS.find(s => s.id === favScript)) ? favScript : savedScript;
+    if (restoreScript && SCRIPTS.find(s => s.id === restoreScript)) {
+      S.selectedScript = restoreScript;
+    }
   }
 
   // Splash step 2
@@ -144,8 +154,9 @@ export async function init(): Promise<void> {
     S.currentEnv = sel.value || envs[0];
     await loadEnv();
   } else {
-    // First launch — no environments yet, open setup wizard
-    (window as any).openSetupWizard?.();
+    // First launch — no environments yet, show empty state
+    sel.innerHTML = '';
+    renderConfig();
   }
 
   // Splash step 3
@@ -579,6 +590,9 @@ export function setupEventListeners(): void {
           new Notification(ok ? '\u2705 DONUT' : '\u274C DONUT', { body: notifBody });
         }
       }
+      // Setup composite: advance to next step or restore after single step
+      onSetupRunEnd(ok);
+      restoreSetupAfterSingleStep(msg.script || '');
       // Pipeline: advance to next step
       onPipelineRunEnd(ok);
       // Auto-refresh DevOps data after scripts that change remote state

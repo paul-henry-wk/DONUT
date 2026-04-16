@@ -802,9 +802,36 @@ export async function swizCreate(): Promise<void> {
       S.currentEnv = match;
       S.envConfig = config as any;
     }
+    // Update env selector and load the new env
+    const sel = document.getElementById('envSel') as HTMLSelectElement;
+    sel.innerHTML = envs.map((e: string) => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
+    sel.value = match || '';
+    localStorage.setItem('donut-env', S.currentEnv);
+
     toast(`\u2705 Environment "${name}" created!`, 'success');
     closeSetupWizard();
     renderConfig();
+    // Refresh scripts tab (removes "no env" banner, re-enables scripts)
+    (window as any).renderScripts?.();
+    (window as any).renderRunBar?.();
+
+    // Propose to launch Setup
+    const run = await (window as any).showModal({
+      title: 'Run Setup?',
+      message: `Your environment <strong>${esc(name)}</strong> is configured.<br><br>Do you want to install the site, configure authentication, and set packages now?`,
+      html: true,
+      confirmLabel: 'Run Setup',
+      cancelLabel: 'Later',
+    });
+    if (run) {
+      // Switch to Scripts tab, select Setup, and run
+      const scriptsBtn = document.querySelector('.tab[onclick*="scripts"]') as HTMLElement;
+      if (scriptsBtn) (window as any).showTab('scripts', scriptsBtn);
+      (window as any).selectScript('setup');
+      setTimeout(() => (window as any).doRun(), 300);
+    } else {
+      toast('You can run Setup later from the Scripts tab', 'info');
+    }
   } catch (e) {
     toast('Failed to create environment: ' + e, 'error');
   }

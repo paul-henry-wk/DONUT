@@ -1,11 +1,29 @@
 /* ── Config page ── */
 .cfg-layout { display:grid; grid-template-columns:180px 1fr; gap:16px; align-items:start; min-width:0; }
-.cfg-envs { display:flex; flex-direction:column; gap:4px; position:relative; z-index:10; }
+.cfg-envs { display:flex; flex-direction:column; gap:4px; position:sticky; top:0; z-index:10; max-height:100vh; }
 .cfg-env-actions { display:flex; gap:4px; margin-top:8px; }
 .cfg-env-btn { flex:1; padding:6px; background:var(--accent-bg); border:1px solid var(--border-bar); color:var(--accent); font-family:inherit; font-size:11px; cursor:pointer; border-radius:4px; text-align:center; display:flex; align-items:center; justify-content:center; transition:background .15s, border-color .15s; }
 .cfg-env-btn:hover { background:var(--border-bar); border-color:var(--accent); }
 .cfg-env-btn.del { color:var(--danger); background:var(--danger-bg); border-color:var(--danger-bg); }
 .cfg-env-btn.del:hover { background:var(--danger); color:#fff; border-color:var(--danger); opacity:1; }
+/* ── Empty state (no environments) ── */
+.cfg-envs:empty { display:none; }
+.cfg-envs:empty + .cfg-form { grid-column:1 / -1; }
+.cfg-empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:400px; gap:16px; }
+.cfg-empty-create { width:96px; height:96px; border-radius:50%; border:3px dashed var(--border); background:var(--accent-bg); color:var(--accent); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .25s; }
+.cfg-empty-create svg { width:48px; height:48px; }
+.cfg-empty-create:hover { border-color:var(--accent); background:var(--accent); color:#fff; transform:scale(1.08); box-shadow:0 4px 20px rgba(59,130,246,.3); }
+.cfg-empty-label { font-size:16px; font-weight:700; color:var(--text); margin:0; }
+.cfg-empty-hint { font-size:12px; color:var(--text-dim); margin:0; max-width:340px; text-align:center; line-height:1.5; }
+/* ── No-env banner for Scripts tab ── */
+.no-env-banner { grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:var(--accent-bg); border:1px solid var(--accent); border-radius:8px; margin-bottom:4px; }
+.no-env-label { font-size:13px; font-weight:600; color:var(--accent); }
+.no-env-banner button { padding:8px 22px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+.no-env-banner button:hover { opacity:.88; box-shadow:0 2px 8px rgba(59,130,246,.25); }
+/* Disable scripts when no env */
+.scripts-grid.no-env .s-group-label,
+.scripts-grid.no-env .s-card { opacity:.3; pointer-events:none; user-select:none; filter:grayscale(1); }
+.no-env-hidden { display:none !important; }
 /* ── Wizard steps ── */
 .wiz-step { border:1px solid var(--border); border-radius:4px; margin-bottom:6px; transition:opacity .3s; }
 .wiz-step.locked { opacity:.35; pointer-events:none; }
@@ -130,8 +148,11 @@
 
 
 .cfg-save-sidebar { margin-top:auto; padding-top:8px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
-.cfg-save-sidebar .save-btn { width:100%; padding:8px; background:var(--accent); color:#000; font-family:inherit; font-weight:700; font-size:11px; border:none; border-radius:4px; cursor:pointer; transition:transform .1s, box-shadow .2s; }
-.cfg-save-sidebar .save-btn:hover { background:var(--accent-hover); transform:scale(1.03); }
+.cfg-save-sidebar .save-btn { width:100%; padding:8px; background:var(--accent); color:#000; font-family:inherit; font-weight:700; font-size:11px; border:none; border-radius:4px; cursor:pointer; transition:all .2s; }
+.cfg-save-sidebar .save-btn:hover:not(:disabled) { background:var(--accent-hover); transform:scale(1.03); }
+.cfg-save-sidebar .save-btn:disabled { background:var(--border); color:var(--text-dim); cursor:default; opacity:.6; transform:none; }
+.cfg-save-sidebar .save-btn.saved { background:var(--success); color:#fff; animation:savedPop .4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes savedPop { 0%{transform:scale(1)} 40%{transform:scale(1.08)} 100%{transform:scale(1)} }
 .cfg-save-sidebar .msg { font-size:10.5px; text-align:center; }
 .cfg-btns { display:flex; gap:8px; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
 .cfg-btns .save-btn { padding:8px 24px; background:var(--accent); color:#000; font-family:inherit; font-weight:700; font-size:11px; border:none; border-radius:4px; cursor:pointer; transition:transform .1s, box-shadow .2s; }

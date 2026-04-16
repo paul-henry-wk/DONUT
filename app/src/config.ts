@@ -189,10 +189,16 @@ export function renderConfig(): void {
   invoke<string[]>('list_envs').then(envs => {
     const el = document.getElementById('cfgEnvs');
     if (!el) return;
+    if (envs.length === 0) {
+      // No environments — show empty state with big create button (centered)
+      el.innerHTML = '';
+      cfgForm!.innerHTML = `<div class="cfg-empty-state"><button class="cfg-empty-create" onclick="openSetupWizard()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button><p class="cfg-empty-label">Create your first environment</p><p class="cfg-empty-hint">Set up your Azure DevOps connection, local site, and branch configuration</p></div>`;
+      return;
+    }
     el.innerHTML = envs.map(e =>
       `<div class="cfg-env${e===S.currentEnv?' active':''}" data-env="${esc(e)}">${esc(e)}</div>`
     ).join('') + `<div class="cfg-env-actions"><button class="cfg-env-btn" data-action="new" title="New environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button><button class="cfg-env-btn" data-action="clone" title="Clone environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button><button class="cfg-env-btn" data-action="rename" title="Rename environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="cfg-env-btn" data-action="export" title="Export environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button><button class="cfg-env-btn" data-action="import" title="Import environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button><button class="cfg-env-btn del" data-action="delete" title="Delete environment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></div>`
-    + `<div class="cfg-save-sidebar"><button class="save-btn" data-action="save">SAVE</button><span class="msg" id="cfgMsg2"></span></div>`;
+    + `<div class="cfg-save-sidebar"><button class="save-btn" data-action="save" disabled>SAVE</button></div>`;
   });
 
   const c = S.envConfig;
@@ -285,6 +291,10 @@ export function renderConfig(): void {
     }).catch(() => {});
   }
   captureFormSnapshot();
+
+  // Listen for form changes to update save button state
+  cfgForm.addEventListener('input', () => updateSaveButton());
+  cfgForm.addEventListener('change', () => updateSaveButton());
 }
 
 // ── Wizard helpers ──
@@ -793,17 +803,22 @@ export async function saveConfig(): Promise<void> {
   try {
     await invoke('save_env', { name: S.currentEnv, config });
     S.envConfig = config; renderSelectedInfo();
-    const btn = document.querySelector('.save-btn'); if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 600); }
-    const el = document.getElementById('cfgMsg2'); if (el) { el.textContent = 'saved'; el.className = 'msg ok'; setTimeout(() => { el.textContent = ''; }, 2000); }
+    captureFormSnapshot();
+    // Update save button: show "SAVED ✓" with animation, then revert
+    const btn = document.querySelector('.cfg-save-sidebar .save-btn') as HTMLButtonElement | null;
+    if (btn) {
+      btn.textContent = 'SAVED \u2713';
+      btn.classList.add('saved');
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = 'SAVE'; btn.classList.remove('saved'); }, 1500);
+    }
     if (warnings.length > 0) {
       toast('Saved with ' + warnings.length + ' warning(s): ' + warnings[0] + (warnings.length > 1 ? ' (+' + (warnings.length - 1) + ' more)' : ''), 'warn');
-    } else {
-      toast('Configuration saved', 'success');
     }
     // Async credential validation (non-blocking, runs after save)
     validateCredentials(config);
   } catch(e) {
-    const el = document.getElementById('cfgMsg2'); if (el) { el.textContent = String(e); el.className = 'msg err'; }
+    toast('Failed to save: ' + e, 'error');
   }
 }
 
@@ -846,20 +861,31 @@ function updateCredentialBadges(config: EnvConfig, errors: string[]): void {
   const patFailed = errors.some(e => e.includes('PAT'));
   const sqlFailed = errors.some(e => e.includes('SQL'));
   if (patBadge && hasPat) {
-    patBadge.textContent = patFailed ? '\u274C' : '\u2705';
-    patBadge.title = patFailed ? 'PAT invalid' : 'PAT valid';
-    patBadge.style.display = 'inline';
+    patBadge.className = `cred-badge ${patFailed ? 'fail' : 'ok'}`;
+    patBadge.title = patFailed ? 'PAT invalid or expired' : 'PAT validated';
+    patBadge.innerHTML = `<span class="cb-dot"></span>${patFailed ? 'invalid' : 'connected'}`;
+    patBadge.style.display = 'inline-flex';
   } else if (patBadge) { patBadge.style.display = 'none'; }
   if (sqlBadge && hasSql) {
-    sqlBadge.textContent = sqlFailed ? '\u274C' : '\u2705';
+    sqlBadge.className = `cred-badge ${sqlFailed ? 'fail' : 'ok'}`;
     sqlBadge.title = sqlFailed ? 'SQL connection failed' : 'SQL connected';
-    sqlBadge.style.display = 'inline';
+    sqlBadge.innerHTML = `<span class="cb-dot"></span>${sqlFailed ? 'failed' : 'connected'}`;
+    sqlBadge.style.display = 'inline-flex';
   } else if (sqlBadge) { sqlBadge.style.display = 'none'; }
 }
 
 let _lastFormSnapshot: string = '';
 export function captureFormSnapshot(): void {
   _lastFormSnapshot = JSON.stringify(getFormValues());
+  updateSaveButton();
+}
+export function updateSaveButton(): void {
+  const btn = document.querySelector('.cfg-save-sidebar .save-btn') as HTMLButtonElement | null;
+  if (!btn || btn.classList.contains('saved')) return;
+  const current = JSON.stringify(getFormValues());
+  const dirty = current !== _lastFormSnapshot;
+  btn.disabled = !dirty;
+  btn.textContent = 'SAVE';
 }
 export function autoSave(): void {
   if (!S.currentEnv) return;

@@ -5,7 +5,10 @@
 .s-tooltip-miss { color:var(--danger); }
 
 /* ── Credential validation badges ── */
-.cred-badge { font-size:14px; margin-left:6px; vertical-align:middle; cursor:help; }
+.cred-badge { display:inline-flex; align-items:center; gap:4px; margin-left:8px; vertical-align:middle; cursor:help; font-size:10px; color:var(--text-dim); }
+.cred-badge .cb-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.cred-badge.ok .cb-dot { background:var(--success); }
+.cred-badge.fail .cb-dot { background:var(--danger); }
 
 /* ── Commit panel (slide-in) ── */
 .cc-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.4); opacity:0; transition:opacity .2s; display:flex; justify-content:flex-end; }

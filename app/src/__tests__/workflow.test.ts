@@ -122,15 +122,15 @@ describe('recalcWorkflow', () => {
 });
 
 describe('getRecommended', () => {
-  it('returns install-site for idle', () => {
+  it('returns setup for idle', () => {
     const rec = getRecommended('test');
-    expect(rec).toContain('install-site');
+    expect(rec).toContain('setup');
   });
 
-  it('returns setup-local-auth after install', () => {
+  it('returns setup after install', () => {
     advanceWorkflow('test', 'install-site', true);
     const rec = getRecommended('test');
-    expect(rec).toContain('setup-local-auth');
+    expect(rec).toContain('setup');
   });
 
   it('returns empty for unknown state', () => {

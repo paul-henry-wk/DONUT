@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SCRIPTS, S } from '../state';
+import { SCRIPTS, SCRIPT_GROUPS, S } from '../state';
 import { validateEnvForScript } from '../scripts';
 
 // ── validateEnvForScript ──
@@ -401,8 +401,9 @@ describe('Script metadata consistency', () => {
     }
   });
 
-  it('all script nums are unique two-digit strings', () => {
-    const nums = SCRIPTS.map(s => s.num);
+  it('all grid script nums are unique two-digit strings', () => {
+    const gridScripts = SCRIPT_GROUPS.flatMap(g => g.scripts);
+    const nums = gridScripts.map(s => s.num);
     const unique = new Set(nums);
     expect(nums.length).toBe(unique.size);
     for (const num of nums) {

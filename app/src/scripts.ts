@@ -2,7 +2,7 @@
 // scripts.ts — Script grid rendering, selection, run bar
 // ═══════════════════════════════════════════════════════════════════
 
-import { SCRIPTS, SCRIPT_GROUPS, ICONS, ICO, WF_ALWAYS, esc, toast, invoke, getThemeMsgs, pickRandom, S } from './state';
+import { SCRIPTS, SCRIPT_GROUPS, SETUP_STEPS, ICONS, ICO, WF_ALWAYS, esc, toast, invoke, getThemeMsgs, pickRandom, S } from './state';
 import { getRecommended, getWorkflow, getScriptsForState, renderWorkflowBar, _wfHighlight } from './workflow';
 import { appendLog } from './terminal';
 
@@ -11,10 +11,16 @@ export function renderScripts(): void {
   const recommended = getRecommended(S.currentEnv);
   const hasRec = recommended.length > 0;
   const wfDone = S.currentEnv ? getWorkflow(S.currentEnv).steps.map(s => s.script) : [];
-  document.getElementById('scriptsGrid')!.innerHTML = SCRIPT_GROUPS.map(g => {
+  const noEnv = !S.currentEnv;
+  const noEnvBanner = noEnv
+    ? `<div class="no-env-banner"><span class="no-env-label">No environment configured</span><button onclick="openSetupWizard()">+ New environment</button></div>`
+    : '';
+  const gridEl = document.getElementById('scriptsGrid')!;
+  gridEl.classList.toggle('no-env', noEnv);
+  gridEl.innerHTML = noEnvBanner + SCRIPT_GROUPS.map(g => {
     const cards = g.scripts.map(s => {
       const sel = S.selectedScript===s.id ? ' active' : '';
-      const dis = S.isRunning ? ' disabled' : '';
+      const dis = (S.isRunning || S.setupRunning) ? ' disabled' : '';
       const dng = s.danger ? ' danger' : '';
       const star = s.id===fav ? '<span class="s-fav" title="favorite (auto-selected at startup)">&#127849;</span>' : '';
       const isNext = recommended.includes(s.id);
@@ -57,7 +63,7 @@ export function renderScripts(): void {
         }
         tooltip = `<div class="s-tooltip">${tips}</div>`;
       }
-      const pipBtn = !S.isRunning && !s.danger ? `<button class="pip-add-btn" onclick="event.stopPropagation();addToPipeline('${s.id}')" title="Add to pipeline">+</button>` : '';
+      const pipBtn = !S.isRunning && !s.danger && s.id !== 'setup' ? `<button class="pip-add-btn" onclick="event.stopPropagation();addToPipeline('${s.id}')" title="Add to pipeline">+</button>` : '';
       return `<div class="s-card${sel}${dis}${dng}${s.id===fav?' fav':''}${isNext?' wf-next':''}${dimmed}${highlighted}" role="button" aria-pressed="${S.selectedScript===s.id}" aria-label="${esc(s.name)}: ${esc(s.desc)}" onclick="selectScript('${s.id}')" ondblclick="toggleFav('${s.id}')">
         <div class="s-card-icon">${icon}</div>
         <div class="s-card-body">
@@ -94,7 +100,7 @@ export function toggleFav(id: string): void {
 }
 
 export function selectScript(id: string): void {
-  if (S.isRunning) return;
+  if (S.isRunning || S.setupRunning) return;
   S.selectedScript = id;
   S.lastRunResult = null;
   localStorage.setItem('donut-script', id);
@@ -106,22 +112,86 @@ export function selectScript(id: string): void {
 export function renderSelectedInfo(): void {
   const el = document.getElementById('selectedInfo');
   if (!el) return;
-  if (!S.currentEnv || !S.envConfig.feature_branch) { el.innerHTML=''; return; }
-  el.innerHTML = `<span style="color:#7a7a7a">env:</span> ${esc(S.currentEnv)} <span style="color:#7a7a7a">branch:</span> ${esc(S.envConfig.feature_branch||'-')} <span style="color:#7a7a7a">-></span> ${esc(S.envConfig.target_branch||'-')} <span style="color:#7a7a7a">repo:</span> ${esc(S.envConfig.azdo?.repository||'-')} <span style="color:#7a7a7a">pkgs:</span> ${esc((S.envConfig.packages||[]).join(',')||'none')}`;
+  if (!S.currentEnv) { el.innerHTML=''; return; }
+  const c = S.envConfig;
+  const siteName = (c.local?.site_path || '').split(/[\\\/]/).pop() || '';
+  const fb = c.feature_branch || '';
+  const tb = c.target_branch || '';
+  const repo = c.azdo?.repository || '';
+  const pkgs = (c.packages || []);
+  const org = c.azdo?.organization || '';
+  const items: string[] = [];
+  if (siteName) items.push(`<span class="si-item" title="${esc(c.local?.site_path || '')}"><span class="si-label">site</span><span class="si-val">${esc(siteName)}</span></span>`);
+  if (fb) items.push(`<span class="si-item si-branch" title="${esc(fb)}"><span class="si-label">branch</span><span class="si-val">${esc(fb)}${tb ? ` \u2192 ${esc(tb)}` : ''}</span></span>`);
+  if (repo) items.push(`<span class="si-item" title="${org ? esc(org) + ' / ' : ''}${esc(repo)}"><span class="si-label">repo</span><span class="si-val">${esc(repo)}</span></span>`);
+  if (pkgs.length) items.push(`<span class="si-item" title="${esc(pkgs.join(', '))}"><span class="si-label">pkgs</span><span class="si-val">${esc(pkgs.join(', '))}</span></span>`);
+  el.innerHTML = items.join('<span class="si-sep"></span>');
 }
 
 export function renderRunBar(): void {
   const bar = document.getElementById('runBar')!;
+  if (!S.currentEnv) {
+    bar.classList.remove('ready');
+    bar.classList.add('no-env-hidden');
+    return;
+  }
+  bar.classList.remove('no-env-hidden');
   if (!S.selectedScript) {
     bar.classList.remove('ready');
     const recommended = getRecommended(S.currentEnv);
     const hint = recommended.length
       ? `Next: <strong>${recommended.map(id => esc(SCRIPTS.find(x=>x.id===id)?.name||id)).join(' or ')}</strong>`
-      : 'Select a script above to get started';
-    bar.innerHTML = `<span class="step-hint">${hint}</span><span class="step-arrow">&uarr;</span>`;
+      : 'Select a script above';
+    // Env summary chips
+    const c = S.envConfig;
+    const siteName = (c.local?.site_path || '').split(/[\\\/]/).pop() || '';
+    const branch = c.feature_branch || '';
+    const chips: string[] = [];
+    if (siteName) chips.push(`<span class="rb-chip">${esc(siteName)}</span>`);
+    if (branch) chips.push(`<span class="rb-chip">${esc(branch)}</span>`);
+    const r = S.lastRunResult;
+    if (r) chips.push(`<span class="rb-chip ${r.ok ? 'ok' : 'fail'}">${r.ok ? '&#10003;' : '&#10007;'} ${esc(r.script)} (${esc(r.duration)})</span>`);
+    const chipsHtml = chips.length ? `<span class="rb-chips">${chips.join('')}</span>` : '';
+    bar.innerHTML = `<span class="step-hint">${hint}</span>${chipsHtml}<span class="run-spacer"></span><span class="step-arrow">&uarr;</span>`;
     return;
   }
   bar.classList.add('ready');
+
+  // ── Setup composite: show step strip ──
+  if (S.selectedScript === 'setup') {
+    const canInteract = !S.isRunning && !S.setupRunning;
+    const focused = S.setupFocusedStep;
+    const steps = SETUP_STEPS.map((step, i) => {
+      const icon = ICONS[step.id] || '';
+      let cls = 'setup-step';
+      if (S.setupRunning && i < S.setupIdx) cls += ' done';
+      else if (S.setupRunning && i === S.setupIdx && S.isRunning) cls += ' running';
+      else if (S.setupRunning && i === S.setupIdx) cls += ' active';
+      else if (canInteract && focused === step.id) cls += ' focused';
+      const clickable = canInteract ? ` onclick="focusSetupStep('${step.id}')"` : '';
+      return `<div class="${cls}"${clickable}>${icon}<span class="setup-step-name">${esc(step.name)}</span></div>`;
+    });
+    const arrows = '<span class="setup-arrow">&#9654;</span>';
+    const stepsHtml = steps.join(arrows);
+    let actionBtn: string;
+    if (S.isRunning) {
+      actionBtn = `<button class="run-btn danger" id="runBtn" onclick="doStop()">STOP</button>`;
+    } else if (S.setupRunning) {
+      actionBtn = `<button class="run-btn" id="runBtn" disabled>RUNNING...</button>`;
+    } else if (focused) {
+      const stepName = SETUP_STEPS.find(s => s.id === focused)?.name || '';
+      actionBtn = `<button class="run-btn setup-single" id="runBtn" onclick="confirmSingleSetupStep()">${esc(stepName)}</button><button class="run-btn" onclick="doRun()">ALL</button>`;
+    } else {
+      actionBtn = `<button class="run-btn" id="runBtn" onclick="doRun()">SETUP</button>`;
+    }
+    bar.innerHTML = `
+      <div class="setup-strip">${stepsHtml}</div>
+      <span class="run-spacer"></span>
+      ${actionBtn}
+    `;
+    return;
+  }
+
   const s = SCRIPTS.find(x=>x.id===S.selectedScript)!;
   const icon = ICONS[s.id] || '';
   const msgInput = s.needsMsg ? `<input type="text" id="commitMsg" placeholder="commit message..." autocomplete="off">` : '';
@@ -207,7 +277,8 @@ export function showInstallWizard(): Promise<WizardResult | null> {
 
       const adminWarning = !isAdmin ? `<div class="wiz-warning">\u26A0 DONUT is not running as Administrator. Installation may fail. Please restart DONUT as Administrator.</div>` : '';
 
-      const closeWiz = `document.getElementById('installWizOverlay')?.remove()`;
+      (window as any)._cancelInstallWiz = () => { overlay.remove(); resolve(null); };
+      const closeWiz = `window._cancelInstallWiz()`;
 
       if (step === 1) {
         overlay.innerHTML = `<div class="modal-box wiz-box">
@@ -331,11 +402,181 @@ export function showInstallWizard(): Promise<WizardResult | null> {
   });
 }
 
+// ── Setup composite runner ──────────────────────────────────────
+async function runNextSetupStep(): Promise<void> {
+  if (S.setupIdx >= SETUP_STEPS.length) {
+    S.setupRunning = false;
+    S.selectedScript = 'setup';
+    toast('Setup complete!', 'success');
+    renderRunBar();
+    renderScripts();
+    return;
+  }
+  const step = SETUP_STEPS[S.setupIdx];
+  S.selectedScript = step.id; // So run-end handler identifies the script
+  renderRunBar();
+
+  // Install Site → wizard
+  if (step.id === 'install-site') {
+    const result = await showInstallWizard();
+    if (!result) {
+      // User cancelled wizard → abort setup
+      S.setupRunning = false;
+      S.selectedScript = 'setup';
+      renderRunBar();
+      renderScripts();
+      return;
+    }
+    appendLog(`> donut install-site ${S.currentEnv}`, 'prompt');
+    appendLog(`  ENA: ${result.enaPath}`, 'dim');
+    appendLog(`  Site: ${result.sitePath}`, 'dim');
+    appendLog(pickRandom(getThemeMsgs().run), 'dim');
+    S._pendingInstallSitePath = result.sitePath;
+    try {
+      await invoke('run_script', {
+        script: 'install-site', envFile: S.currentEnv, message: null,
+        overrides: { ena_path: result.enaPath, site_path: result.sitePath }
+      });
+    } catch(e) {
+      appendLog('Failed to start: ' + e, 'err');
+      S.setupRunning = false;
+      S.selectedScript = 'setup';
+      renderRunBar();
+    }
+    return;
+  }
+
+  // Other sub-steps: validate required fields then run
+  const missing = validateEnvForScript(step.id);
+  if (missing) {
+    appendLog(`Skipping ${step.name}: missing ${missing.join(', ')}`, 'warn');
+    S.setupIdx++;
+    setTimeout(() => runNextSetupStep(), 500);
+    return;
+  }
+
+  appendLog(`> donut ${step.id} ${S.currentEnv}`, 'prompt');
+  appendLog(pickRandom(getThemeMsgs().run), 'dim');
+  try {
+    await invoke('run_script', { script: step.id, envFile: S.currentEnv, message: null });
+  } catch(e) {
+    appendLog('Failed to start: ' + e, 'err');
+    S.setupRunning = false;
+    S.selectedScript = 'setup';
+    renderRunBar();
+  }
+}
+
+// After a single setup sub-step finishes, restore selectedScript to 'setup'
+export function restoreSetupAfterSingleStep(scriptId: string): void {
+  if (S.setupRunning) return; // Handled by onSetupRunEnd
+  const isSubStep = SETUP_STEPS.some(s => s.id === scriptId);
+  if (isSubStep) {
+    S.selectedScript = 'setup';
+    S.setupFocusedStep = null;
+    renderRunBar();
+    renderScripts();
+  }
+}
+
+export function onSetupRunEnd(ok: boolean): void {
+  if (!S.setupRunning) return;
+  if (!ok) {
+    const step = SETUP_STEPS[S.setupIdx];
+    toast(`Setup stopped: ${step?.name || 'step'} failed`, 'error');
+    S.setupRunning = false;
+    S.selectedScript = 'setup';
+    renderRunBar();
+    renderScripts();
+    return;
+  }
+  S.setupIdx++;
+  // Brief delay before next step
+  setTimeout(() => runNextSetupStep(), 1500);
+}
+
+export function focusSetupStep(stepId: string): void {
+  // Toggle: click again to deselect
+  S.setupFocusedStep = S.setupFocusedStep === stepId ? null : stepId;
+  renderRunBar();
+}
+
+export function confirmSingleSetupStep(): void {
+  if (!S.setupFocusedStep) return;
+  runSingleSetupStep(S.setupFocusedStep);
+  S.setupFocusedStep = null;
+}
+
+export async function runSingleSetupStep(stepId: string): Promise<void> {
+  if (S.isRunning || S.setupRunning) return;
+  if (!S.currentEnv) { toast('No environment selected', 'error'); return; }
+  const step = SETUP_STEPS.find(s => s.id === stepId);
+  if (!step) return;
+
+  // Admin check
+  if (step.admin) {
+    try {
+      const isAdmin = await invoke<boolean>('is_admin');
+      if (!isAdmin) {
+        toast(`${step.name} requires administrator privileges. Right-click DONUT → "Run as Administrator"`, 'error');
+        return;
+      }
+    } catch { /* let the script handle it */ }
+  }
+
+  S.selectedScript = stepId;
+
+  if (stepId === 'install-site') {
+    const result = await showInstallWizard();
+    if (!result) { S.selectedScript = 'setup'; return; }
+    appendLog(`> donut install-site ${S.currentEnv}`, 'prompt');
+    appendLog(`  ENA: ${result.enaPath}`, 'dim');
+    appendLog(`  Site: ${result.sitePath}`, 'dim');
+    appendLog(pickRandom(getThemeMsgs().run), 'dim');
+    S._pendingInstallSitePath = result.sitePath;
+    try {
+      await invoke('run_script', {
+        script: 'install-site', envFile: S.currentEnv, message: null,
+        overrides: { ena_path: result.enaPath, site_path: result.sitePath }
+      });
+    } catch(e) { appendLog('Failed to start: ' + e, 'err'); S.selectedScript = 'setup'; }
+    return;
+  }
+
+  const missing = validateEnvForScript(stepId);
+  if (missing) { toast(`Missing: ${missing.join(', ')}`, 'error'); S.selectedScript = 'setup'; return; }
+
+  appendLog(`> donut ${stepId} ${S.currentEnv}`, 'prompt');
+  appendLog(pickRandom(getThemeMsgs().run), 'dim');
+  try {
+    await invoke('run_script', { script: stepId, envFile: S.currentEnv, message: null });
+  } catch(e) { appendLog('Failed to start: ' + e, 'err'); S.selectedScript = 'setup'; }
+}
+
 export async function doRun(): Promise<void> {
   if (!S.selectedScript || S.isRunning) return;
-  const s = SCRIPTS.find(x=>x.id===S.selectedScript)!;
 
   if (!S.currentEnv) { toast('No environment selected', 'error'); return; }
+
+  // ── Setup composite: launch guided setup sequence ──
+  if (S.selectedScript === 'setup') {
+    if (S.setupRunning) return;
+    // Admin check (install-site and setup-local-auth need admin)
+    try {
+      const isAdmin = await invoke<boolean>('is_admin');
+      if (!isAdmin) {
+        toast('Setup requires administrator privileges. Right-click DONUT → "Run as Administrator"', 'error');
+        return;
+      }
+    } catch { /* check failed, let the script handle it */ }
+    S.setupRunning = true;
+    S.setupIdx = 0;
+    renderRunBar();
+    runNextSetupStep();
+    return;
+  }
+
+  const s = SCRIPTS.find(x=>x.id===S.selectedScript)!;
 
   // Admin check for scripts that require elevation
   if (s.admin) {

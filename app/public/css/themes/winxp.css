@@ -161,8 +161,8 @@
 [data-theme="winxp"] .pkg-chip { background:linear-gradient(180deg, #fff, #f1efe2); border:1px solid #7f9db9; }
 [data-theme="winxp"] .pkg-chip.selected { background:linear-gradient(180deg, #316ac5, #21559e); color:#fff; border-color:#003399; }
 /* ── XP Workflow bar ── */
-[data-theme="winxp"] .workflow-bar { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
-[data-theme="winxp"] .selected-info { background:#d6e5f8; border:1px solid #7f9db9; color:#003399; }
+[data-theme="winxp"] .wf-panel { background:linear-gradient(180deg, #d6e5f8, #c1d9f5); border:1px solid #7f9db9; }
+[data-theme="winxp"] .selected-info { border-top-color:#7f9db9; }
 [data-theme="winxp"] .wf-badge { box-shadow:0 1px 3px rgba(0,0,0,.12); }
 [data-theme="winxp"] .wf-action-btn { background:linear-gradient(180deg, #fff, #ece9d8); border:1px solid #aca899; }
 /* ── XP Error bar ── */

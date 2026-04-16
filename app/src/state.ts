@@ -20,6 +20,7 @@ export const ICONS: Record<string, string> = {
   'rollback':            ICO('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>'),
   'health-check':        ICO('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>'),
   'setup-local-auth':     ICO('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  'setup':                 ICO('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
   'install-site':          ICO('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>'),
   'cleanup':               ICO('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'),
   'compare':               ICO('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>'),
@@ -27,11 +28,16 @@ export const ICONS: Record<string, string> = {
 };
 
 // ── Data ──
+// Sub-steps for the composite Setup script (not shown in grid, but used for execution)
+export const SETUP_STEPS: ScriptDef[] = [
+  { id: 'install-site',        num: '50', name: 'Install Site',        desc: 'deploy .ENA archive to local IIS', requires: [], admin: true },
+  { id: 'setup-local-auth',    num: '51', name: 'Setup Auth',          desc: 'configure admin credentials & restart IIS', requires: ['site_path'], admin: true },
+  { id: 'set-master-packages', num: '52', name: 'Set Packages',        desc: 'select which packages are open for dev', requires: ['site_path'] },
+];
+
 export const SCRIPT_GROUPS: ScriptGroup[] = [
   { label: 'Setup', scripts: [
-    { id: 'install-site',        num: '00', name: 'Install Site',        desc: 'deploy .ENA archive to local IIS', requires: [], admin: true },
-    { id: 'setup-local-auth',    num: '01', name: 'Setup Auth',          desc: 'configure admin credentials & restart IIS', requires: ['site_path'], admin: true },
-    { id: 'set-master-packages', num: '02', name: 'Set Packages',        desc: 'select which packages are open for dev', requires: ['site_path'] },
+    { id: 'setup', num: '00', name: 'Setup', desc: 'install site, configure auth & select packages', requires: [], admin: true },
   ]},
   { label: 'Synchronize', scripts: [
     { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'full download: reset site & apply all commits', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
@@ -53,7 +59,7 @@ export const SCRIPT_GROUPS: ScriptGroup[] = [
   ]},
 ];
 
-export const SCRIPTS: ScriptDef[] = SCRIPT_GROUPS.flatMap(g => g.scripts);
+export const SCRIPTS: ScriptDef[] = [...SCRIPT_GROUPS.flatMap(g => g.scripts), ...SETUP_STEPS];
 
 // ── Workflow tracking (state machine) ──
 export const WF_ICO: Record<string, string> = {
@@ -92,14 +98,14 @@ export const WF_TRANSITIONS: Record<string, { to: string; minState?: string }> =
 };
 
 export const WF_RECOMMEND: Record<string, string[]> = {
-  idle:              ['install-site'],
-  site_installed:    ['setup-local-auth'],
-  auth_set:          ['set-master-packages'],
+  idle:              ['setup'],
+  site_installed:    ['setup'],
+  auth_set:          ['setup'],
   packages_set:      ['pull-force', 'pull', 'reset'],
   site_ready:        ['diff', 'commit'],
   changes_reviewed:  ['commit'],
   committed:         ['merge', 'status'],
-  merged:            ['set-master-packages'],
+  merged:            ['setup'],
 };
 
 export const WF_ALWAYS: string[] = ['status', 'health-check', 'cleanup', 'compare', 'log'];
@@ -130,6 +136,9 @@ export const S = {
   pipeline: [] as string[],
   pipelineRunning: false,
   pipelineIdx: 0,
+  setupRunning: false,
+  setupIdx: 0,
+  setupFocusedStep: null as string | null,
 };
 
 // ── Tauri bindings (lazy access to avoid crash if __TAURI__ not yet injected) ──

@@ -151,8 +151,9 @@
 [data-theme="win95"] .pkg-chip { box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; background:#c0c0c0; border:none; }
 [data-theme="win95"] .pkg-chip.selected { background:#000080; color:#fff; box-shadow:inset 1px 1px 0 #000, inset -1px -1px 0 #868a8e; }
 /* Win95: workflow bar */
-[data-theme="win95"] .workflow-bar { box-shadow:inset 1px 1px 0 #868a8e, inset -1px -1px 0 #fff; border:none; }
-[data-theme="win95"] .selected-info { box-shadow:inset 1px 1px 0 #868a8e, inset -1px -1px 0 #fff; border:none; background:#c0c0c0; }
+[data-theme="win95"] .wf-panel { box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #868a8e, inset 2px 2px 0 #dfdfdf; border:none; background:#c0c0c0; }
+[data-theme="win95"] .workflow-bar { box-shadow:none; }
+[data-theme="win95"] .selected-info { border-top:1px solid #868a8e; }
 [data-theme="win95"] .wf-badge { box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; }
 [data-theme="win95"] .wf-action-btn { box-shadow:inset -1px -1px 0 #868a8e, inset 1px 1px 0 #fff; background:#c0c0c0; border:none; }
 /* Win95: health widget */

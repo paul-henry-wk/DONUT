@@ -31,7 +31,7 @@ import {
 
 import {
   renderScripts, selectScript, toggleFav, renderRunBar,
-  doRun, showTab, validateEnvForScript,
+  doRun, showTab, validateEnvForScript, runSingleSetupStep, focusSetupStep, confirmSingleSetupStep,
   addToPipeline, removeFromPipeline, clearPipeline, movePipelineItem,
   runPipeline, cancelPipeline, renderPipeline,
   toggleCommitHistory, pickCommitMsg, validateCommitMsg,
@@ -92,6 +92,9 @@ async function initGravityEgg(): Promise<void> {
 
 // From scripts.ts
 window.doRun = doRun;
+window.runSingleSetupStep = runSingleSetupStep;
+window.focusSetupStep = focusSetupStep;
+window.confirmSingleSetupStep = confirmSingleSetupStep;
 window.showTab = showTab;
 window.selectScript = selectScript;
 window.toggleFav = toggleFav;

@@ -46,26 +46,6 @@ pub(crate) fn list_envs() -> Vec<String> {
     let dir = app_root().join("working-environments");
     if !dir.exists() { let _ = std::fs::create_dir_all(&dir); }
 
-    // Seed a default config from the standard template on first launch
-    let has_env = std::fs::read_dir(&dir).ok().is_some_and(|mut entries| {
-        entries.any(|e| {
-            let n = e.ok().map(|e| e.file_name().to_string_lossy().to_string()).unwrap_or_default();
-            n == ".env.json" || (n.starts_with(".env-") && n.ends_with(".json"))
-        })
-    });
-    if !has_env {
-        let tmpl_path = app_root().join("templates").join("standard.json");
-        if tmpl_path.exists() {
-            if let Ok(data) = std::fs::read_to_string(&tmpl_path) {
-                if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&data) {
-                    if let Some(obj) = json.as_object_mut() { obj.remove("_template"); }
-                    let default_path = dir.join(".env.json");
-                    let _ = std::fs::write(&default_path, serde_json::to_string_pretty(&json).unwrap_or_default());
-                }
-            }
-        }
-    }
-
     let Ok(entries) = std::fs::read_dir(&dir) else { return vec![]; };
     let mut files: Vec<String> = entries
         .filter_map(|e| e.ok())

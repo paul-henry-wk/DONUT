@@ -101,8 +101,8 @@ describe('WF_TRANSITIONS', () => {
 });
 
 describe('WF_RECOMMEND', () => {
-  it('recommends install-site from idle state', () => {
-    expect(WF_RECOMMEND['idle']).toContain('install-site');
+  it('recommends setup from idle state', () => {
+    expect(WF_RECOMMEND['idle']).toContain('setup');
   });
 
   it('recommends commit from site_ready state', () => {

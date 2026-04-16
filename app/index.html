@@ -44,7 +44,7 @@
   <div class="topbar-right">
     <div class="health-widget" id="healthWidget" title="Click to refresh" role="button" aria-label="System health status"></div>
     <div id="prereqs"></div>
-    <select class="env-select" id="envSel" onchange="loadEnv()" aria-label="Select working environment"></select>
+    <div class="env-group"><select class="env-select" id="envSel" onchange="loadEnv()" aria-label="Select working environment"></select><button class="env-add-btn" onclick="openSetupWizard()" title="New environment">+</button></div>
     <div class="theme-picker" id="themePicker">
       <button class="theme-btn" onclick="toggleThemeList()">
         <span class="theme-dot" id="themeDot"></span>
@@ -62,8 +62,10 @@
     <div class="panel-toggle" onclick="togglePanel()">&#9650; show panel</div>
     <!-- SCRIPTS TAB -->
     <div class="page active" id="tab-scripts">
-      <div class="workflow-bar" id="workflowBar"></div>
-      <div class="selected-info" id="selectedInfo"></div>
+      <div class="wf-panel" id="wfPanel">
+        <div class="workflow-bar" id="workflowBar"></div>
+        <div class="selected-info" id="selectedInfo"></div>
+      </div>
       <div class="scripts-grid" id="scriptsGrid"></div>
     </div>
 
