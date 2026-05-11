@@ -252,6 +252,66 @@ export function validateEnvForScript(scriptId: string): string[] | null {
 }
 
 
+// ── Package picker (shown during Setup when packages not yet configured) ──
+function showPackagePicker(packages: string[]): Promise<string[] | null> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    let currentFilter = '';
+    let selected = new Set<string>();
+
+    const updateCount = () => {
+      const el = overlay.querySelector('#pkg-pick-count') as HTMLElement | null;
+      if (el) el.textContent = `${selected.size} selected`;
+    };
+
+    const render = () => {
+      const q = currentFilter.toLowerCase();
+      const visible = packages.filter(p => !q || p.toLowerCase().includes(q));
+      overlay.innerHTML = `
+        <div class="modal-box" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column;gap:12px;padding:20px">
+          <h3 style="margin:0;font-size:13px;font-weight:700;color:var(--accent)">SELECT MASTER PACKAGES</h3>
+          <p style="margin:0;font-size:11px;color:var(--text-dim)">${packages.length} packages available. Choose which to open for development on this site.</p>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="pkg-pick-filter" type="text" value="${esc(currentFilter)}" placeholder="Filter packages..."
+              style="flex:1;background:var(--bg-input);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:7px 10px;border-radius:4px;outline:none"
+              oninput="window._pkgPickFilter(this.value)" autofocus>
+            <button class="cfg-action-btn" onclick="window._pkgPickAll()">All</button>
+            <button class="cfg-action-btn" onclick="window._pkgPickNone()">None</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;display:flex;flex-wrap:wrap;gap:5px;max-height:300px;padding:2px">
+            ${visible.map(p => `<label class="pkg-chip${selected.has(p) ? ' selected' : ''}" data-pkg="${esc(p)}"
+              onclick="window._pkgPickToggle(this,'${esc(p)}')">${esc(p)}</label>`).join('')}
+            ${visible.length === 0 ? '<span style="font-size:11px;color:var(--text-dim)">No packages match the filter.</span>' : ''}
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span id="pkg-pick-count" style="font-size:11px;color:var(--text-dim)">0 selected</span>
+            <div style="display:flex;gap:8px">
+              <button class="swiz-btn secondary" onclick="window._pkgPickCancel()">Skip</button>
+              <button class="swiz-btn primary" onclick="window._pkgPickConfirm()">Confirm →</button>
+            </div>
+          </div>
+        </div>`;
+      updateCount();
+    };
+
+    const cleanup = () => {
+      ['_pkgPickFilter','_pkgPickAll','_pkgPickNone','_pkgPickToggle','_pkgPickCancel','_pkgPickConfirm']
+        .forEach(k => delete (window as any)[k]);
+    };
+
+    (window as any)._pkgPickFilter = (v: string) => { currentFilter = v; render(); };
+    (window as any)._pkgPickAll = () => { packages.filter(p => !currentFilter || p.toLowerCase().includes(currentFilter.toLowerCase())).forEach(p => selected.add(p)); render(); };
+    (window as any)._pkgPickNone = () => { packages.filter(p => !currentFilter || p.toLowerCase().includes(currentFilter.toLowerCase())).forEach(p => selected.delete(p)); render(); };
+    (window as any)._pkgPickToggle = (_el: HTMLElement, pkg: string) => { selected.has(pkg) ? selected.delete(pkg) : selected.add(pkg); updateCount(); };
+    (window as any)._pkgPickCancel = () => { overlay.remove(); cleanup(); resolve(null); };
+    (window as any)._pkgPickConfirm = () => { overlay.remove(); cleanup(); resolve(Array.from(selected)); };
+
+    render();
+    document.body.appendChild(overlay);
+  });
+}
+
 // ── Install Site Wizard ─────────────────────────────────────────
 interface WizardResult { enaPath: string; sitePath: string; }
 
@@ -416,9 +476,18 @@ async function runNextSetupStep(): Promise<void> {
   S.selectedScript = step.id; // So run-end handler identifies the script
   renderRunBar();
 
-  // Install Site → wizard
+  // Install Site → use pre-filled data from New Environment wizard if available, else show wizard
   if (step.id === 'install-site') {
-    const result = await showInstallWizard();
+    let result: WizardResult | null;
+    const preEna = (window as any)._pendingEnaPath as string | undefined;
+    const preSite = (window as any)._pendingInstallSitePath as string | undefined;
+    if (preEna && preSite) {
+      result = { enaPath: preEna, sitePath: preSite };
+      (window as any)._pendingEnaPath = null;
+      (window as any)._pendingInstallSitePath = null;
+    } else {
+      result = await showInstallWizard();
+    }
     if (!result) {
       // User cancelled wizard → abort setup
       S.setupRunning = false;
@@ -444,6 +513,37 @@ async function runNextSetupStep(): Promise<void> {
       renderRunBar();
     }
     return;
+  }
+
+  // set-master-packages: if no packages configured yet, prompt user to select from DB
+  if (step.id === 'set-master-packages' && (!S.envConfig.packages || S.envConfig.packages.length === 0)) {
+    const sitePath = S.envConfig.local?.site_path || '';
+    const dbPwd = S.envConfig.local?.db_password || 'enablon';
+    appendLog('No packages configured — loading from DB...', 'dim');
+    let available: string[] = [];
+    try {
+      available = await invoke<string[]>('list_sql_packages', { sitePath, password: dbPwd });
+    } catch (e) {
+      appendLog('Could not load packages from DB: ' + e, 'warn');
+    }
+    if (available.length > 0) {
+      const picked = await showPackagePicker(available);
+      if (picked !== null && picked.length > 0) {
+        S.envConfig.packages = picked;
+        try { await invoke('save_env', { name: S.currentEnv, config: S.envConfig }); } catch { /* best effort */ }
+        appendLog(`${picked.length} packages selected.`, 'dim');
+      } else {
+        appendLog('No packages selected — skipping.', 'warn');
+        S.setupIdx++;
+        setTimeout(() => runNextSetupStep(), 300);
+        return;
+      }
+    } else {
+      appendLog('No packages found in DB — skipping.', 'warn');
+      S.setupIdx++;
+      setTimeout(() => runNextSetupStep(), 300);
+      return;
+    }
   }
 
   // Other sub-steps: validate required fields then run

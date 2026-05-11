@@ -228,7 +228,27 @@ if ($_c.convert_md) {
     } else {
         $PackagesMapping = GetConfigFile -FilePath "cli\config\packages.json" -AzDoBaseURI $_c.azdo.base_uri -AzDoToken $_c.azdo.token
     }
-    Metadata_WriteSaveToGitConfigFile -PackagesMapping $PackagesMapping -RootPath $RootPath -Packages $_c.packages
+    # Query DB for all package GUIDs so unknown ones can be auto-excluded by git4inno
+    $dbGuids = @()
+    $dbName  = Split-Path $_c.local.site_path -Leaf
+    # Normalise to lowercase-no-hyphens to match packages.json format
+    $guidQuery = "SET NOCOUNT ON; SELECT REPLACE(LOWER(CONVERT(varchar(36), ProductId)), '-', '') FROM Meta_Products WHERE MetaType=2 AND (Special&64)=0"
+    try {
+        if (Get-Command 'Invoke-Sqlcmd' -ErrorAction SilentlyContinue) {
+            $dbGuids = (Invoke-Sqlcmd -ServerInstance "(local)" -Database $dbName -Username $_c.local.db_user -Password $_c.local.db_password -Query $guidQuery -QueryTimeout 15 -ConnectionTimeout 5 -ErrorAction Stop).Column1
+        } elseif (Get-Command 'Sqlcmd' -ErrorAction SilentlyContinue) {
+            $env:SQLCMDPASSWORD = $_c.local.db_password
+            $dbGuids = & Sqlcmd -S "(local)" -d $dbName -U $_c.local.db_user -Q $guidQuery -h -1 -W -t 15 -l 5 2>&1 |
+                       Where-Object { $_ -match '^[0-9a-f]{32}$' } |
+                       ForEach-Object { $_.Trim() }
+        }
+        if ($dbGuids.Count -gt 0) { Print_Text "  Found $($dbGuids.Count) package GUID(s) in DB." }
+    } catch {
+        Print_Text "  Could not query DB package GUIDs (non-critical): $($_.Exception.Message)"
+    } finally {
+        $env:SQLCMDPASSWORD = $null
+    }
+    Metadata_WriteSaveToGitConfigFile -PackagesMapping $PackagesMapping -RootPath $RootPath -Packages $_c.packages -DbGuids $dbGuids
 
     # ── Clone metadata repos in parallel ──
     Print_Text "Cloning metadata repositories and creating branches..."

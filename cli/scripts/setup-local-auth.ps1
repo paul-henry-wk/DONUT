@@ -105,4 +105,39 @@ if ($Regenerated) {
     Print_Warning "Metadata not regenerated — you may need to run 'iisreset' as administrator"
 }
 
+# ── 5. Wait for site to be back online before handing off to next setup step ──
+if ($Regenerated) {
+    $SiteId  = $_c.local.site_id
+    $siteUrl = "http://localhost/$SiteId/"
+    Print_Title "Waiting for site to come back online"
+    Print_Text "Polling $siteUrl ..."
+
+    $maxWaitSec  = 90
+    $pollSec     = 3
+    $elapsed     = 0
+    $siteOnline  = $false
+
+    while ($elapsed -lt $maxWaitSec) {
+        try {
+            $resp = Invoke-WebRequest -Uri $siteUrl -TimeoutSec 4 -UseBasicParsing -ErrorAction Stop
+            if ($resp.StatusCode -lt 500) {
+                $siteOnline = $true
+                break
+            }
+        } catch {
+            # Site not ready yet — keep waiting
+        }
+        Start-Sleep -Seconds $pollSec
+        $elapsed += $pollSec
+        Write-Host "`r  Still waiting... ($elapsed s)" -NoNewline
+    }
+    Write-Host ""
+
+    if ($siteOnline) {
+        Print_Status "Site is online after ~$elapsed s — ready for next step."
+    } else {
+        Print_Warning "Site did not respond within $maxWaitSec s. Set Packages may need a manual IIS restart if it fails."
+    }
+}
+
 Print_Script_End "Local authentication setup complete."

@@ -14,6 +14,7 @@ export {
   swizSearchWI, swizLoadMyWI, swizSelectWI,
   swizLoadPackages, swizTogglePkg, swizCreate,
   swizInstallSite, swizBrowseEna, swizInstallNext, swizInstallStepBack, swizInstallBack, swizDoInstall,
+  swizComboFilter, swizComboOpen, swizComboClose, swizComboPick, swizPickTargetBranch,
 } from './config/setup-wizard';
 import { openSetupWizard as _openSetupWizard } from './config/setup-wizard';
 import {
@@ -701,6 +702,10 @@ function getFormValues(): FormSnapshot {
   const snap: FormSnapshot = {};
   for (const id of FORM_FIELDS) {
     snap[id] = (document.getElementById(id) as HTMLInputElement)?.value ?? null;
+  }
+  // pkg-chip selections replace the c-pkg text input when packages are loaded from DB
+  if (S.cachedPackages.length) {
+    snap['_pkgs'] = getSelectedPackages().sort().join(',');
   }
   return snap;
 }

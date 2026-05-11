@@ -348,22 +348,52 @@ try {
 
 # Disable Force SSL (Require SSL) in IIS — required for local development
 Print_Title "Disabling Force SSL in IIS"
+$sslDisabled = $false
 try {
     $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
     if (Test-Path $appcmd) {
-        & $appcmd set config "Default Web Site/$SiteId" -section:system.webServer/security/access -sslFlags:"None" -commit:apphost 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Print_Status "Force SSL disabled for '$SiteId'"
-        } else {
-            Print_Warning "Could not disable Force SSL (exit code $LASTEXITCODE)"
+        # Resolve actual IIS application path (WizManager usually installs under Default Web Site)
+        $iisAppPath = "Default Web Site/$SiteId"
+        $appList = & $appcmd list app /path:"/$SiteId" 2>&1
+        if ($LASTEXITCODE -eq 0 -and "$appList" -match 'APP "([^"]+)"') {
+            $iisAppPath = $Matches[1]
         }
-    } else {
-        Print_Warning "appcmd.exe not found, cannot disable Force SSL automatically"
-        Print_Text "  -> Uncheck 'Force SSL' manually in WizManager or IIS Manager"
+        Print_Text "  IIS app path: $iisAppPath"
+
+        # appcmd requires / prefix for parameters (not -)
+        & $appcmd set config "$iisAppPath" /section:system.webServer/security/access /sslFlags:None /commit:apphost 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Print_Status "Force SSL disabled via appcmd for '$iisAppPath'"
+            $sslDisabled = $true
+        } else {
+            Print_Warning "appcmd returned exit code $LASTEXITCODE — trying WebAdministration fallback..."
+        }
+    }
+
+    # Fallback: WebAdministration PowerShell module
+    if (-not $sslDisabled) {
+        $waModule = Get-Module -ListAvailable -Name WebAdministration -ErrorAction SilentlyContinue
+        if ($waModule) {
+            Import-Module WebAdministration -ErrorAction Stop
+            $iisApp = Get-WebApplication -Name $SiteId -ErrorAction SilentlyContinue
+            $siteName = if ($iisApp) { $iisApp.GetParentElement().Attributes['name'].Value } else { 'Default Web Site' }
+            Set-WebConfiguration -Filter 'system.webServer/security/access' `
+                -PSPath "IIS:\Sites\$siteName\$SiteId" -Value @{ sslFlags = 0 } -ErrorAction Stop
+            Print_Status "Force SSL disabled via WebAdministration for '$siteName/$SiteId'"
+            $sslDisabled = $true
+        } else {
+            Print_Warning "WebAdministration module not available"
+        }
+    }
+
+    if (-not $sslDisabled) {
+        Print_Warning "Could not disable Force SSL automatically."
+        Print_Text "  -> Uncheck 'Require SSL' manually in IIS Manager > $SiteId > SSL Settings"
+        Print_Text "     or in WizManager > Site settings"
     }
 } catch {
     Print_Warning "Failed to disable Force SSL: $($_.Exception.Message)"
-    Print_Text "  -> Uncheck 'Force SSL' manually in WizManager or IIS Manager"
+    Print_Text "  -> Uncheck 'Require SSL' manually in IIS Manager > $SiteId > SSL Settings"
 }
 
 # Recycle app pool to apply changes

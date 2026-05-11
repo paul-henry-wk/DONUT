@@ -53,6 +53,7 @@ import {
   swizSearchWI, swizLoadMyWI, swizSelectWI,
   swizLoadPackages, swizTogglePkg, swizCreate,
   swizInstallSite, swizBrowseEna, swizInstallNext, swizInstallStepBack, swizInstallBack, swizDoInstall,
+  swizComboFilter, swizComboOpen, swizComboClose, swizComboPick, swizPickTargetBranch,
 } from './config';
 
 import { renderDevops, resetGitCreds, reassignWI, viewPrDiff } from './devops';
@@ -198,6 +199,11 @@ window.swizInstallNext = swizInstallNext;
 window.swizInstallStepBack = swizInstallStepBack;
 window.swizInstallBack = swizInstallBack;
 window.swizDoInstall = swizDoInstall;
+window.swizComboFilter = swizComboFilter;
+window.swizComboOpen = swizComboOpen;
+window.swizComboClose = swizComboClose;
+window.swizComboPick = swizComboPick;
+window.swizPickTargetBranch = swizPickTargetBranch;
 
 window.selectWI = selectWI;
 window.loadWorkItems = loadWorkItems;

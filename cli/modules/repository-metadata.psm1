@@ -11,16 +11,24 @@ function Metadata_WriteSaveToGitConfigFile {
         [Parameter(Mandatory = $true)]
         [string] $RootPath,
         [string []] $Packages = @(),
-        [bool] $IgnoreConfiguration = $false
+        [bool] $IgnoreConfiguration = $false,
+        [string []] $DbGuids = @()
     )
 
     Print_Text "Updating file '$SaveToGitConfigFile'..."
     $LocalSettings = @{
         "PackageToRepositoryMapping" = [ordered]@{
             "Mapping" = if ($IgnoreConfiguration) { @{ "EHS" = [ordered]@{} } } else { [ordered]@{} }
-            "Excluded" = $PackagesMapping.Excluded
+            "Excluded" = [System.Collections.Generic.List[string]]($PackagesMapping.Excluded ?? @())
         }
     }
+
+    # Build set of all known GUIDs (Mapping + Excluded in packages.json)
+    $knownGuids = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($pkg in $PackagesMapping.Mapping.psobject.properties) {
+        foreach ($guid in $pkg.Value.psobject.properties.name) { [void]$knownGuids.Add($guid) }
+    }
+    foreach ($guid in ($PackagesMapping.Excluded ?? @())) { [void]$knownGuids.Add($guid) }
 
     if ($Packages.Count -gt 0) {
         foreach ($Package in $PackagesMapping.Mapping.psobject.properties.name)
@@ -32,11 +40,25 @@ function Metadata_WriteSaveToGitConfigFile {
             } elseif ($Packages -contains $Package) {
                 $LocalSettings['PackageToRepositoryMapping']['Mapping'][$Package] = $PackagesMapping.Mapping.$Package
             } else {
-                $LocalSettings['PackageToRepositoryMapping']['Excluded'] += $PackagesMapping.Mapping.$Package.psobject.properties.name
+                foreach ($guid in $PackagesMapping.Mapping.$Package.psobject.properties.name) {
+                    $LocalSettings['PackageToRepositoryMapping']['Excluded'].Add($guid)
+                }
             }
         }
     } else {
         $LocalSettings['PackageToRepositoryMapping']['Mapping'] = $PackagesMapping.Mapping
+    }
+
+    # Auto-exclude any DB GUIDs not present anywhere in packages.json
+    $autoExcluded = 0
+    foreach ($guid in $DbGuids) {
+        if (-not $knownGuids.Contains($guid)) {
+            $LocalSettings['PackageToRepositoryMapping']['Excluded'].Add($guid)
+            $autoExcluded++
+        }
+    }
+    if ($autoExcluded -gt 0) {
+        Print_Text "  Auto-excluded $autoExcluded unknown package GUID(s) from DB not present in packages.json."
     }
 
     $Json = $LocalSettings | ConvertTo-Json -Depth 10

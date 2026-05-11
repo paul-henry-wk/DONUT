@@ -42,6 +42,7 @@ interface WizState {
   instances: { path: string; name: string; has_wiz_manager: boolean }[];
   installInstancePath: string;
   installSiteName: string;
+  pendingInstall: boolean; // site path set from install sub-flow but not yet physically installed
 }
 
 const STEPS = [
@@ -65,6 +66,7 @@ function defaults(): WizState {
     parentSite: '', version: '', packages: [], availablePackages: [],
     detectedSites: [], envName: '', loading: false,
     installMode: false, installStep: 0, enaPath: '', instances: [], installInstancePath: '', installSiteName: '',
+    pendingInstall: false,
   };
 }
 
@@ -190,15 +192,32 @@ function renderStep0(): string {
         </div>
       </div>
       ${!ws.patValid ? `<div class="swiz-pat-actions">
-        <button class="swiz-action-btn" onclick="swizTestPat()" ${ws.org && ws.pat ? '' : 'disabled'}>${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
+        <button class="swiz-action-btn swiz-pat-test-btn" onclick="swizTestPat()" ${ws.org && ws.pat ? '' : 'disabled'}>${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
         <button class="swiz-action-btn" onclick="openUrl('https://dev.azure.com/${esc(ws.org || '_')}/_usersSettings/tokens')">Create a PAT \u2197</button>
-      </div>` : ''}
+      </div>
+      ${ws.org && ws.pat && !ws.loading ? '<p class="swiz-pat-hint">&#8593; Click <strong>Test connection</strong> to validate \u2014 Next becomes available once the PAT is confirmed.</p>' : ''}` : ''}
     </div>`;
+}
+
+// ── Searchable combo (replaces <select> for large option lists) ──
+function comboSelect(id: string, opts: string[], sel: string, onPick: string, placeholder = 'Type to search...', disabled = false): string {
+  const items = opts.map(o =>
+    `<div class="swiz-combo-item${o === sel ? ' swiz-combo-sel' : ''}" data-val="${esc(o)}" onmousedown="swizComboPick('${id}',this.dataset.val)">${esc(o)}</div>`
+  ).join('');
+  return `<div class="swiz-combo-wrap" id="${id}" data-onpick="${onPick}">
+    <input class="swiz-combo-input" type="text" autocomplete="off"
+      placeholder="${disabled ? esc(placeholder) : esc(sel || placeholder)}"
+      value="${esc(sel)}"
+      ${disabled ? 'disabled' : ''}
+      oninput="swizComboFilter('${id}',this.value)"
+      onfocus="swizComboOpen('${id}')"
+      onblur="swizComboClose('${id}')">
+    <div class="swiz-combo-list" id="${id}-list">${items}</div>
+  </div>`;
 }
 
 // ── Step 1: Project & Repository ──
 function renderStep1(): string {
-  const repoFiltered = ws.repos;
   return `
     <div class="swiz-section">
       <h3>Project & Repository</h3>
@@ -213,10 +232,7 @@ function renderStep1(): string {
         </div>
         <div class="swiz-field">
           <label>Repository${tip('The Package.* repository you will commit changes to')}</label>
-          <select id="sw-repo" onchange="swizSelectRepo(this.value)" ${ws.project ? '' : 'disabled'}>
-            ${ws.project ? '<option value="">— select —</option>' : '<option value="">Select a project first</option>'}
-            ${repoFiltered.map(r => `<option value="${esc(r)}" ${r === ws.repo ? 'selected' : ''}>${esc(r)}</option>`).join('')}
-          </select>
+          ${comboSelect('sw-repo-combo', ws.repos, ws.repo, 'swizSelectRepo', ws.project ? 'Type to search...' : 'Select a project first', !ws.project)}
           ${ws.repos.length ? `<span class="swiz-help">${ws.repos.length} repositories available</span>` : ''}
         </div>
         <div class="swiz-field">
@@ -286,12 +302,16 @@ function renderStep2(): string {
       </div>
       <div class="swiz-section" style="margin-top:12px">
         <h3>Packages</h3>
-        <p class="swiz-hint">Select the packages you'll work on. ${!ws.availablePackages.length && ws.sitePath ? 'Click to load from the site database.' : ''}</p>
-        ${ws.availablePackages.length > 0 ? `
-          <div class="swiz-pkg-grid">
-            ${ws.availablePackages.map(p => `<label class="swiz-pkg ${ws.packages.includes(p) ? 'selected' : ''}" onclick="swizTogglePkg('${esc(p)}')"><span>${esc(p)}</span></label>`).join('')}
-          </div>
-        ` : `<button class="swiz-action-btn" onclick="swizLoadPackages()" ${ws.sitePath ? '' : 'disabled'}>${ws.loading ? 'Loading...' : 'Load packages from DB'}</button>`}
+        ${ws.pendingInstall
+          ? `<p class="swiz-hint">The site will be installed when you click <strong>Create Environment</strong> and confirm the Setup prompt. Packages can be loaded afterwards from the Config tab.</p>
+             <p class="swiz-pkg-pending">&#9432; Site not yet installed — packages unavailable until after Setup runs.</p>`
+          : `<p class="swiz-hint">Select the packages you'll work on. ${!ws.availablePackages.length && ws.sitePath ? 'Click to load from the site database.' : ''}</p>
+             ${ws.availablePackages.length > 0 ? `
+               <div class="swiz-pkg-grid">
+                 ${ws.availablePackages.map(p => `<label class="swiz-pkg ${ws.packages.includes(p) ? 'selected' : ''}" onclick="swizTogglePkg('${esc(p)}')"><span>${esc(p)}</span></label>`).join('')}
+               </div>
+             ` : `<button class="swiz-action-btn" onclick="swizLoadPackages()" ${ws.sitePath ? '' : 'disabled'}>${ws.loading ? 'Loading...' : 'Load packages from DB'}</button>`}`
+        }
       </div>
     </div>`;
 }
@@ -313,10 +333,9 @@ function renderStep3(): string {
         </div>
         <div class="swiz-field">
           <label>Target Branch${tip('The branch your feature will be merged into (e.g. master, main, fix/...)')}</label>
-          <select onchange="swizUpdate('targetBranch', this.value)">
-            ${ws.branches.map(b => `<option value="${esc(b)}" ${b === ws.targetBranch ? 'selected' : ''}>${esc(b)}</option>`).join('')}
-            ${ws.branches.length === 0 ? '<option value="master" selected>master</option>' : ''}
-          </select>
+          ${ws.branches.length > 0
+            ? comboSelect('sw-branch-combo', ws.branches, ws.targetBranch, 'swizPickTargetBranch', 'Type to search branches...')
+            : `<select onchange="swizUpdate('targetBranch', this.value)"><option value="master" selected>master</option></select>`}
         </div>
         <div class="swiz-field">
           <label>Feature Branch${tip('Your working branch where changes are committed. Auto-generated from work item if selected')}</label>
@@ -355,6 +374,7 @@ function renderInstallSubStep(): string {
     let instanceHtml = '';
     if (ws.instances.length > 0) {
       instanceHtml = `<select onchange="swizUpdate('installInstancePath', this.value)">
+        <option value="">\u2014 select an instance \u2014</option>
         ${ws.instances.map(i => `<option value="${esc(i.path)}" ${i.path === ws.installInstancePath ? 'selected' : ''}>${esc(i.name)}${i.has_wiz_manager ? '' : ' (no WizManager)'} \u2014 ${esc(i.path)}</option>`).join('')}
       </select>`;
     } else {
@@ -376,12 +396,12 @@ function renderInstallSubStep(): string {
           </div>
           <div class="swiz-field">
             <label>Target Path</label>
-            <span class="swiz-help" style="font-size:11px; padding-top:10px">${computed ? esc(computed) : 'Select instance and enter site name'}</span>
+            <span class="swiz-help swiz-install-target" style="font-size:11px; padding-top:10px">${computed ? esc(computed) : 'Select instance and enter site name'}</span>
           </div>
         </div>
         <div class="swiz-choices" style="margin-top:12px">
           <button class="swiz-btn secondary" onclick="swizInstallStepBack()">\u2190 Back</button>
-          <button class="swiz-btn primary" onclick="swizDoInstall()" ${computed ? '' : 'disabled'}>Install & Continue</button>
+          <button class="swiz-btn primary swiz-install-btn" onclick="swizDoInstall()" ${computed ? '' : 'disabled'}>Install & Continue</button>
         </div>
       </div>`;
   }
@@ -395,7 +415,7 @@ export function swizInstallSite(): void {
   if (ws.instances.length === 0 && ws.detectedSites.length > 0) {
     // Already have site data, instances might not be stored — re-scan
     invoke<{ path: string; name: string; has_wiz_manager: boolean }[]>('scan_enablon_instances')
-      .then(inst => { ws.instances = inst; if (inst.length > 0 && !ws.installInstancePath) ws.installInstancePath = inst[0].path; refreshWizardParts(); })
+      .then(inst => { ws.instances = inst; refreshWizardParts(); })
       .catch(() => {});
   }
   refreshWizardParts();
@@ -413,7 +433,7 @@ export function swizInstallNext(): void {
   // Scan instances if not done
   if (ws.instances.length === 0) {
     invoke<{ path: string; name: string; has_wiz_manager: boolean }[]>('scan_enablon_instances')
-      .then(inst => { ws.instances = inst; if (inst.length > 0 && !ws.installInstancePath) ws.installInstancePath = inst[0].path; refreshWizardParts(); })
+      .then(inst => { ws.instances = inst; refreshWizardParts(); })
       .catch(() => {});
   }
   refreshWizardParts();
@@ -436,7 +456,7 @@ export async function swizDoInstall(): Promise<void> {
   ws.installMode = false;
   ws.sitePath = sitePath;
   swizUpdateSitePath(sitePath);
-  toast('Site path set to: ' + sitePath + ' — run Install Site script after wizard completes', 'info');
+  ws.pendingInstall = true;
   // Store the ENA path for later use by the install-site script
   (window as any)._pendingEnaPath = ws.enaPath;
   (window as any)._pendingInstallSitePath = sitePath;
@@ -506,6 +526,7 @@ function canAdvance(): boolean {
 
 export function swizNext(): void {
   if (!canAdvance()) return;
+  ws.installMode = false;
   ws.step++;
   // Auto-actions on entering a step
   if (ws.step === 2 && ws.detectedSites.length === 0) swizDetectSites();
@@ -514,14 +535,80 @@ export function swizNext(): void {
 }
 
 export function swizPrev(): void {
-  if (ws.step > 0) { ws.step--; renderWizard(); }
+  if (ws.step > 0) { ws.installMode = false; ws.step--; renderWizard(); }
+}
+
+// ── Combo (searchable select) ──
+
+export function swizComboFilter(id: string, value: string): void {
+  const list = document.getElementById(`${id}-list`);
+  if (!list) return;
+  list.style.display = 'block';
+  const q = value.toLowerCase();
+  Array.from(list.children).forEach(el => {
+    const v = (el as HTMLElement).dataset.val || '';
+    (el as HTMLElement).style.display = v.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+export function swizComboOpen(id: string): void {
+  const wrap = document.getElementById(id);
+  const list = document.getElementById(`${id}-list`);
+  if (!wrap || !list) return;
+  const r = wrap.getBoundingClientRect();
+  Object.assign(list.style, {
+    top: `${r.bottom}px`,
+    left: `${r.left}px`,
+    width: `${r.width}px`,
+    display: 'block',
+  });
+}
+
+export function swizComboClose(id: string): void {
+  setTimeout(() => {
+    const list = document.getElementById(`${id}-list`);
+    if (list) list.style.display = 'none';
+    const wrap = document.getElementById(id);
+    const input = wrap?.querySelector('.swiz-combo-input') as HTMLInputElement | null;
+    const sel = wrap?.querySelector('.swiz-combo-sel') as HTMLElement | null;
+    if (input) input.value = sel?.dataset.val ?? input.value;
+  }, 150);
+}
+
+export function swizComboPick(id: string, value: string): void {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  const onPick = wrap.dataset.onpick;
+  const input = wrap.querySelector('.swiz-combo-input') as HTMLInputElement | null;
+  const list = document.getElementById(`${id}-list`);
+  if (input) input.value = value;
+  if (list) {
+    list.style.display = 'none';
+    Array.from(list.children).forEach(el => {
+      const item = el as HTMLElement;
+      item.classList.toggle('swiz-combo-sel', item.dataset.val === value);
+      item.style.display = '';
+    });
+  }
+  if (onPick) (window as any)[onPick](value);
+}
+
+export function swizPickTargetBranch(value: string): void {
+  swizUpdate('targetBranch', value);
 }
 
 // ── Field updates ──
 
 export function swizUpdate(field: string, value: string): void {
   (ws as any)[field] = value;
-  // Don't re-render the whole wizard on every keystroke — just update button states
+  if (field === 'installInstancePath' || field === 'installSiteName') {
+    const computed = ws.installInstancePath && ws.installSiteName
+      ? `${ws.installInstancePath}\\Sites\\${ws.installSiteName}` : '';
+    const span = wizEl?.querySelector('.swiz-install-target') as HTMLElement | null;
+    if (span) span.textContent = computed || 'Select instance and enter site name';
+    const btn = wizEl?.querySelector('.swiz-install-btn') as HTMLButtonElement | null;
+    if (btn) btn.disabled = !computed;
+  }
   updateButtons();
 }
 
@@ -671,6 +758,7 @@ export async function swizDetectSites(): Promise<void> {
 
 export function swizPickSite(path: string): void {
   ws.sitePath = path;
+  ws.pendingInstall = false;
   swizUpdateSitePath(path);
   renderWizard();
   // Auto-load packages when site changes
@@ -680,7 +768,7 @@ export function swizPickSite(path: string): void {
 export async function swizBrowseSite(): Promise<void> {
   try {
     const path = await invoke<string | null>('browse_folder', { defaultPath: ws.sitePath || 'C:\\' });
-    if (path) { ws.sitePath = path; swizUpdateSitePath(path); renderWizard(); }
+    if (path) { ws.sitePath = path; ws.pendingInstall = false; swizUpdateSitePath(path); renderWizard(); }
   } catch { /* cancelled */ }
 }
 
