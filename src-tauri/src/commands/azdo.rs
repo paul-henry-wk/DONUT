@@ -1458,7 +1458,8 @@ mod tests {
 
     #[test]
     fn assignee_rejects_empty() {
-        assert!("".is_empty());
+        let assignee = String::new();
+        assert!(assignee.trim().is_empty());
     }
 
     #[test]

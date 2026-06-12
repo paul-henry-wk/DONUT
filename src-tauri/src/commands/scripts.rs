@@ -438,7 +438,7 @@ mod tests {
     #[test]
     fn args_include_no_profile_and_bypass() {
         let script_path = "C:\\DONUT\\cli\\scripts\\pull.ps1";
-        let args = vec![
+        let args = [
             "-NoProfile".to_string(), "-ExecutionPolicy".to_string(), "Bypass".to_string(),
             "-File".to_string(), script_path.to_string(),
         ];
