@@ -138,6 +138,7 @@ export const S = {
   pipelineIdx: 0,
   setupRunning: false,
   setupIdx: 0,
+  setupStartIdx: 0,
   setupFocusedStep: null as string | null,
 };
 

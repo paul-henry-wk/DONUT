@@ -219,6 +219,43 @@
 .run-end-msg { margin-left:auto; font-size:11px; color:var(--text-dim); font-style:italic; }
 @keyframes bannerIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 
+/* ── Error card (failed run summary) ── */
+.error-card { margin:8px 0 6px; border:2px solid var(--danger); border-radius:10px; background:var(--diff-del-bg); overflow:hidden; animation:bannerIn .4s ease; box-shadow:0 4px 20px rgba(0,0,0,.12); }
+.error-card .ec-header { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--danger); background:rgba(239,68,68,.08); }
+.error-card .ec-icon { font-size:16px; color:var(--danger); }
+.error-card .ec-title { font-size:12px; font-weight:700; color:var(--danger); text-transform:uppercase; letter-spacing:.04em; }
+.error-card .ec-body { display:flex; flex-direction:column; gap:6px; padding:10px 14px; }
+.error-card .ec-item { font-size:11.5px; line-height:1.5; color:var(--text); white-space:pre-wrap; word-break:break-word; padding-left:14px; position:relative; }
+.error-card .ec-item::before { content:"\2022"; position:absolute; left:0; color:var(--danger); font-weight:700; }
+.error-card .ec-item .url-link { color:var(--accent); text-decoration:underline; }
+.error-card .ec-item .url-link:hover { color:var(--accent-dim); }
+[data-theme="light"] .error-card .ec-header { background:rgba(239,68,68,.06); }
+
+/* Copy diagnostic report button */
+.error-card .ec-copy-btn { margin-left:auto; font-size:10.5px; font-weight:600; color:var(--danger); background:transparent; border:1px solid var(--danger); border-radius:6px; padding:3px 9px; cursor:pointer; transition:background .15s,color .15s; white-space:nowrap; }
+.error-card .ec-copy-btn:hover { background:var(--danger); color:#fff; }
+.error-card .ec-copy-btn.copied { background:var(--success,#22c55e); border-color:var(--success,#22c55e); color:#fff; }
+
+/* Shared section title (Enablon reference / Suggested fixes) */
+.error-card .ec-section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin-bottom:6px; }
+
+/* Enablon reference block (Trace id / Ref) */
+.error-card .ec-ref { padding:10px 14px; border-top:1px solid var(--border); }
+.error-card .ec-ref-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.error-card .ec-ref-label { font-size:10.5px; font-weight:600; color:var(--text-dim); min-width:58px; }
+.error-card .ec-ref-val { font-size:11.5px; color:var(--text); background:var(--bg-2,rgba(127,127,127,.12)); padding:1px 6px; border-radius:4px; user-select:all; word-break:break-all; }
+.error-card .ec-ref-hint { font-size:10.5px; color:var(--text-dim); margin-top:4px; line-height:1.5; }
+
+/* Suggested fixes block */
+.error-card .ec-fixes { padding:10px 14px; border-top:1px solid var(--border); }
+.error-card .ec-hint { margin-bottom:8px; }
+.error-card .ec-hint:last-child { margin-bottom:0; }
+.error-card .ec-hint-title { font-size:11.5px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.error-card .ec-hint-steps { margin:0; padding-left:18px; }
+.error-card .ec-hint-steps li { font-size:11px; line-height:1.55; color:var(--text); margin-bottom:2px; word-break:break-word; }
+.error-card .ec-hint-steps li .url-link { color:var(--accent); text-decoration:underline; }
+.error-card .ec-hint-steps li .url-link:hover { color:var(--accent-dim); }
+
 /* ── Wrap & reltime toggle ── */
 .term-wrap-btn.active, .term-reltime-btn.active { color:var(--accent); border-color:var(--accent-glow); }
 .term-output.nowrap { overflow-x:auto; }

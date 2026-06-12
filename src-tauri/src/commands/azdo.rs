@@ -21,6 +21,55 @@ pub(crate) async fn validate_pat(state: tauri::State<'_, AppState>, token: Strin
     Ok(resp.status().is_success())
 }
 
+#[derive(serde::Serialize)]
+pub(crate) struct PatScopes {
+    pub projects: Vec<String>,
+    /// Whether the PAT has the Code (Read) scope (vso.code) needed to read repo files like version.json.
+    pub code_scope: bool,
+}
+
+/// Validate a PAT and probe whether it has the Code (Read) scope.
+/// Listing Git repositories requires the same `vso.code` scope as reading file contents (e.g. version.json),
+/// so a successful repo listing confirms the PAT can perform the Code operations DONUT needs.
+#[tauri::command]
+pub(crate) async fn validate_pat_scopes(state: tauri::State<'_, AppState>, token: String, organization: Option<String>) -> Result<PatScopes, AppError> {
+    require_fields!("Fill PAT first.", token);
+    let org = extract_org(&organization)?;
+    let auth = azdo_auth(&token);
+
+    // 1. List projects — requires only "Project and Team (Read)". A 401/403 here means the PAT is invalid/expired.
+    let projects_url = format!("https://dev.azure.com/{}/_apis/projects?api-version=7.0&$top=100", org);
+    let json = azdo_get_json(&state.http, &projects_url, &auth).await?;
+    let mut projects: Vec<String> = json["value"].as_array().map(|arr| {
+        arr.iter().filter_map(|v| v["name"].as_str().map(String::from)).collect()
+    }).unwrap_or_default();
+    projects.sort();
+
+    // 2. Probe Code scope by listing repositories of the first project that has any.
+    //    A 401/403 indicates the PAT lacks the Code scope; other errors are treated as "unknown" (assume ok).
+    let mut code_scope = projects.is_empty(); // can't verify without a project → don't warn
+    for proj in &projects {
+        let repos_url = format!("https://dev.azure.com/{}/{}/_apis/git/repositories?api-version=7.0", url_encode(org), url_encode(proj));
+        match state.http.get(&repos_url).header("Authorization", &auth).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.as_u16() == 401 || status.as_u16() == 403 {
+                    code_scope = false;
+                    break;
+                }
+                if status.is_success() {
+                    code_scope = true;
+                    break;
+                }
+                // other status (e.g. 404 for project with no git) → try next project
+            }
+            Err(_) => { code_scope = true; break; } // network hiccup → don't falsely warn
+        }
+    }
+
+    Ok(PatScopes { projects, code_scope })
+}
+
 #[tauri::command]
 pub(crate) async fn list_azdo_projects(state: tauri::State<'_, AppState>, token: String, organization: Option<String>) -> Result<Vec<String>, AppError> {
     require_fields!("Fill PAT first.", token);

@@ -10,6 +10,7 @@ export {
   openSetupWizard, closeSetupWizard,
   swizNext, swizPrev, swizUpdate, swizUpdateSitePath, swizSetVersion,
   swizTestPat, swizSelectProject, swizSelectRepo,
+  swizTestSiteAuth,
   swizDetectSites, swizPickSite, swizBrowseSite,
   swizSearchWI, swizLoadMyWI, swizSelectWI,
   swizLoadPackages, swizTogglePkg, swizCreate,

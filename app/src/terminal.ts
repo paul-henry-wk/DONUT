@@ -27,6 +27,8 @@ import {
   addRunHistory,
   showPRLink as _showPRLinkImpl,
   showScriptCard as _showScriptCardImpl,
+  showErrorCard as _showErrorCardImpl,
+  type ErrorCardContext,
 } from './terminal/controls';
 
 // ── Re-exports from sub-modules ──
@@ -64,6 +66,10 @@ export function showPRLink(): void {
 
 export function showScriptCard(): void {
   _showScriptCardImpl(termScrollToBottom);
+}
+
+export function showErrorCard(ctx: ErrorCardContext = {}): void {
+  _showErrorCardImpl(termScrollToBottom, ctx);
 }
 
 export function startPatienceMessages(): void {

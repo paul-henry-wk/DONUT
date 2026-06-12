@@ -8,7 +8,7 @@ import {
   appendLog, closeDiffBlock, setIndicator, showStopBtn, hideRerunBtn,
   startSpinner, stopSpinner, startRunTimer, stopRunTimer,
   startPatienceMessages, stopPatienceMessages, startProgress, stopProgress,
-  expandTerminal, showPRLink, showScriptCard, showRerunBtn, addRunHistory,
+  expandTerminal, showPRLink, showScriptCard, showErrorCard, showRerunBtn, addRunHistory,
   setTermFontSize, navigateErrors, resetTerminalState, setEstimate,
 } from './terminal';
 import { renderScripts, renderRunBar, renderSelectedInfo, doRun, selectScript, onPipelineRunEnd, onSetupRunEnd, restoreSetupAfterSingleStep } from './scripts';
@@ -558,7 +558,7 @@ export function setupEventListeners(): void {
         S._pendingInstallSitePath = null;
       }
       // Show re-run button on failure
-      if (!ok) { showRerunBtn(); S._pendingInstallSitePath = null; }
+      if (!ok) { showErrorCard({ script: scriptName, env: S.currentEnv, code: msg.code, duration }); showRerunBtn(); S._pendingInstallSitePath = null; }
       // Refresh instance list after WizManager actions
       if (msg.script?.startsWith('instance:')) { onInstanceActionEnd(); }
       renderRunBar();

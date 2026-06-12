@@ -313,6 +313,256 @@ export function showScriptCard(termScrollToBottom: () => void): void {
   termScrollToBottom();
 }
 
+// ── Error classification (pattern → cause + suggested fixes) ──
+// Matched against the full terminal output of the failed run, so a hint can fire
+// even when the trigger phrase lives on an info line rather than an error line.
+interface FixHint {
+  test: RegExp;
+  title: string;
+  steps: string[];
+}
+
+const FIX_HINTS: FixHint[] = [
+  {
+    test: /update these products\/packages|Product\s+"[^"]+"\s*-\s*Version|version dependenc/i,
+    title: 'Missing product versions',
+    steps: [
+      'Some packages require other products to be at a newer version first.',
+      'Update the listed products from the Pick & Choose page, then run the operation again.',
+    ],
+  },
+  {
+    test: /JSON Authentication|unauthorized|authentication failed|access denied|not allowed|\b401\b|force ssl/i,
+    title: 'Authentication rejected',
+    steps: [
+      'Run the "Setup Auth" command (or full Setup) so the site password matches Config \u2192 local.password.',
+      'Check local.user / local.password in the Config tab.',
+      'In WizManager, make sure "Force SSL" is unchecked for this site.',
+    ],
+  },
+  {
+    test: /An error has occurred|contact the system administrator|internal Enablon error/i,
+    title: 'Internal Enablon error',
+    steps: [
+      'Recycle the site app pool (iisreset) and retry \u2014 these errors are often transient.',
+      'Check Config \u2192 local.parent_site points to a valid, reachable parent site.',
+      'Use the Trace id / Ref shown above to find the exact error in the Enablon logs.',
+    ],
+  },
+  {
+    test: /parent site|WsdlLocation|invalid value for parameter/i,
+    title: 'Parent site configuration',
+    steps: [
+      'Check Config \u2192 local.parent_site points to a valid parent site.',
+      'Open the parent site URL in a browser to confirm it responds.',
+    ],
+  },
+  {
+    test: /unreachable|Unable to connect|No connection|connection was refused/i,
+    title: 'Site unreachable',
+    steps: [
+      'Confirm IIS is running (iisreset /start) and the site/app pool are started.',
+      'Check the site exists in IIS Manager.',
+      'If a remote host is involved, confirm your VPN is connected.',
+    ],
+  },
+  {
+    test: /Artifactory|nuget feed token|git4inno/i,
+    title: 'git4inno / Artifactory token',
+    steps: [
+      'The Artifactory NuGet feed token is likely expired.',
+      'Update it as described in the "Getting Started" section of the README.',
+    ],
+  },
+  {
+    test: /PAT (is )?expired|token.*expired|expired.*token/i,
+    title: 'Azure DevOps PAT expired',
+    steps: [
+      'Update your Personal Access Token in Config \u2192 azdo.token.',
+      'Make sure the PAT has Code (read/write) scope.',
+    ],
+  },
+];
+
+// Turn http(s) URLs inside a plain string into clickable links (same delegation as terminal).
+function linkifyText(text: string): string {
+  return esc(text).replace(/(https?:\/\/[^\s)]+)/g, (m) => `<a href="#" class="url-link" data-url="${m}">${m}</a>`);
+}
+
+export interface ErrorCardContext {
+  script?: string;
+  env?: string;
+  code?: number;
+  duration?: string;
+}
+
+let _lastErrorCardCtx: ErrorCardContext = {};
+
+// ── Error card (shown at the end of a failed run to surface error messages prominently) ──
+export function showErrorCard(termScrollToBottom: () => void, ctx: ErrorCardContext = {}): void {
+  const out = document.getElementById('termOutput');
+  if (!out) return;
+  // Don't render twice for the same run.
+  if (out.querySelector('.error-card')) return;
+  _lastErrorCardCtx = ctx;
+
+  // Collect the content of each error line, preserving any url/file links (which are
+  // handled via document-level click delegation, so they stay clickable inside the card).
+  const errLines = Array.from(out.querySelectorAll('.line.err'));
+  const items: string[] = [];
+  const seen = new Set<string>();
+  for (const el of errLines) {
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelector('.t')?.remove();          // drop the timestamp span
+    clone.querySelector('.section-dur')?.remove();
+    const html = clone.innerHTML.trim();
+    const plain = (clone.textContent || '').trim();
+    if (!plain) continue;
+    if (seen.has(plain)) continue;                // de-duplicate identical lines
+    seen.add(plain);
+    items.push(html);
+  }
+  if (!items.length) return;
+
+  // Full output is used for classification + trace-id extraction.
+  const fullText = Array.from(out.querySelectorAll('.line'))
+    .map(el => (el as HTMLElement).textContent || '')
+    .join('\n');
+
+  // ── Trace id / Ref extraction (Enablon error identifiers) ──
+  const refMatch = fullText.match(/\(\s*Ref:\s*([^)]+?)\s*\)/i);
+  const traceMatch = fullText.match(/\(\s*Trace id:\s*([^)]+?)\s*\)/i);
+  let refBlock = '';
+  if (refMatch || traceMatch) {
+    const rows: string[] = [];
+    if (traceMatch) rows.push(`<div class="ec-ref-row"><span class="ec-ref-label">Trace id</span><code class="ec-ref-val">${esc(traceMatch[1])}</code></div>`);
+    if (refMatch) rows.push(`<div class="ec-ref-row"><span class="ec-ref-label">Ref</span><code class="ec-ref-val">${esc(refMatch[1])}</code></div>`);
+    refBlock =
+      `<div class="ec-ref">` +
+      `<div class="ec-section-title">Enablon reference</div>` +
+      rows.join('') +
+      `<div class="ec-ref-hint">Search these identifiers in the Enablon application logs to locate the server-side stack trace.</div>` +
+      `</div>`;
+  }
+
+  // ── Suggested fixes (classification) ──
+  const matched = FIX_HINTS.filter(h => h.test.test(fullText));
+  let hintsBlock = '';
+  if (matched.length) {
+    // For the version-dependency hint, append the Pick & Choose link if we know the site id.
+    const siteId = (S.envConfig?.local?.site_path || '').split(/[\\/]/).filter(Boolean).pop();
+    const hintHtml = matched.map(h => {
+      const steps = h.steps.slice();
+      if (/Missing product versions/.test(h.title) && siteId) {
+        steps.push(`Pick & Choose: http://localhost/${siteId}/go.aspx?v=/dlv/PickAndChoose`);
+      }
+      return `<div class="ec-hint">` +
+        `<div class="ec-hint-title">${esc(h.title)}</div>` +
+        `<ul class="ec-hint-steps">` +
+        steps.map(s => `<li>${linkifyText(s)}</li>`).join('') +
+        `</ul></div>`;
+    }).join('');
+    hintsBlock =
+      `<div class="ec-fixes">` +
+      `<div class="ec-section-title">Suggested fixes</div>` +
+      hintHtml +
+      `</div>`;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'error-card';
+  card.innerHTML =
+    `<div class="ec-header"><span class="ec-icon">\u26A0</span>` +
+    `<span class="ec-title">${items.length > 1 ? `${items.length} errors` : 'Error'}</span>` +
+    `<button class="ec-copy-btn" title="Copy a diagnostic report to the clipboard">Copy diagnostic report</button></div>` +
+    `<div class="ec-body">` +
+    items.map(i => `<div class="ec-item">${i}</div>`).join('') +
+    `</div>` +
+    refBlock +
+    hintsBlock;
+
+  // Wire the copy button (event listener — no global needed).
+  const copyBtn = card.querySelector('.ec-copy-btn') as HTMLButtonElement | null;
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const report = buildDiagnosticReport(_lastErrorCardCtx);
+      navigator.clipboard.writeText(report).then(() => {
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = 'Copied \u2713';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyBtn.textContent = orig; copyBtn.classList.remove('copied'); }, 1800);
+      });
+    });
+  }
+
+  out.appendChild(card);
+  termScrollToBottom();
+}
+
+// Assemble a structured, copy-pasteable diagnostic report for a failed run.
+function buildDiagnosticReport(ctx: ErrorCardContext): string {
+  const out = document.getElementById('termOutput');
+  const fullText = out
+    ? Array.from(out.querySelectorAll('.line')).map(el => (el as HTMLElement).textContent || '')
+    : [];
+
+  const version = document.getElementById('termVer')?.textContent?.trim()
+    || document.getElementById('ver')?.textContent?.trim()
+    || 'unknown';
+  const cfg = S.envConfig || {};
+
+  const L: string[] = [];
+  L.push('=== DONUT diagnostic report ===');
+  L.push(`Generated: ${new Date().toISOString()}`);
+  L.push(`DONUT: ${version}`);
+  L.push('');
+  L.push(`Script: ${ctx.script || S.lastRunResult?.script || S.selectedScript || 'unknown'}`);
+  L.push(`Environment: ${ctx.env || S.currentEnv || 'none'}`);
+  L.push(`Exit code: ${ctx.code !== undefined ? ctx.code : 'unknown'}`);
+  L.push(`Duration: ${ctx.duration || S.lastRunResult?.duration || 'unknown'}`);
+  L.push('');
+  L.push(`Feature branch: ${cfg.feature_branch || 'none'}`);
+  L.push(`Target branch: ${cfg.target_branch || 'none'}`);
+  L.push(`Repository: ${cfg.azdo?.repository || 'none'}`);
+  L.push(`Site path: ${cfg.local?.site_path || 'none'}`);
+  L.push(`Parent site: ${cfg.local?.parent_site || 'none'}`);
+  L.push(`Packages: ${(cfg.packages || []).join(', ') || 'none'}`);
+
+  // Enablon error identifiers, if present.
+  const joined = fullText.join('\n');
+  const refMatch = joined.match(/\(\s*Ref:\s*([^)]+?)\s*\)/i);
+  const traceMatch = joined.match(/\(\s*Trace id:\s*([^)]+?)\s*\)/i);
+  if (refMatch || traceMatch) {
+    L.push('');
+    L.push('--- Enablon reference ---');
+    if (traceMatch) L.push(`Trace id: ${traceMatch[1]}`);
+    if (refMatch) L.push(`Ref: ${refMatch[1]}`);
+  }
+
+  // Error lines.
+  const errLines = out
+    ? Array.from(out.querySelectorAll('.line.err'))
+        .map(el => { const c = el.cloneNode(true) as HTMLElement; c.querySelector('.t')?.remove(); return (c.textContent || '').trim(); })
+        .filter(Boolean)
+    : [];
+  if (errLines.length) {
+    L.push('');
+    L.push('--- Errors ---');
+    Array.from(new Set(errLines)).forEach(e => L.push(e));
+  }
+
+  // Last 40 lines of terminal output for context.
+  const tail = fullText.map(t => t.trim()).filter(Boolean).slice(-40);
+  if (tail.length) {
+    L.push('');
+    L.push('--- Last terminal output ---');
+    tail.forEach(t => L.push(t));
+  }
+
+  return L.join('\n');
+}
+
+
 // ── Patience messages (during long operations) ──
 const PATIENCE_MSGS = [
   'Still baking... the dough needs time to rise',

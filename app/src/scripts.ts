@@ -669,8 +669,18 @@ export async function doRun(): Promise<void> {
         return;
       }
     } catch { /* check failed, let the script handle it */ }
+    // If a site is already installed, skip the install-site step (start at auth)
+    if (!S.setupStartIdx) {
+      const sitePath = S.envConfig.local?.site_path || '';
+      if (sitePath) {
+        let installed = false;
+        try { installed = await invoke<boolean>('path_exists', { path: sitePath }); } catch { /* ignore */ }
+        if (installed) S.setupStartIdx = 1;
+      }
+    }
     S.setupRunning = true;
-    S.setupIdx = 0;
+    S.setupIdx = S.setupStartIdx || 0;
+    S.setupStartIdx = 0;
     renderRunBar();
     runNextSetupStep();
     return;

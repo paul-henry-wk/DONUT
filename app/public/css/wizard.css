@@ -43,6 +43,8 @@
 .swiz-field input:disabled, .swiz-field select:disabled { opacity:.45; cursor:not-allowed; }
 .swiz-help { font-size:10px; color:var(--text-dim); }
 .swiz-ok { font-size:10.5px; color:var(--success); font-weight:600; }
+.swiz-warn { display:block; margin-top:4px; font-size:10.5px; color:var(--warning, #d98a00); font-weight:600; }
+.swiz-test-row { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
 
 /* Input row (input + button) */
 .swiz-input-row { display:flex; gap:0; }

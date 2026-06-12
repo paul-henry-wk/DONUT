@@ -70,6 +70,11 @@ pub(crate) fn read_text_file(path: String) -> Result<String, AppError> {
 }
 
 #[tauri::command]
+pub(crate) fn path_exists(path: String) -> bool {
+    !path.is_empty() && std::path::Path::new(&path).exists()
+}
+
+#[tauri::command]
 pub(crate) async fn export_file(default_name: String, content: String) -> Result<Option<String>, AppError> {
     tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
@@ -635,23 +640,37 @@ pub(crate) async fn apply_update(
     }
     let _ = std::fs::remove_file(&zip_path);
 
-    // If zip had a single top-level folder, use its contents
+    // Name of the running executable (used to locate the new portable layout and to
+    // wait for the process to exit in the updater script).
+    let exe_name = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "DONUT.exe".into());
+
+    // Locate the folder that holds the new app files. The release zip ships a
+    // top-level `DONUT/` folder (portable layout: DONUT.exe + cli/ + templates/)
+    // *next to* a standalone NSIS installer, so the old "single top-level folder"
+    // heuristic failed and we ended up copying the wrong tree. Prefer the
+    // subdirectory that actually contains the executable.
     let content_dir = {
         let entries: Vec<_> = std::fs::read_dir(&update_dir)?
             .filter_map(|e| e.ok())
             .collect();
-        if entries.len() == 1 && entries[0].path().is_dir() {
+        let with_exe = entries.iter().find(|e| {
+            let p = e.path();
+            p.is_dir()
+                && (p.join(&exe_name).exists()
+                    || p.join("DONUT.exe").exists()
+                    || p.join("donut.exe").exists())
+        });
+        if let Some(dir) = with_exe {
+            dir.path()
+        } else if entries.len() == 1 && entries[0].path().is_dir() {
             entries[0].path()
         } else {
             update_dir.clone()
         }
     };
-
-    // Build a batch script that waits for the app to exit, then replaces files
-    let exe_name = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-        .unwrap_or_else(|| "DONUT.exe".into());
 
     let root_str = root.to_string_lossy().replace('/', "\\");
     let content_str = content_dir.to_string_lossy().replace('/', "\\");
@@ -659,6 +678,7 @@ pub(crate) async fn apply_update(
     let log_path = root.join("_update.log");
     let log_str = log_path.to_string_lossy().replace('/', "\\");
 
+    // Build a batch script that waits for the app to exit, then replaces files
     let bat = format!(
         concat!(
             "@echo off\r\n",

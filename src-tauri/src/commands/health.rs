@@ -1,4 +1,5 @@
 use crate::helpers::hidden_cmd;
+use crate::AppState;
 
 #[derive(serde::Serialize)]
 pub(crate) struct HealthStatus { iis: bool, sql: bool, site: bool, vpn: bool, iis_detail: String, sql_detail: String, site_detail: String, vpn_detail: String }
@@ -75,6 +76,57 @@ pub(crate) async fn quick_health(site_path: String, site_id: String, db_user: St
     let (vpn_ok, vpn_d) = vpn_r.unwrap_or((false, "error".into()));
 
     HealthStatus { iis: iis_ok, sql: sql_ok, site: site_ok, vpn: vpn_ok, iis_detail: iis_d, sql_detail: sql_d, site_detail: site_d, vpn_detail: vpn_d }
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct SiteAuthResult { pub ok: bool, pub detail: String }
+
+/// Test Enablon site admin credentials by performing the same authenticated API call the
+/// PowerShell scripts use (CallLocalAPI → sGetVersion, new-session path). Lets users verify
+/// `local.user` / `local.password` against an existing site before running Setup.
+#[tauri::command]
+pub(crate) async fn test_site_auth(state: tauri::State<'_, AppState>, site_id: String, user: String, password: String) -> Result<SiteAuthResult, crate::error::AppError> {
+    if site_id.is_empty() || user.is_empty() {
+        return Ok(SiteAuthResult { ok: false, detail: "Site path and user are required.".into() });
+    }
+    let url = format!("http://localhost/{}/?v=/dlv/PickAndChoose&fct=sGetVersion", site_id);
+    let body = serde_json::json!({
+        "fct_name": "sGetVersion",
+        "params": { "nVersionType": 1, "sObjectTag": "Autodelivery", "nObjectType": 20 },
+        "authentication": { "userid": user, "password": password, "siteid": site_id }
+    });
+    let resp = state.http.post(&url)
+        .header("Content-Type", "application/json; charset=utf-8")
+        .timeout(std::time::Duration::from_secs(8))
+        .json(&body)
+        .send().await;
+    match resp {
+        Err(e) => {
+            if e.is_connect() || e.is_timeout() {
+                Ok(SiteAuthResult { ok: false, detail: format!("Site unreachable at http://localhost/{} — is IIS running and the site started?", site_id) })
+            } else {
+                Ok(SiteAuthResult { ok: false, detail: format!("Request failed: {}", e) })
+            }
+        }
+        Ok(r) => {
+            let status = r.status();
+            let text = r.text().await.unwrap_or_default();
+            // Enablon replies HTTP 200 with JSON { status, error }; status == "OK" means success.
+            let json: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::Value::Null);
+            let enablon_status = json["status"].as_str().unwrap_or("");
+            let error_msg = json["error"].as_str().unwrap_or("");
+            if enablon_status.eq_ignore_ascii_case("OK") {
+                Ok(SiteAuthResult { ok: true, detail: "Credentials accepted.".into() })
+            } else if error_msg.to_lowercase().contains("authentication") || status.as_u16() == 401 {
+                Ok(SiteAuthResult { ok: false, detail: "Authentication failed — wrong password, or 'Force SSL' is enabled in WizManager. For an existing site, run Setup Auth to align credentials.".into() })
+            } else if !error_msg.is_empty() || status.is_success() {
+                // Auth passed but the function errored for another reason → credentials are valid.
+                Ok(SiteAuthResult { ok: true, detail: "Credentials accepted (site reachable).".into() })
+            } else {
+                Ok(SiteAuthResult { ok: false, detail: format!("Unexpected response (HTTP {}).", status.as_u16()) })
+            }
+        }
+    }
 }
 
 // ── Testable helper functions (extracted from async blocks for unit testing) ──

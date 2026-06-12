@@ -1,6 +1,12 @@
 # Runtime state
 /.bin
 
+# Self-update artifacts
+_update.log
+_update.zip
+_update.bat
+/_update/
+
 # User environment configs (contain credentials)
 /working-environments/.env.json
 /working-environments/.env-*.json

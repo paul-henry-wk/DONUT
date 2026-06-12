@@ -12,6 +12,7 @@ interface WizState {
   org: string;
   pat: string;
   patValid: boolean;
+  codeScopeOk: boolean; // PAT has Code (Read) scope
   projects: string[];
   project: string;
   repos: string[];
@@ -35,6 +36,8 @@ interface WizState {
   detectedSites: { path: string; name: string; instance: string }[];
   envName: string;
   loading: boolean;
+  siteAuthStatus: 'idle' | 'testing' | 'ok' | 'fail';
+  siteAuthDetail: string;
   // Install sub-flow
   installMode: boolean;
   installStep: number; // 0=select ENA, 1=select instance+name
@@ -58,13 +61,13 @@ let wizEl: HTMLElement | null = null;
 
 function defaults(): WizState {
   return {
-    step: 0, org: '', pat: '', patValid: false,
+    step: 0, org: '', pat: '', patValid: false, codeScopeOk: true,
     projects: [], project: '', repos: [], repo: '', repoMeta: 'Test.Package.Metadata.GitObjectDB',
     branches: [], featureBranch: '', targetBranch: 'master',
     workitemId: '', workitemTitle: '',
     sitePath: '', siteUser: 'adminci', sitePassword: 'enablon', devPassword: '', dbUser: 'sa', dbPassword: 'enablon',
     parentSite: '', version: '', packages: [], availablePackages: [],
-    detectedSites: [], envName: '', loading: false,
+    detectedSites: [], envName: '', loading: false, siteAuthStatus: 'idle', siteAuthDetail: '',
     installMode: false, installStep: 0, enaPath: '', instances: [], installInstancePath: '', installSiteName: '',
     pendingInstall: false,
   };
@@ -186,13 +189,13 @@ function renderStep0(): string {
             <button type="button" class="swiz-eye-btn" onclick="const i=document.getElementById('sw-pat');i.type=i.type==='password'?'text':'password'" title="Show/hide">\uD83D\uDC41</button>
           </div>
           ${ws.patValid
-            ? `<span class="swiz-ok">\u2713 PAT valid — ${ws.projects.length} projects loaded</span>`
+            ? `<span class="swiz-ok">\u2713 PAT valid — ${ws.projects.length} projects loaded</span>${ws.codeScopeOk ? '' : '<span class="swiz-warn">\u26A0 Missing Code (Read) scope — regenerate the PAT with Code (Read &amp; Write) + Work Items (Read &amp; Write), otherwise Pull/Commit/version checks will fail.</span>'}`
             : ''
           }
         </div>
       </div>
       ${!ws.patValid ? `<div class="swiz-pat-actions">
-        <button class="swiz-action-btn swiz-pat-test-btn" onclick="swizTestPat()" ${ws.org && ws.pat ? '' : 'disabled'}>${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
+        <button class="swiz-action-btn swiz-pat-test-btn" onclick="swizTestPat()">${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
         <button class="swiz-action-btn" onclick="openUrl('https://dev.azure.com/${esc(ws.org || '_')}/_usersSettings/tokens')">Create a PAT \u2197</button>
       </div>
       ${ws.org && ws.pat && !ws.loading ? '<p class="swiz-pat-hint">&#8593; Click <strong>Test connection</strong> to validate \u2014 Next becomes available once the PAT is confirmed.</p>' : ''}` : ''}
@@ -300,6 +303,12 @@ function renderStep2(): string {
         <div class="swiz-field"><label>DB User${tip('SQL Server login (default: sa)')}</label><input autocomplete="off"type="text" value="${esc(ws.dbUser)}" oninput="swizUpdate('dbUser', this.value)"></div>
         ${pwdField('DB Password', ws.dbPassword, 'dbPassword', '', 'SQL Server password for DB user (default: enablon)')}
       </div>
+      ${ws.pendingInstall ? '' : `
+      <div class="swiz-test-row">
+        <button class="swiz-action-btn" onclick="swizTestSiteAuth()" ${ws.sitePath && ws.siteUser ? '' : 'disabled'}>${ws.siteAuthStatus === 'testing' ? 'Testing...' : 'Test site connection'}</button>
+        ${ws.siteAuthStatus === 'ok' ? `<span class="swiz-ok">\u2713 ${esc(ws.siteAuthDetail)}</span>` : ''}
+        ${ws.siteAuthStatus === 'fail' ? `<span class="swiz-warn">\u26A0 ${esc(ws.siteAuthDetail)}</span>` : ''}
+      </div>`}
       <div class="swiz-section" style="margin-top:12px">
         <h3>Packages</h3>
         ${ws.pendingInstall
@@ -663,21 +672,57 @@ export function swizSetVersion(v: string): void {
 // ── Azure DevOps actions ──
 
 export async function swizTestPat(): Promise<void> {
+  // Read DOM values in case oninput didn't fire (autofill / password managers)
+  const orgEl = document.getElementById('sw-org') as HTMLInputElement | null;
+  const patEl = document.getElementById('sw-pat') as HTMLInputElement | null;
+  if (orgEl && orgEl.value) ws.org = orgEl.value;
+  if (patEl && patEl.value) ws.pat = patEl.value;
   if (!ws.org || !ws.pat) return;
   ws.loading = true;
   renderWizard();
   try {
-    const projects = await azdoInvoke<string[]>('list_azdo_projects', { token: ws.pat, org: ws.org });
-    ws.projects = projects;
+    const res = await azdoInvoke<{ projects: string[]; code_scope: boolean }>('validate_pat_scopes', { token: ws.pat, organization: ws.org });
+    ws.projects = res.projects;
+    ws.codeScopeOk = res.code_scope;
     ws.patValid = true;
     ws.loading = false;
     // Auto-select if only one project
-    if (projects.length === 1) ws.project = projects[0];
-    toast(`\u2705 PAT valid — ${projects.length} projects loaded`, 'success');
+    if (res.projects.length === 1) ws.project = res.projects[0];
+    if (!res.code_scope) {
+      toast('\u26A0 PAT valid but missing Code (Read) scope — pulls, commits and version checks will fail. Regenerate with Code (Read & Write).', 'error');
+    } else {
+      toast(`\u2705 PAT valid — ${res.projects.length} projects loaded`, 'success');
+    }
   } catch (e) {
     ws.patValid = false;
+    ws.codeScopeOk = true;
     ws.loading = false;
     toast('\u274C PAT failed: ' + e, 'error');
+  }
+  renderWizard();
+}
+
+// ── Local site actions ──
+
+/** Verify site admin credentials against the running IIS site (same call the PS scripts use). */
+export async function swizTestSiteAuth(): Promise<void> {
+  if (!ws.sitePath || !ws.siteUser) return;
+  // site_id is the leaf of the site path (e.g. C:\inetpub\...\WizRisk.10.13 → WizRisk.10.13)
+  const siteId = ws.sitePath.split(/[\\/]/).filter(Boolean).pop() || ws.sitePath;
+  ws.siteAuthStatus = 'testing';
+  ws.siteAuthDetail = '';
+  renderWizard();
+  try {
+    const res = await invoke<{ ok: boolean; detail: string }>('test_site_auth', {
+      siteId, user: ws.siteUser, password: ws.sitePassword,
+    });
+    ws.siteAuthStatus = res.ok ? 'ok' : 'fail';
+    ws.siteAuthDetail = res.detail;
+    toast((res.ok ? '\u2705 ' : '\u26A0 ') + res.detail, res.ok ? 'success' : 'error');
+  } catch (e) {
+    ws.siteAuthStatus = 'fail';
+    ws.siteAuthDetail = String(e);
+    toast('\u274C Site test failed: ' + e, 'error');
   }
   renderWizard();
 }
@@ -688,7 +733,7 @@ export async function swizSelectProject(value: string): Promise<void> {
   ws.repo = '';
   if (!value) { renderWizard(); return; }
   try {
-    ws.repos = await azdoInvoke<string[]>('list_azdo_repos', { token: ws.pat, project: value, org: ws.org });
+    ws.repos = await azdoInvoke<string[]>('list_azdo_repos', { token: ws.pat, project: value, organization: ws.org });
     // Auto-select if only one Package.* repo
     const pkgRepos = ws.repos.filter(r => r.startsWith('Package.'));
     if (pkgRepos.length === 1) ws.repo = pkgRepos[0];
@@ -722,7 +767,7 @@ function sortBranches(branches: string[]): string[] {
 async function swizLoadBranches(): Promise<void> {
   if (!ws.repo) return;
   try {
-    const raw = await azdoInvoke<string[]>('list_azdo_branches', { token: ws.pat, project: ws.project, repo: ws.repo, org: ws.org });
+    const raw = await azdoInvoke<string[]>('list_azdo_branches', { token: ws.pat, project: ws.project, repository: ws.repo, organization: ws.org });
     ws.branches = sortBranches(raw);
     // Auto-select target branch
     if (ws.branches.includes('master')) ws.targetBranch = 'master';
@@ -790,7 +835,7 @@ async function _doSearchWI(query: string): Promise<void> {
   const el = document.getElementById('sw-wi-results');
   if (!el || query.length < 2) { if (el) el.style.display = 'none'; return; }
   try {
-    const items = await azdoInvoke<any[]>('search_work_items', { token: ws.pat, project: ws.project, org: ws.org, query });
+    const items = await azdoInvoke<any[]>('search_work_items', { token: ws.pat, project: ws.project, organization: ws.org, query });
     if (items.length === 0) { el.style.display = 'none'; return; }
     el.style.display = 'block';
     el.innerHTML = items.slice(0, 8).map((wi: any) =>
@@ -801,7 +846,7 @@ async function _doSearchWI(query: string): Promise<void> {
 
 export async function swizLoadMyWI(): Promise<void> {
   try {
-    const items = await azdoInvoke<any[]>('search_work_items', { token: ws.pat, project: ws.project, org: ws.org, query: '@me' });
+    const items = await azdoInvoke<any[]>('search_work_items', { token: ws.pat, project: ws.project, organization: ws.org, query: '@me' });
     const el = document.getElementById('sw-wi-results');
     if (!el || items.length === 0) return;
     el.style.display = 'block';
@@ -856,6 +901,7 @@ export function swizTogglePkg(pkg: string): void {
 export async function swizCreate(): Promise<void> {
   const siteId = ws.sitePath.replace(/\\/g, '/').split('/').pop() || '';
   const name = ws.envName || siteId || 'new';
+  const isInstall = ws.pendingInstall;
 
   try {
     await invoke('create_env', { name });
@@ -906,7 +952,9 @@ export async function swizCreate(): Promise<void> {
     // Propose to launch Setup
     const run = await (window as any).showModal({
       title: 'Run Setup?',
-      message: `Your environment <strong>${esc(name)}</strong> is configured.<br><br>Do you want to install the site, configure authentication, and set packages now?`,
+      message: isInstall
+        ? `Your environment <strong>${esc(name)}</strong> is configured.<br><br>Do you want to install the site, configure authentication, and set packages now?`
+        : `Your environment <strong>${esc(name)}</strong> is configured.<br><br>Do you want to configure authentication and set packages now?`,
       html: true,
       confirmLabel: 'Run Setup',
       cancelLabel: 'Later',
@@ -916,6 +964,8 @@ export async function swizCreate(): Promise<void> {
       const scriptsBtn = document.querySelector('.tab[onclick*="scripts"]') as HTMLElement;
       if (scriptsBtn) (window as any).showTab('scripts', scriptsBtn);
       (window as any).selectScript('setup');
+      // Existing site selected → skip the install-site step (step 0)
+      S.setupStartIdx = isInstall ? 0 : 1;
       setTimeout(() => (window as any).doRun(), 300);
     } else {
       toast('You can run Setup later from the Scripts tab', 'info');

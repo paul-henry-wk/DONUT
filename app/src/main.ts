@@ -49,6 +49,7 @@ import {
   openSetupWizard, closeSetupWizard,
   swizNext, swizPrev, swizUpdate, swizUpdateSitePath, swizSetVersion,
   swizTestPat, swizSelectProject, swizSelectRepo,
+  swizTestSiteAuth,
   swizDetectSites, swizPickSite, swizBrowseSite,
   swizSearchWI, swizLoadMyWI, swizSelectWI,
   swizLoadPackages, swizTogglePkg, swizCreate,
@@ -182,6 +183,7 @@ window.swizUpdate = swizUpdate;
 window.swizUpdateSitePath = swizUpdateSitePath;
 window.swizSetVersion = swizSetVersion;
 window.swizTestPat = swizTestPat;
+window.swizTestSiteAuth = swizTestSiteAuth;
 window.swizSelectProject = swizSelectProject;
 window.swizSelectRepo = swizSelectRepo;
 window.swizDetectSites = swizDetectSites;
