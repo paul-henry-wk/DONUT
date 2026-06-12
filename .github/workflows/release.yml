@@ -14,8 +14,6 @@ jobs:
     runs-on: windows-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: sccache
       CARGO_INCREMENTAL: "0"
 
     steps:
@@ -58,9 +56,6 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2

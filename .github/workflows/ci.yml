@@ -40,10 +40,7 @@ jobs:
   rust:
     runs-on: windows-latest
     env:
-      # sccache caches compilation of the project's own crates (rust-cache only
-      # covers dependencies); disable incremental compilation as it hurts CI caching.
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: sccache
+      # Incremental compilation hurts CI caching (large, low-reuse artifacts).
       CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +48,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-
-      - uses: mozilla-actions/sccache-action@v0.0.6
 
       - uses: Swatinem/rust-cache@v2
         with:
