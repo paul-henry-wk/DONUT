@@ -6,20 +6,27 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same ref so new pushes don't queue behind stale ones.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ── TypeScript type check ──
+  # ── TypeScript type check & frontend tests (Linux: faster + cheaper) ──
   typescript:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
         working-directory: app
-        run: npm install
+        run: npm ci
 
       - name: Type check
         working-directory: app
@@ -29,15 +36,23 @@ jobs:
         working-directory: app
         run: npm test
 
-  # ── Rust lint & test ──
+  # ── Rust lint & test (Windows: code targets Windows APIs) ──
   rust:
     runs-on: windows-latest
+    env:
+      # sccache caches compilation of the project's own crates (rust-cache only
+      # covers dependencies); disable incremental compilation as it hurts CI caching.
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
+      - uses: mozilla-actions/sccache-action@v0.0.6
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -49,26 +64,22 @@ jobs:
 
       - name: Clippy
         working-directory: src-tauri
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Tests
         working-directory: src-tauri
         run: cargo test
 
-  # ── Dependency audit ──
+  # ── Dependency audit (Linux: only reads lockfiles, no project build) ──
   audit:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
+      # Prebuilt cargo-audit binary (no source compilation).
+      - uses: taiki-e/install-action@v2
         with:
-          workspaces: src-tauri
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+          tool: cargo-audit
 
       - name: Cargo audit
         working-directory: src-tauri
@@ -77,10 +88,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install npm dependencies
         working-directory: app
-        run: npm install
+        run: npm ci
 
       - name: npm audit
         working-directory: app
