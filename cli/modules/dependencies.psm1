@@ -187,6 +187,22 @@ function RecycleAppPool {
     $result = & iisreset /restart 2>&1
     if ($LASTEXITCODE -eq 0) {
         Print_Text "IIS restarted via iisreset"
+
+        # iisreset /restart can leave IIS STOPPED if the start phase fails or
+        # times out. Verify W3SVC is actually running and start it explicitly
+        # otherwise — restarting the pool alone won't bring the web service back.
+        $w3svc = Get-Service 'W3SVC' -ErrorAction SilentlyContinue
+        if ($w3svc -and $w3svc.Status -ne 'Running') {
+            Print_Warning "IIS web service (W3SVC) is not running after restart (status: $($w3svc.Status)) — starting it..."
+            try {
+                $was = Get-Service 'WAS' -ErrorAction SilentlyContinue
+                if ($was -and $was.Status -ne 'Running') { Start-Service 'WAS' -ErrorAction Stop }
+                Start-Service 'W3SVC' -ErrorAction Stop
+                Print_Text "W3SVC started — IIS is back online."
+            } catch {
+                Print_Warning "Could not start W3SVC: $($_.Exception.Message). Run 'iisreset /start' as administrator."
+            }
+        }
         return $true
     }
 

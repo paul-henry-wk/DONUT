@@ -303,7 +303,7 @@ function showPackagePicker(packages: string[]): Promise<string[] | null> {
     (window as any)._pkgPickFilter = (v: string) => { currentFilter = v; render(); };
     (window as any)._pkgPickAll = () => { packages.filter(p => !currentFilter || p.toLowerCase().includes(currentFilter.toLowerCase())).forEach(p => selected.add(p)); render(); };
     (window as any)._pkgPickNone = () => { packages.filter(p => !currentFilter || p.toLowerCase().includes(currentFilter.toLowerCase())).forEach(p => selected.delete(p)); render(); };
-    (window as any)._pkgPickToggle = (_el: HTMLElement, pkg: string) => { selected.has(pkg) ? selected.delete(pkg) : selected.add(pkg); updateCount(); };
+    (window as any)._pkgPickToggle = (el: HTMLElement, pkg: string) => { if (selected.has(pkg)) { selected.delete(pkg); el.classList.remove('selected'); } else { selected.add(pkg); el.classList.add('selected'); } updateCount(); };
     (window as any)._pkgPickCancel = () => { overlay.remove(); cleanup(); resolve(null); };
     (window as any)._pkgPickConfirm = () => { overlay.remove(); cleanup(); resolve(Array.from(selected)); };
 

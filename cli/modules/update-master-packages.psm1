@@ -227,6 +227,32 @@ function RegenerateMetadata {
                     Print_Text "IIS AppPools restarted via elevation."
                 }
             }
+
+            # iisreset /restart can leave IIS STOPPED if the start phase fails or
+            # times out (slow app pool). Restarting app pools does NOT bring the
+            # W3SVC web service back up, so the site stays unreachable
+            # (ERR_CONNECTION_REFUSED). Verify the services are actually running
+            # and start them explicitly if needed.
+            $was   = Get-Service 'WAS'   -ErrorAction SilentlyContinue
+            $w3svc = Get-Service 'W3SVC' -ErrorAction SilentlyContinue
+            if ($w3svc -and $w3svc.Status -ne 'Running') {
+                Print_Warning "IIS web service (W3SVC) is not running after restart (status: $($w3svc.Status)) — starting it..."
+                try {
+                    if ($was -and $was.Status -ne 'Running') { Start-Service 'WAS' -ErrorAction Stop }
+                    Start-Service 'W3SVC' -ErrorAction Stop
+                    Print_Text "W3SVC started — IIS is back online."
+                } catch {
+                    Print_Warning "Could not start W3SVC directly: $($_.Exception.Message). Trying elevated 'iisreset /start'..."
+                    $startProc = Start-Process 'iisreset.exe' -Verb RunAs -ArgumentList '/start' -PassThru -WindowStyle Hidden
+                    $startProc.WaitForExit(30000) | Out-Null
+                    $w3svc = Get-Service 'W3SVC' -ErrorAction SilentlyContinue
+                    if (-not $w3svc -or $w3svc.Status -ne 'Running') {
+                        Print_Warning "IIS is still stopped. Run 'iisreset /start' as administrator to bring the site back online."
+                    } else {
+                        Print_Text "W3SVC started via elevation — IIS is back online."
+                    }
+                }
+            }
         } catch {
             Print_Warning "IIS restart failed: $($_.Exception.Message)"
             Print_Text "You may need to restart IIS manually (run 'iisreset' as administrator)"
