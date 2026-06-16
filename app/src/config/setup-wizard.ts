@@ -195,8 +195,8 @@ function renderStep0(): string {
         </div>
       </div>
       ${!ws.patValid ? `<div class="swiz-pat-actions">
-        <button class="swiz-action-btn swiz-pat-test-btn" onclick="swizTestPat()">${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
-        <button class="swiz-action-btn" onclick="openUrl('https://dev.azure.com/${esc(ws.org || '_')}/_usersSettings/tokens')">Create a PAT \u2197</button>
+        <button class="swiz-action-btn swiz-pat-test-btn" ${!ws.pat ? 'disabled' : ''} onclick="swizTestPat()">${ws.loading ? 'Connecting...' : '\u2192 Test connection'}</button>
+        <button class="swiz-action-btn" onclick="openUrl('https://dev.azure.com/' + (encodeURIComponent((document.getElementById('sw-org')||{}).value||'') || '_') + '/_usersSettings/tokens')">Create a PAT \u2197</button>
       </div>
       ${ws.org && ws.pat && !ws.loading ? '<p class="swiz-pat-hint">&#8593; Click <strong>Test connection</strong> to validate \u2014 Next becomes available once the PAT is confirmed.</p>' : ''}` : ''}
     </div>`;
@@ -624,6 +624,8 @@ export function swizUpdate(field: string, value: string): void {
 function updateButtons(): void {
   const nextBtn = wizEl?.querySelector('.swiz-footer-right .primary') as HTMLButtonElement | null;
   if (nextBtn) nextBtn.disabled = !canAdvance();
+  const testBtn = wizEl?.querySelector('.swiz-pat-test-btn') as HTMLButtonElement | null;
+  if (testBtn) testBtn.disabled = !ws.pat;
 }
 
 export function swizUpdateSitePath(value: string): void {

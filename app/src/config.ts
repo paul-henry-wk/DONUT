@@ -252,11 +252,11 @@ export function renderConfig(): void {
     ${wizStep(2, 'Azure DevOps — Connection', true, okToken, okToken ? `${S.cachedProjects.length} projects` : '', `
       <div class="cfg-fields">
         ${field('c-org','organization',c.azdo?.organization||'','full','text','Azure DevOps organization name — appears in the URL: dev.azure.com/{organization}')}
-        ${field('c-pat','personal access token (PAT)',token,'full','password','Personal Access Token — create one at Azure DevOps > User Settings > Personal Access Tokens. Required scopes: Code (Read & Write), Work Items (Read & Write)')}
+        ${field('c-pat','personal access token (PAT)',token,'full','password','Personal Access Token — create one at Azure DevOps > User Settings > Personal Access Tokens. Required scopes: Code (Read & Write), Work Items (Read & Write)',"var b=document.getElementById('wizTestPatBtn');if(b)b.disabled=!this.value.trim()")}
       </div>
       <div class="cfg-btn-row">
-        <button class="cfg-action-btn" onclick="wizValidatePat()">${CFG_ICO.check} test PAT & load projects</button>
-        <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (getOrg() || '_') + '/_usersSettings/tokens')">${CFG_ICO.link} create a PAT</button>
+        <button id="wizTestPatBtn" class="cfg-action-btn" ${!token ? 'disabled' : ''} onclick="wizValidatePat()">${CFG_ICO.check} test PAT & load projects</button>
+        <button class="cfg-action-btn" onclick="openUrl('https://dev.azure.com/' + (encodeURIComponent(document.getElementById('c-org').value.trim()) || '_') + '/_usersSettings/tokens')">${CFG_ICO.link} create a PAT</button>
         <span id="credBadgePat" class="cred-badge" style="display:none"></span>
       </div>
     `)}

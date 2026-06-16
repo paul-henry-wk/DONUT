@@ -253,12 +253,12 @@ export function validateEnvForScript(scriptId: string): string[] | null {
 
 
 // ── Package picker (shown during Setup when packages not yet configured) ──
-function showPackagePicker(packages: string[]): Promise<string[] | null> {
+function showPackagePicker(packages: string[], preselected: string[] = []): Promise<string[] | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     let currentFilter = '';
-    let selected = new Set<string>();
+    let selected = new Set<string>(preselected.filter(p => packages.includes(p)));
 
     const updateCount = () => {
       const el = overlay.querySelector('#pkg-pick-count') as HTMLElement | null;
@@ -643,6 +643,19 @@ export async function runSingleSetupStep(stepId: string): Promise<void> {
     return;
   }
 
+  // set-master-packages: always show the picker (pre-selected with the current config)
+  // so the user can confirm / add / remove packages before applying them.
+  if (stepId === 'set-master-packages') {
+    const picked = await pickMasterPackages();
+    if (picked === null) {
+      // User skipped/cancelled → abort, restore Setup view
+      S.selectedScript = 'setup';
+      renderRunBar();
+      renderScripts();
+      return;
+    }
+  }
+
   const missing = validateEnvForScript(stepId);
   if (missing) { toast(`Missing: ${missing.join(', ')}`, 'error'); S.selectedScript = 'setup'; return; }
 
@@ -651,6 +664,36 @@ export async function runSingleSetupStep(stepId: string): Promise<void> {
   try {
     await invoke('run_script', { script: stepId, envFile: S.currentEnv, message: null });
   } catch(e) { appendLog('Failed to start: ' + e, 'err'); S.selectedScript = 'setup'; }
+}
+
+// Load packages from the site DB and let the user pick which are open for dev.
+// Pre-selects the packages currently saved in the env config and persists the
+// new selection. Returns the picked list, or null if the user skipped/cancelled.
+async function pickMasterPackages(): Promise<string[] | null> {
+  const sitePath = S.envConfig.local?.site_path || '';
+  const dbPwd = S.envConfig.local?.db_password || 'enablon';
+  appendLog('Loading packages from DB...', 'dim');
+  let available: string[] = [];
+  try {
+    available = await invoke<string[]>('list_sql_packages', { sitePath, password: dbPwd });
+  } catch (e) {
+    appendLog('Could not load packages from DB: ' + e, 'warn');
+  }
+  const current = S.envConfig.packages || [];
+  // Build the choice list: DB packages if available, otherwise fall back to the
+  // currently configured ones so the user can still review/deselect them.
+  const merged = Array.from(new Set([...available, ...current])).sort((a, b) => a.localeCompare(b));
+  if (merged.length === 0) {
+    appendLog('No packages available to choose from.', 'warn');
+    toast('No packages found in the site DB', 'warn');
+    return null;
+  }
+  const picked = await showPackagePicker(merged, current);
+  if (picked === null) { appendLog('Package selection skipped.', 'warn'); return null; }
+  S.envConfig.packages = picked;
+  try { await invoke('save_env', { name: S.currentEnv, config: S.envConfig }); } catch { /* best effort */ }
+  appendLog(`${picked.length} packages selected.`, 'dim');
+  return picked;
 }
 
 export async function doRun(): Promise<void> {
@@ -669,12 +712,17 @@ export async function doRun(): Promise<void> {
         return;
       }
     } catch { /* check failed, let the script handle it */ }
-    // If a site is already installed, skip the install-site step (start at auth)
+    // If a site is already installed, skip the install-site step (start at auth).
+    // A real deployed site has a web.config — a bare/leftover folder must NOT count
+    // as installed, otherwise install-site is skipped and auth/packages fail.
     if (!S.setupStartIdx) {
       const sitePath = S.envConfig.local?.site_path || '';
       if (sitePath) {
         let installed = false;
-        try { installed = await invoke<boolean>('path_exists', { path: sitePath }); } catch { /* ignore */ }
+        try {
+          const sep = sitePath.includes('/') && !sitePath.includes('\\') ? '/' : '\\';
+          installed = await invoke<boolean>('path_exists', { path: `${sitePath}${sep}web.config` });
+        } catch { /* ignore */ }
         if (installed) S.setupStartIdx = 1;
       }
     }
@@ -683,6 +731,14 @@ export async function doRun(): Promise<void> {
     S.setupStartIdx = 0;
     renderRunBar();
     runNextSetupStep();
+    return;
+  }
+
+  // ── Independent setup sub-steps (Setup Auth / Set Packages) ──
+  // Run them standalone through the guided single-step runner so Set Packages
+  // still shows the package picker and both keep their admin checks.
+  if (S.selectedScript === 'setup-local-auth' || S.selectedScript === 'set-master-packages') {
+    runSingleSetupStep(S.selectedScript);
     return;
   }
 

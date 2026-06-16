@@ -38,6 +38,8 @@ export const SETUP_STEPS: ScriptDef[] = [
 export const SCRIPT_GROUPS: ScriptGroup[] = [
   { label: 'Setup', scripts: [
     { id: 'setup', num: '00', name: 'Setup', desc: 'install site, configure auth & select packages', requires: [], admin: true },
+    { id: 'setup-local-auth',    num: '51', name: 'Setup Auth',    desc: 'configure admin credentials & restart IIS', requires: ['site_path'], admin: true },
+    { id: 'set-master-packages', num: '52', name: 'Set Packages',  desc: 'select which packages are open for dev', requires: ['site_path'] },
   ]},
   { label: 'Synchronize', scripts: [
     { id: 'pull-force',          num: '03', name: 'Pull Force',          desc: 'full download: reset site & apply all commits', danger: true, requires: ['site_path', 'feature_branch', 'repository'] },
@@ -59,7 +61,12 @@ export const SCRIPT_GROUPS: ScriptGroup[] = [
   ]},
 ];
 
-export const SCRIPTS: ScriptDef[] = [...SCRIPT_GROUPS.flatMap(g => g.scripts), ...SETUP_STEPS];
+export const SCRIPTS: ScriptDef[] = (() => {
+  const groupScripts = SCRIPT_GROUPS.flatMap(g => g.scripts);
+  const ids = new Set(groupScripts.map(s => s.id));
+  // SETUP_STEPS drive the composite sequence; only append the ones not already shown as cards (install-site)
+  return [...groupScripts, ...SETUP_STEPS.filter(s => !ids.has(s.id))];
+})();
 
 // ── Workflow tracking (state machine) ──
 export const WF_ICO: Record<string, string> = {

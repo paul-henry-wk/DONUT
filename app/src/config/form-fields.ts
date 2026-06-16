@@ -46,10 +46,11 @@ function tip(tooltip?: string): string {
 }
 
 // ── Form field helpers ──
-export function field(id: string, label: string, value: string, cls?: string, type?: string, tooltip?: string): string {
+export function field(id: string, label: string, value: string, cls?: string, type?: string, tooltip?: string, oninput?: string): string {
   const isPassword = type === 'password';
   const eye = isPassword ? `<button class="cfg-action-btn" onclick="togglePwd('${id}')" title="Show/hide" type="button">${CFG_ICO.eye}</button>` : '';
-  return `<div class="cfg-field ${cls||''}"><label>${label}${tip(tooltip)}</label><div class="cfg-input-row"><input id="${id}" type="${type||'text'}" value="${esc(value||'')}" autocomplete="off" onblur="autoSave()">${eye}</div></div>`;
+  const oninputAttr = oninput ? ` oninput="${oninput}"` : '';
+  return `<div class="cfg-field ${cls||''}"><label>${label}${tip(tooltip)}</label><div class="cfg-input-row"><input id="${id}" type="${type||'text'}" value="${esc(value||'')}" autocomplete="off"${oninputAttr} onblur="autoSave()">${eye}</div></div>`;
 }
 
 export function fieldVersion(id: string, label: string, value: string, tooltip?: string): string {
