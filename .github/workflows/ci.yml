@@ -92,7 +92,11 @@ jobs:
 
       - name: npm audit
         working-directory: app
-        run: npm audit --audit-level=high
+        # Only production dependencies ship in the app. All npm packages here
+        # (vite, vitest, typescript, @tauri-apps/cli…) are dev/build tooling and
+        # never reach the released Rust/Tauri binary, so dev-only advisories must
+        # not gate the build. --omit=dev audits the production tree only.
+        run: npm audit --audit-level=high --omit=dev
 
   # ── PowerShell Pester tests ──
   pester:
