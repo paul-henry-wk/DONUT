@@ -129,12 +129,18 @@ function CheckDependencies {
             }
         }
     } catch {
-        if ($_.Exception.Message -match "not allowed|unauthorized|access|Cannot convert") {
-            Print_Warning "Auto Delivery check skipped: $($_.Exception.Message)"
-            Print_Text "This usually means the site is not accessible or credentials are wrong"
-        } else {
+        # The Auto Delivery check is best-effort and must stay non-blocking. Callers
+        # like set-master-packages do their real work against SQL (DB credentials) and
+        # never need the site's web API here, so ANY failure to read or update the ADE
+        # version — auth failure, site unreachable, SSL, parent-site or internal Enablon
+        # errors, generic API errors, or version-string parse issues — must only warn.
+        # The single genuinely blocking case is a confirmed ADE version mismatch we
+        # could not fix; that explicit error is re-thrown so it still surfaces.
+        if ($_.Exception.Message -match "Auto Delivery package needs to be updated") {
             throw
         }
+        Print_Warning "Auto Delivery check skipped: $($_.Exception.Message)"
+        Print_Text "This usually means the site is not accessible or its credentials are wrong"
     }
 }
 

@@ -30,15 +30,18 @@ Print_Title "Checking Prerequisites"
 CheckLocalSiteExists -LocalSite $_c.local.site_path
 Print_Status "Site path exists"
 
-# Check Azure DevOps connectivity
+# Check Azure DevOps connectivity (informational only).
+# Set Master Packages works entirely against the LOCAL SQL database and IIS; it
+# never pulls from Azure DevOps. Connectivity is only used by the optional remote
+# version/git4inno checks in CheckDependencies, which are themselves non-blocking.
+# So a missing VPN must not stop this script — just warn.
 if ($_c.azdo.base_uri -match "https?://([^/]+)") {
     $remoteHost = $Matches[1]
     Print_Text "Checking connectivity to $remoteHost..."
     try {
         $null = [System.Net.Dns]::GetHostAddresses($remoteHost)
     } catch {
-        Print_Error "Cannot reach $remoteHost - is your VPN connected?"
-        throw "Network error: cannot resolve $remoteHost. Connect your VPN and try again."
+        Print_Warning "Cannot reach $remoteHost (VPN disconnected?) - skipping remote version checks and continuing with local SQL/IIS work."
     }
 }
 
